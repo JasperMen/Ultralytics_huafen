@@ -1,46 +1,45 @@
-""" TanH Scheduler
+"""TanH Scheduler.
 
 TanH schedule with warmup, cycle/restarts, noise.
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
+
+from __future__ import annotations
+
 import logging
 import math
-import numpy as np
+
 import torch
-from typing import List, Tuple, Union
 
 from .scheduler import Scheduler
-
 
 _logger = logging.getLogger(__name__)
 
 
 class TanhLRScheduler(Scheduler):
-    """
-    Hyberbolic-Tangent decay with restarts.
-    This is described in the paper https://arxiv.org/abs/1806.01593
+    """Hyberbolic-Tangent decay with restarts. This is described in the paper https://arxiv.org/abs/1806.01593.
     """
 
     def __init__(
-            self,
-            optimizer: torch.optim.Optimizer,
-            t_initial: int,
-            lb: float = -7.,
-            ub: float = 3.,
-            lr_min: float = 0.,
-            cycle_mul: float = 1.,
-            cycle_decay: float = 1.,
-            cycle_limit: int = 1,
-            warmup_t: int = 0,
-            warmup_lr_init: float = 0.,
-            warmup_prefix: bool = False,
-            t_in_epochs: bool = True,
-            noise_range_t: Union[List[int], Tuple[int, int], int, None] = None,
-            noise_pct: float = 0.67,
-            noise_std: float = 1.0,
-            noise_seed: int = 42,
-            initialize: bool = True,
+        self,
+        optimizer: torch.optim.Optimizer,
+        t_initial: int,
+        lb: float = -7.0,
+        ub: float = 3.0,
+        lr_min: float = 0.0,
+        cycle_mul: float = 1.0,
+        cycle_decay: float = 1.0,
+        cycle_limit: int = 1,
+        warmup_t: int = 0,
+        warmup_lr_init: float = 0.0,
+        warmup_prefix: bool = False,
+        t_in_epochs: bool = True,
+        noise_range_t: list[int] | tuple[int, int] | int | None = None,
+        noise_pct: float = 0.67,
+        noise_std: float = 1.0,
+        noise_seed: int = 42,
+        initialize: bool = True,
     ) -> None:
         super().__init__(
             optimizer,
@@ -76,7 +75,7 @@ class TanhLRScheduler(Scheduler):
         else:
             self.warmup_steps = [1 for _ in self.base_values]
 
-    def _get_lr(self, t: int) -> List[float]:
+    def _get_lr(self, t: int) -> list[float]:
         if t < self.warmup_t:
             lrs = [self.warmup_lr_init + t * s for s in self.warmup_steps]
         else:
@@ -85,20 +84,20 @@ class TanhLRScheduler(Scheduler):
 
             if self.cycle_mul != 1:
                 i = math.floor(math.log(1 - t / self.t_initial * (1 - self.cycle_mul), self.cycle_mul))
-                t_i = self.cycle_mul ** i * self.t_initial
-                t_curr = t - (1 - self.cycle_mul ** i) / (1 - self.cycle_mul) * self.t_initial
+                t_i = self.cycle_mul**i * self.t_initial
+                t_curr = t - (1 - self.cycle_mul**i) / (1 - self.cycle_mul) * self.t_initial
             else:
                 i = t // self.t_initial
                 t_i = self.t_initial
                 t_curr = t - (self.t_initial * i)
 
             if i < self.cycle_limit:
-                gamma = self.cycle_decay ** i
+                gamma = self.cycle_decay**i
                 lr_max_values = [v * gamma for v in self.base_values]
 
                 tr = t_curr / t_i
                 lrs = [
-                    self.lr_min + 0.5 * (lr_max - self.lr_min) * (1 - math.tanh(self.lb * (1. - tr) + self.ub * tr))
+                    self.lr_min + 0.5 * (lr_max - self.lr_min) * (1 - math.tanh(self.lb * (1.0 - tr) + self.ub * tr))
                     for lr_max in lr_max_values
                 ]
             else:
@@ -110,5 +109,5 @@ class TanhLRScheduler(Scheduler):
         if self.cycle_mul == 1.0:
             t = self.t_initial * cycles
         else:
-            t = int(math.floor(-self.t_initial * (self.cycle_mul ** cycles - 1) / (1 - self.cycle_mul)))
+            t = math.floor(-self.t_initial * (self.cycle_mul**cycles - 1) / (1 - self.cycle_mul))
         return t + self.warmup_t if self.warmup_prefix else t

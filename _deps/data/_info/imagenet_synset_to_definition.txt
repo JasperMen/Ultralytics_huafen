@@ -304,7 +304,7 @@ n01387065	any of the unicellular protists
 n01389507	any of diverse minute acellular or unicellular organisms usually nonphotosynthetic
 n01390123	protozoa that move and capture food by forming pseudopods
 n01390763	protozoa with spherical bodies and stiff radiating pseudopods
-n01392275	any ameba of the genus Endamoeba
+n01392275	any amoebae of the genus Endamoeba
 n01392380	naked freshwater or marine or parasitic protozoa that form temporary pseudopods for feeding and locomotion
 n01393486	marine protozoan having a rounded shell with spiny processes
 n01394040	any of various rhizopods of the order Testacea characterized by having a shell
@@ -662,7 +662,7 @@ n01563746	small birds resembling warblers but having some of the habits of titmi
 n01563945	European kinglet with a black-bordered yellow crown patch
 n01564101	American golden-crested kinglet
 n01564217	American kinglet with a notable song and in the male a red crown patch
-n01564394	small active brownish or greyish Old World birds
+n01564394	small active brownish or grayish Old World birds
 n01564773	small brownish-grey warbler with a black crown
 n01564914	greyish-brown Old World warbler with a white throat and underparts
 n01565078	Old World warbler similar to the greater whitethroat but smaller
@@ -1096,7 +1096,7 @@ n01698782	small alligator of the Yangtze valley of China having unwebbed digits
 n01699040	a semiaquatic reptile of Central and South America that resembles an alligator but has a more heavily armored belly
 n01699254	caiman with bony ridges about the eyes; found from southern Mexico to Argentina
 n01699675	large fish-eating Indian crocodilian with a long slender snout
-n01701551	dinosaurs having bony armour
+n01701551	dinosaurs having bony armor
 n01701859	herbivorous ornithischian dinosaur with a row of bony plates along its back and a spiked tail probably used as a weapon
 n01702256	having the back covered with thick bony plates; thought to have walked with a sprawling gait resembling a lizard's
 n01702479	heavily armored and highly spiked dinosaur with semi-upright posture
@@ -1408,7 +1408,7 @@ n01812866	wild pigeon of western North America; often mistaken for the now extin
 n01813088	Eurasian pigeon with white patches on wings and neck
 n01813385	any of several Old World wild doves
 n01813532	the common European wild dove noted for its plaintive cooing
-n01813658	greyish Old World turtledove with a black band around the neck; often caged
+n01813658	grayish Old World turtledove with a black band around the neck; often caged
 n01813948	small Australian dove
 n01814217	wild dove of the United States having a mournful call
 n01814370	domesticated pigeon raised for sport or food
@@ -2154,7 +2154,7 @@ n02079389	any of several seals lacking external ear flaps and having a stiff hai
 n02079851	small spotted seal of coastal waters of the northern hemisphere
 n02080146	common Arctic seal; the young are all white
 n02080415	either of two large northern Atlantic earless seals having snouts like trunks
-n02080713	medium-sized greyish to yellow seal with bristles each side of muzzle; of the Arctic Ocean
+n02080713	medium-sized grayish to yellow seal with bristles each side of muzzle; of the Arctic Ocean
 n02081060	medium-sized blackish-grey seal with large inflatable sac on the head; of Arctic and northern Atlantic waters
 n02081571	either of two large northern marine mammals having ivory tusks and tough hide over thick blubber
 n02081798	a walrus of northern Atlantic and Arctic waters
@@ -2217,7 +2217,7 @@ n02091635	hardy British hound having long pendulous ears and a thick coarse shag
 n02091831	old breed of tall swift keen-eyed hunting dogs resembling greyhounds; from Egypt and southwestern Asia
 n02092002	very large and tall rough-coated dog bred for hunting deer; known as the royal dog of Scotland
 n02092173	a large heavy hound formerly used in hunting stags and other large game; similar to but larger than a foxhound
-n02092339	large breed of hound having a smooth greyish coat; originated in Germany
+n02092339	large breed of hound having a smooth grayish coat; originated in Germany
 n02092468	any of several usually small short-bodied breeds originally trained to hunt animals living underground
 n02093056	a powerful short-haired terrier originated in England by crossing the bulldog with terriers
 n02093256	English breed of strong stocky dog having a broad skull and smooth coat
@@ -2241,10 +2241,10 @@ n02095727	wire-haired terrier resembling Airedales but smaller; developed in Wal
 n02095889	a wire-haired terrier with short legs that was first bred in Sealyham
 n02096051	breed of large wiry-coated terrier bred in Yorkshire
 n02096177	small rough-haired breed of terrier from Scotland
-n02096294	small greyish wire-haired breed of terrier from Australia similar to the cairn
+n02096294	small grayish wire-haired breed of terrier from Australia similar to the cairn
 n02096437	a breed of small terrier with long wiry coat and drooping ears
 n02096585	small pug-faced American terrier breed having a smooth brindle or black coat with white markings
-n02096756	old German breed of sturdy black or greyish wire-haired terriers having a blunt muzzle ranging in size from fairly small to very large; used as ratters and guard dogs or police dogs
+n02096756	old German breed of sturdy black or grayish wire-haired terriers having a blunt muzzle ranging in size from fairly small to very large; used as ratters and guard dogs or police dogs
 n02097047	a small schnauzer
 n02097130	a large schnauzer
 n02097209	a medium-sized schnauzer
@@ -2342,7 +2342,7 @@ n02111626	any of various stocky heavy-coated breeds of dogs native to northern r
 n02111889	Siberian breed of white or cream-colored dog of the spitz family
 n02112018	breed of very small compact long-haired dogs of the spitz type
 n02112137	breed of medium-sized dogs with a thick coat and fluffy curled tails and distinctive blue-black tongues; believed to have originated in northern China
-n02112350	a spitz-like dog having a shaggy greyish coat and tightly curled tail originating in Holland
+n02112350	a spitz-like dog having a shaggy grayish coat and tightly curled tail originating in Holland
 n02112497	breed of various very small compact wiry-coated dogs of Belgian origin having a short bearded muzzle
 n02112706	a variety of Brussels griffon having a short smooth coat
 n02112826	either of two Welsh breeds of long-bodied short-legged dogs with erect ears and a fox-like head
@@ -2480,7 +2480,7 @@ n02140858	a variety of fruit eating bat
 n02141306	typically having large ears and feeding primarily on insects; worldwide in distribution
 n02141611	a carnivorous bat with ears like a mouse
 n02141713	bat having a leaflike flap at the end of the nose; especially of the families Phyllostomatidae and Rhinolophidae and Hipposideridae
-n02142407	large-eared greyish bat of southern California and northwestern Mexico
+n02142407	large-eared grayish bat of southern California and northwestern Mexico
 n02142734	New World bat with a pointed nose leaf; found from southern United States to Paraguay
 n02142898	a variety of leaf-nosed bat
 n02143142	small-eared Mexican bat with a long slender nose
@@ -2578,7 +2578,7 @@ n02177506	aquatic beetle that circles rapidly on the water surface
 n02177775	bores through wood making a ticking sound popularly thought to presage death
 n02177972	any of several families of mostly small beetles that feed on plants and plant products; especially snout beetles and seed beetles
 n02178411	small weevil having a prolonged snout; destructive to e.g. grains and nuts
-n02178717	greyish weevil that lays its eggs in cotton bolls destroying the cotton
+n02178717	grayish weevil that lays its eggs in cotton bolls destroying the cotton
 n02179012	beetle that produces a secretion that blisters the skin
 n02179192	any of various beetles that exude an oily substance from the leg joints that deters enemies
 n02179340	green beetle of southern Europe
@@ -2665,7 +2665,7 @@ n02207805	sterile bee specialized to collect food and maintain the hive
 n02208280	social bee often domesticated for the honey it produces
 n02208498	a strain of bees that originated in Brazil in the 1950s as a cross between an aggressive African bee and a honeybee; retains most of the traits of the African bee; now spread as far north as Texas
 n02208848	dark-colored ill-tempered honeybee supposedly of German origin
-n02208979	greyish highly productive European honeybee that has a quiet disposition
+n02208979	grayish highly productive European honeybee that has a quiet disposition
 n02209111	yellowish honeybee resembling the Carniolan bee in its habits
 n02209354	large solitary bee that lays eggs in tunnels bored into wood or plant stems
 n02209624	robust hairy social bee of temperate regions
@@ -3027,7 +3027,7 @@ n02324431	the long ears of a rabbit
 n02324514	castrated male rabbit
 n02324587	(usually informal) especially a young rabbit
 n02324850	common greyish-brown burrowing animal native to southern Europe and northern Africa but introduced elsewhere; widely domesticated and developed in various colors and for various needs; young are born naked and helpless
-n02325366	common small rabbit of North America having greyish or brownish fur and a tail with a white underside; a host for Ixodes pacificus and Ixodes scapularis (Lyme disease ticks)
+n02325366	common small rabbit of North America having grayish or brownish fur and a tail with a white underside; a host for Ixodes pacificus and Ixodes scapularis (Lyme disease ticks)
 n02325722	widely distributed in United States except northwest and far west regions
 n02325884	a wood rabbit of southeastern United States swamps and lowlands
 n02326074	a wood rabbit of marshy coastal areas from North Carolina to Florida
@@ -3064,13 +3064,13 @@ n02334728	leaping rodent of Australian desert areas
 n02335127	any of various amphibious rats
 n02335231	amphibious rat of Australia and New Guinea
 n02336011	a variety of rodent
-n02336275	any of several small greyish New World mice inhabiting e.g. grain fields
+n02336275	any of several small grayish New World mice inhabiting e.g. grain fields
 n02336641	any of various New World woodland mice
 n02336826	American woodland mouse with white feet and underparts
 n02337001	brownish New World mouse; most widely distributed member of the genus
 n02337171	burrowing mouse of desert areas of southwestern United States
 n02337332	large dark mouse of southeastern United States
-n02337598	very small dark greyish brown mouse resembling a house mouse; of Texas and Mexico
+n02337598	very small dark grayish brown mouse resembling a house mouse; of Texas and Mexico
 n02337902	insectivorous mouse of western North America
 n02338145	beaver-like aquatic rodent of North America with dark glossy brown fur
 n02338449	of Florida wetlands
@@ -3131,7 +3131,7 @@ n02353861	burrowing rodent of the family Geomyidae having large external cheek p
 n02354162	gopher of chiefly grasslands of central North America
 n02354320	gopher of Alabama and Georgia and Florida
 n02354621	of valleys and mountain meadows of western United States
-n02354781	greyish to brown gopher of western and central United States
+n02354781	grayish to brown gopher of western and central United States
 n02355227	a kind of arboreal rodent having a long bushy tail
 n02355477	any typical arboreal squirrel
 n02356381	common medium-large squirrel of eastern North America; now introduced into England
@@ -3339,7 +3339,7 @@ n02403920	motherless calf in a range herd of cattle
 n02404028	an unbranded range animal (especially a stray calf); belongs to the first person who puts a brand on it
 n02404186	cattle that are reared for their meat
 n02404432	long-horned beef cattle formerly common in southwestern United States
-n02404573	any of several breeds of Indian cattle; especially a large American heat and tick resistant greyish humped breed evolved in the Gulf States by interbreeding Indian cattle and now used chiefly for crossbreeding
+n02404573	any of several breeds of Indian cattle; especially a large American heat and tick resistant grayish humped breed evolved in the Gulf States by interbreeding Indian cattle and now used chiefly for crossbreeding
 n02404906	domesticated ox having a humped back and long horns and a large dewlap; used chiefly as a draft animal in India and east Asia
 n02405101	large recently extinct long-horned European wild ox; considered one of the ancestors of domestic cattle
 n02405302	large long-haired wild ox of Tibet often domesticated
@@ -3622,7 +3622,7 @@ n02485688	common savannah monkey with greenish-grey back and yellow tail
 n02485988	large agile arboreal monkey with long limbs and tail and white upper eyelids
 n02486261	reddish long-tailed monkey of west Africa
 n02486410	large terrestrial monkeys having doglike muzzles
-n02486657	greyish baboon of southern and eastern Africa
+n02486657	grayish baboon of southern and eastern Africa
 n02486908	baboon of west Africa with a bright red and blue muzzle and blue hindquarters
 n02487079	similar to the mandrill but smaller and less brightly colored
 n02487347	short-tailed monkey of rocky regions of Asia and Africa
@@ -3953,7 +3953,7 @@ n02599557	weakfish of southern Atlantic and Gulf Coasts of United States
 n02599958	bottom dwelling marine warm water fishes with two barbels on the chin
 n02600298	brightly colored tropical fishes with chin barbels
 n02600503	body bright scarlet with 2 yellow to reddish strips on side
-n02600798	schooling goatfish; greyish with yellow stripe
+n02600798	schooling goatfish; grayish with yellow stripe
 n02601344	freshwater or coastal food fishes a spindle-shaped body; found worldwide
 n02601767	most important commercial mullet in eastern United States
 n02601921	silvery mullet of Atlantic and Pacific coasts
@@ -4425,7 +4425,7 @@ n02758134	the area of a theater or concert hall where the audience sits
 n02758490	hand tool for boring holes
 n02758863	an expressway in a German-speaking country
 n02758960	a device for heating substances above their boiling point; used to manufacture chemicals or to sterilize surgical instruments
-n02759257	an optical device for focussing a camera or other instrument automatically
+n02759257	an optical device for focusing a camera or other instrument automatically
 n02759387	an aircraft that is supported in flight by unpowered rotating horizontal wings (or blades); forward propulsion is provided by a conventional propeller
 n02759700	a hypodermic syringe to use in injecting yourself with a liquid
 n02759963	a firearm that reloads itself
@@ -4670,7 +4670,7 @@ n02811468	a broadax used as a weapon
 n02811618	a cruiser of maximum speed and firepower
 n02811719	a military uniform designed for field service
 n02811936	a rampart built around the top of a castle with regular gaps for firing arrows or guns
-n02812201	large and heavily armoured warship
+n02812201	large and heavily armored warship
 n02812342	an arrangement of sights that makes possible the rapid aiming of a firearm at short ranges
 n02812631	a compartment in an aircraft used for some specific purpose
 n02812785	a compartment on a ship between decks; often used as a hospital
@@ -5848,7 +5848,7 @@ n03082807	a mechanical device that compresses gasses
 n03082979	a machine for performing calculations automatically
 n03084420	a circuit that is part of a computer
 n03084834	a tomograph that constructs a 3-D model of an object by combining parallel planes
-n03085013	a keyboard that is a data input device for computers; arrangement of keys is modelled after the typewriter keyboard
+n03085013	a keyboard that is a data input device for computers; arrangement of keys is modeled after the typewriter keyboard
 n03085219	a device that displays signals on a computer screen
 n03085333	(computer science) a network of computers
 n03085602	a screen used to display the output of a computer to the user
@@ -6281,7 +6281,7 @@ n03194812	optical device that distributes the light of a lamp evenly
 n03194992	baffle that distributes sound waves evenly
 n03195332	autoclave consisting of a vessel in which plant or animal materials are digested
 n03195485	temporary living quarters
-n03195799	device for converting digital signals into analogue signals
+n03195799	device for converting digital signals into analog signals
 n03195959	a digital tape recording of sound
 n03196062	a camera that encodes an image digitally and store it for later reproduction
 n03196217	a clock that displays the time of day digitally
@@ -6290,7 +6290,7 @@ n03196598	a display that gives the information in the form of characters (number
 n03196990	a generic name for digital lines that are provided by telephone companies to their local subscribers and that carry data at high speeds
 n03197201	an electronic voltmeter that gives readings in digits
 n03197337	a watch with a digital display
-n03197446	device for converting analogue signals into digital signals
+n03197446	device for converting analog signals into digital signals
 n03198223	a surgical instrument that is used to dilate or distend an opening or an organ
 n03198500	a vibrating device that substitutes for an erect penis to provide vaginal stimulation
 n03199358	a strong cotton fabric with a raised pattern; used for bedcovers and curtains
@@ -8140,7 +8140,7 @@ n03649674	chair left outside for use on a lawn or in a garden
 n03649797	furniture intended for use on a lawn or in a garden
 n03649909	garden tool for mowing grass on lawns
 n03650551	kit consisting of a complete outfit (clothing and accessories) for a new baby
-n03651388	a battery with lead electrodes with dilute sulphuric acid as the electrolyte; each cell generates about 2 volts
+n03651388	a battery with lead electrodes with dilute sulfuric acid as the electrolyte; each cell generates about 2 volts
 n03651605	wire connecting an antenna to a receiver or a transmitter to a transmission line
 n03651843	rein to direct the horse's head left or right
 n03652100	pencil that has graphite as the marking substance
@@ -8426,7 +8426,7 @@ n03722944	a dress crepe; similar to Canton crepe
 n03723153	permanent canopy over an entrance of a hotel etc.
 n03723267	inlaid veneers are fitted together to form a design or picture that is then used to ornament furniture
 n03723439	the bed shared by a newly wed couple
-n03723781	a circular masonry fort for coastal defence
+n03723781	a circular masonry fort for coastal defense
 n03723885	a harness strap that connects the nose piece to the girth; prevents the horse from throwing back its head
 n03724066	makeup that is used to darken and thicken the eye lashes
 n03724176	an acronym for microwave amplification by stimulated emission of radiation; an amplifier that works on the same principle as a laser and emits coherent microwave radiation
@@ -9636,7 +9636,7 @@ n04039742	the ball used in playing the game of racquetball
 n04039848	measuring instrument in which the echo of a pulse of microwave radiation is used to detect and locate distant objects
 n04040247	pneumatic tire that has radial-ply casing
 n04040373	an internal-combustion engine having cylinders arranged radially around a central crankcase
-n04040540	a pyrometer for estimating the temperature of distant sources of heat; radiation is focussed on a thermojunction connected in circuit with a galvanometer
+n04040540	a pyrometer for estimating the temperature of distant sources of heat; radiation is focused on a thermojunction connected in circuit with a galvanometer
 n04040759	a mechanism consisting of a metal honeycomb through which hot fluids circulate; heat is transferred from the fluid through the honeycomb to the airstream that is created either by the motion of the vehicle or by a fan
 n04041069	heater consisting of a series of pipes for circulating steam or hot water to heat rooms or buildings
 n04041243	cap on the opening in the top of a radiator through which a coolant liquid can be added
@@ -10567,7 +10567,7 @@ n04261369	contact (the part of a bell) against which the clapper strikes
 n04261506	a resonating chamber in a musical instrument (as the body of a violin)
 n04261638	a movie camera that records sounds in synchrony with the visual images
 n04261767	a device for making soundings
-n04261868	motion-picture film with sound effects and dialogue recorded on it
+n04261868	motion-picture film with sound effects and dialog recorded on it
 n04262161	(music) resonator consisting of a thin board whose vibrations reinforce the sound of the instrument
 n04262530	a research rocket used to obtain information about the atmosphere at various altitudes
 n04262678	a recording of acoustic signals
@@ -12032,13 +12032,13 @@ n04967191	green color or pigment; resembling the color of growing grass
 n04967561	the property of being somewhat green
 n04967674	the property of a moderate green color resembling the waters of the sea
 n04967801	the color of sage leaves
-n04967882	dark to moderate or greyish green
+n04967882	dark to moderate or grayish green
 n04968056	the green color of an emerald
 n04968139	a color that is lighter and greener than olive
 n04968749	a light green color varying from bluish green to yellowish green
 n04968895	blue color or pigment; resembling the color of the clear sky in the daytime
 n04969242	a light shade of blue
-n04969540	a greyish blue color
+n04969540	a grayish blue color
 n04969798	a shade of blue tinged with green
 n04969952	a shade of blue tinged with purple
 n04970059	a purple color or pigment
@@ -15487,7 +15487,7 @@ n10055730	a heavy person with a soft and rounded body
 n10055847	an armed adversary (especially a member of an opposing military force)
 n10056103	someone who imparts energy and vitality and spirit to other people
 n10056611	a man at one end of a row of people
-n10056719	a man at one end of line of performers in a minstrel show; carries on humorous dialogue with the interlocutor
+n10056719	a man at one end of line of performers in a minstrel show; carries on humorous dialog with the interlocutor
 n10057271	a person who transfers his ownership interest in something by signing a check or negotiable security
 n10058411	a person who delights in having or using or experiencing something
 n10058962	a female enlisted person in the armed forces
@@ -15959,7 +15959,7 @@ n10240417	a member of a kolkhoz
 n10240821	a member of the royal or warrior Hindu caste
 n10241024	an assistant (often the father of the soon-to-be-born child) who provides support for a woman in labor by encouraging her to use techniques learned in childbirth-preparation classes
 n10241300	someone who works with their hands; someone engaged in manual labor
-n10242328	a member of the British Labour Party
+n10242328	a member of the British Labor Party
 n10243137	a polite name for any woman
 n10243273	a lady appointed to attend to a queen or princess
 n10243483	a maid who is a lady's personal attendant
@@ -18091,7 +18091,7 @@ n11901597	annual Old World poppy with orange-red flowers and bristly fruit
 n11901759	subarctic perennial poppy of both hemispheres having fragrant white or yellow to orange or peach flowers
 n11901977	commonly cultivated Asiatic perennial poppy having stiff heavily haired leaves and bright scarlet or pink to orange flowers
 n11902200	annual European poppy common in grain fields and often cultivated
-n11902389	southwestern Asian herb with greyish leaves and white or reddish flowers; source of opium
+n11902389	southwestern Asian herb with grayish leaves and white or reddish flowers; source of opium
 n11902709	any plant of the genus Argemone having large white or yellow flowers and prickly leaves and stems and pods; chiefly of tropical America
 n11902982	annual herb with prickly stems and large yellow flowers; southern United States to West Indies and Mexico
 n11903333	small Central American tree having loose racemes of purple-tinted green flowers
@@ -18149,7 +18149,7 @@ n11926833	any of various rhizomatous usually perennial plants of the genus Arnic
 n11926976	wildflower with heart-shaped leaves and broad yellow flower heads; of alpine areas west of the Rockies from Alaska to southern California
 n11927215	herb of pasture and open woodland throughout most of Europe and western Asia having orange-yellow daisylike flower heads that when dried are used as a stimulant and to treat bruises and swellings
 n11927740	small European herb with small yellow flowers
-n11928352	any of various composite shrubs or herbs of the genus Artemisia having aromatic green or greyish foliage
+n11928352	any of various composite shrubs or herbs of the genus Artemisia having aromatic green or grayish foliage
 n11928858	any of several weedy composite plants of the genus Artemisia
 n11929743	wormwood of southeastern Europe to Iran
 n11930038	European wormwood similar to common wormwood in its properties
@@ -18293,7 +18293,7 @@ n11966896	especially pretty plant having a delicate fringe of threadlike rays ar
 n11967142	common perennial of eastern North America having flowers with usually violet-purple rays
 n11967315	plant having branching leafy stems each branch with an especially showy solitary flower head with many narrow pink or lavender or white rays; northwestern United States mountains
 n11967744	any plant of the genus Eriophyllum
-n11967878	greyish woolly leafy perennial with branched stems ending in leafless stalks bearing golden-yellow flower heads; dry areas western North America
+n11967878	grayish woolly leafy perennial with branched stems ending in leafless stalks bearing golden-yellow flower heads; dry areas western North America
 n11968519	weedy plant of southeastern United States having divided leaves and long clusters of greenish flowers
 n11968704	North American herb having whorled leaves and terminal clusters of small pinkish or purple flower heads
 n11968931	perennial herb of southeastern United States having white-rayed flower heads; formerly used as in folk medicine
@@ -18370,7 +18370,7 @@ n11992479	Texas annual with coarsely pinnatifid leaves; cultivated for its showy
 n11992806	shrub of southwestern Mediterranean region having yellow daisylike flowers
 n11993203	wild aster with fernlike leaves and flower heads with very narrow bright purple rays; Alberta to Texas and Mexico
 n11993444	wild aster having leafy stems and flower heads with narrow bright reddish-lavender or purple rays; western Colorado to Arizona
-n11993675	wild aster having greyish leafy stems and flower heads with narrow pale lavender or violet rays; of rocky desert slopes California to Arizona and Utah
+n11993675	wild aster having grayish leafy stems and flower heads with narrow pale lavender or violet rays; of rocky desert slopes California to Arizona and Utah
 n11994150	any of various resinous glandular plants of the genus Madia; of western North and South America
 n11995092	annual Eurasian herb similar in fragrance and medicinal uses to chamomile though taste is more bitter and effect is considered inferior
 n11995396	annual aromatic weed of Pacific coastal areas (United States and northeastern Asia) having bristle-pointed leaves and rayless yellow flowers
@@ -18838,7 +18838,7 @@ n12160490	any of various plants of the species Cucurbita maxima and Cucurbita mo
 n12160857	squash plant bearing small acorn-shaped fruits having yellow flesh and dark green or yellow rind with longitudinal ridges
 n12161056	any of several winter squash plants producing large greyish-green football-shaped fruit with a rough warty rind
 n12161285	squash plants bearing hard-shelled fruit shaped somewhat like a turban with a rounded central portion protruding from the end opposite the stem
-n12161577	plant bearing somewhat drum-shaped fruit having dark green rind with greyish markings
+n12161577	plant bearing somewhat drum-shaped fruit having dark green rind with grayish markings
 n12161744	plant bearing buff-colored squash having somewhat bottle-shaped fruit with fine-textured edible flesh and a smooth thin rind
 n12161969	any of various plants bearing squash having hard rinds and elongated recurved necks
 n12162181	plant bearing squash having globose to ovoid fruit with variously striped grey and green and white warty rinds
@@ -18878,7 +18878,7 @@ n12175181	perennial poppy mallow of United States southern plains states having 
 n12175370	hairy perennial of central United States having round deeply lobed leaves and loose panicles of large crimson-purple or cherry-red flowers
 n12175598	densely hairy perennial having mostly triangular basal leaves and rose-purple flowers in panicled clusters
 n12176453	small bushy tree grown on islands of the Caribbean and off the Atlantic coast of the southern United States; yields cotton with unusually long silky fibers
-n12176709	Old World annual having heart-shaped leaves and large seeds with short greyish lint removed with difficulty; considered an ancestor of modern short-staple cottons
+n12176709	Old World annual having heart-shaped leaves and large seeds with short grayish lint removed with difficulty; considered an ancestor of modern short-staple cottons
 n12176953	native tropical American plant now cultivated in the United States yielding short-staple cotton
 n12177129	cotton with long rough hairy fibers
 n12177455	shrub of southern Arizona and Mexico
@@ -20327,14 +20327,14 @@ n12723062	desert shrub of southwestern United States and New Mexico having persi
 n12723610	tropical annual procumbent poisonous subshrub having fruit that splits into five spiny nutlets; serious pasture weed
 n12724942	any of numerous deciduous trees and shrubs of the genus Salix
 n12725521	any of various willows having pliable twigs used in basketry and furniture
-n12725738	large willow tree of Eurasia and North Africa having greyish canescent leaves and grey bark
-n12725940	North American willow with greyish silky pubescent leaves that usually blacken in drying
-n12726159	European willow having greyish leaves and yellow-orange twigs used in basketry
-n12726357	Eurasian willow tree having greyish leaves and ascending branches
+n12725738	large willow tree of Eurasia and North Africa having grayish canescent leaves and grey bark
+n12725940	North American willow with grayish silky pubescent leaves that usually blacken in drying
+n12726159	European willow having grayish leaves and yellow-orange twigs used in basketry
+n12726357	Eurasian willow tree having grayish leaves and ascending branches
 n12726528	low creeping shrub of Arctic Europe and America
 n12726670	willow with long drooping branches and slender leaves native to China; widely cultivated as an ornamental
 n12726902	hybrid willow usually not strongly weeping in habit
-n12727101	small willow of eastern North America having greyish leaves and silky catkins that come before the leaves
+n12727101	small willow of eastern North America having grayish leaves and silky catkins that come before the leaves
 n12727301	any of several Old World shrubby broad-leaved willows having large catkins; some are important sources for tanbark and charcoal
 n12727518	much-branched Old World willow having large catkins and relatively large broad leaves
 n12727729	willow of the western United States with leaves like those of peach or almond trees
@@ -20667,7 +20667,7 @@ n12849061	any of various plants of the genus Lamium having clusters of small usu
 n12849279	European dead nettle with white flowers
 n12849416	Eurasian plant having toothed leaves and small two-lipped white or purplish-red flowers
 n12849952	aromatic Mediterranean shrub widely cultivated for its lilac flowers which are dried and used in sachets
-n12850168	shrubby greyish lavender of southwestern Europe having usually reddish-purple flowers
+n12850168	shrubby grayish lavender of southwestern Europe having usually reddish-purple flowers
 n12850336	Mediterranean plant with pale purple flowers that yields spike lavender oil
 n12850906	relatively nontoxic South African herb smoked like tobacco
 n12851094	pantropical herb having whorls of striking lipped flowers; naturalized in United States
@@ -20884,7 +20884,7 @@ n12926689	cassava with long tuberous edible roots and soft brittle stems; used e
 n12927013	cassava root eaten as a staple food after drying and leaching; source of tapioca
 n12927194	South American plant with roots used as a vegetable and herbage used for stock feed
 n12927494	large tree native to southeastern Asia; the nuts yield oil used in varnishes; nut kernels strung together are used locally as candles
-n12927758	Chinese tree bearing seeds that yield tung oil
+n12927758	Chinese tree bearing seeds that yield tongue oil
 n12928071	any of several tropical American shrubby succulent plants resembling cacti but having foot-shaped bracts
 n12928307	wax-coated Mexican shrub related to Euphorbia antisyphilitica
 n12928491	low tropical American shrub having powerful emetic properties
@@ -20938,7 +20938,7 @@ n12945549	an Asiatic herb cultivated in Europe for its sweet edible tuberous roo
 n12946849	a tree of shrub of the genus Cornus often having showy bracts resembling flowers
 n12947313	deciduous tree; celebrated for its large white or pink bracts and stunning autumn color that is followed by red berries
 n12947544	common North American shrub with reddish purple twigs and white flowers
-n12947756	shrub of eastern North America closely resembling silky cornel
+n12947756	shrub of eastern North America closely resembling silky colonel
 n12947895	shrub of eastern North America having purplish stems and blue fruit
 n12948053	European deciduous shrub turning red in autumn having dull white flowers
 n12948251	creeping perennial herb distinguished by red berries and clustered leaf whorls at the tips of shoots; Greenland to Alaska
@@ -20995,7 +20995,7 @@ n12970193	a variety of gastromycete
 n12970293	a variety of Podaxaceae
 n12970733	mushroom of the genus Tulostoma that resembles a puffball
 n12971400	any of various fungi of the family Rhizopogonaceae having subterranean fruiting bodies similar to the truffle
-n12971804	a large whitish Rhizopogon that becomes greyish brown in maturity
+n12971804	a large whitish Rhizopogon that becomes grayish brown in maturity
 n12972136	a fungus with a round yellow to orange fruiting body that is found on the surface of the ground or partially buried; has a distinctive sterile column extending into the spore-bearing tissue
 n12973443	any mold of the genus Mucor
 n12973791	any of various rot causing fungi of the genus Rhizopus
@@ -21036,7 +21036,7 @@ n12988572	any of various lecanoras that yield the dye archil
 n12989007	a source of the dye archil and of litmus
 n12989938	greenish grey pendulous lichen growing on trees
 n12990597	any of several lichens of the genus Alectoria having a thallus consisting of filaments resembling hair
-n12991184	an erect greyish branching lichen of Arctic and even some north temperate regions constituting the chief food for reindeer and caribou and sometimes being eaten by humans
+n12991184	an erect grayish branching lichen of Arctic and even some north temperate regions constituting the chief food for reindeer and caribou and sometimes being eaten by humans
 n12991837	any of several lichens of the genus Parmelia from which reddish brown or purple dyes are made
 n12992177	lichen with branched flattened partly erect thallus that grows in mountainous and Arctic regions; used as a medicine or food for humans and livestock; a source of glycerol
 n12992868	an organism of the kingdom Fungi lacking chlorophyll and feeding on organic matter; ranging from unicellular or multicellular organisms to spore-bearing syncytia
@@ -21061,14 +21061,14 @@ n13003712	fungus similar to Amanita phalloides
 n13004423	widely distributed edible mushroom rich yellow in color with a smooth cap and a pleasant apricot aroma
 n13004640	a mildly poisonous fungus with a fruiting body shaped like a hollow trumpet
 n13004826	an edible agaric with a brown fruiting body that is often compound
-n13004992	mushroom with a distinctive pink to vermillion fruiting body
+n13004992	mushroom with a distinctive pink to vermilion fruiting body
 n13005329	a large poisonous agaric with orange caps and narrow clustered stalks; the gills are luminescent
 n13005984	having a cap that melts into an inky fluid after spores have matured
 n13006171	common edible mushroom having an elongated shaggy white cap and black spores
 n13006631	edible mushroom
 n13006894	mushroom that grows in a fairy ring
 n13007034	a ring of fungi marking the periphery of the perennial underground growth of the mycelium
-n13007417	edible agaric with a soft greyish cap growing in shelving masses on dead wood
+n13007417	edible agaric with a soft grayish cap growing in shelving masses on dead wood
 n13007629	red luminescent mushroom of Europe
 n13008157	a fungus with a smooth orange cap and yellow gills and pale yellow stalk
 n13008315	a beautiful yellow gilled fungus found from Alaska south along the coast
@@ -21089,7 +21089,7 @@ n13012973	a poisonous agaric with a fibrillose cap and brown scales on a white g
 n13013534	any fungus of the genus Lepiota
 n13013764	edible long-stalked mushroom with white flesh and gills and spores; found in open woodlands in autumn
 n13013965	an agaric regarded as poisonous
-n13014097	an agaric with greyish white fruiting body and gills that change from pink to dingy red
+n13014097	an agaric with grayish white fruiting body and gills that change from pink to dingy red
 n13014265	an agaric with a large cap with brown scales and a thick stalk
 n13014409	an agaric with a pallid cap and a stalk that is enlarged near the base
 n13014581	an agaric with a relatively small pink to red cap and white gills and stalk
@@ -21114,7 +21114,7 @@ n13019643	an edible agaric found in piles of hardwood sawdust; the caps are blac
 n13019835	a small edible agaric with a slender stalk; usually found on rotting hardwoods
 n13020191	small tropical and subtropical edible mushroom having a white cap and long stem; an expensive delicacy in China and other Asian countries where it is grown commercially
 n13020481	a mushroom with a dry yellowish to white fibrillose cap
-n13020964	an agaric with a flat cap that is greyish or yellowish brown with pallid gills and a stalk that bulges toward the base
+n13020964	an agaric with a flat cap that is grayish or yellowish brown with pallid gills and a stalk that bulges toward the base
 n13021166	a small poisonous agaric; has a dry white cap with crowded gills and a short stalk
 n13021332	a fungus with a cap that is creamy grey when young and turns brown with age and a whitish stalk that stains yellow when handled
 n13021543	a large white agaric; edible but not palatable
@@ -21234,7 +21234,7 @@ n13066129	any fungus of the order Ustilaginales
 n13066448	a smut fungus causing a smut disease of grains in which the spore masses are covered or held together by the grain membranes
 n13066979	a smut fungus of the genus Ustilago causing a smut disease of grains in which the entire head is transformed into a dusty mass of spores
 n13067191	a smut fungus attacking Indian corn
-n13067330	a common smut attacking Indian corn causing greyish white swellings that rupture to expose a black spore mass
+n13067330	a common smut attacking Indian corn causing grayish white swellings that rupture to expose a black spore mass
 n13067532	genus of smut fungus
 n13067672	smut fungus attacking heads of corn or sorghum and causing a covered smut
 n13068255	fungus that destroys kernels of wheat by replacing them with greasy masses of smelly spores
@@ -21465,7 +21465,7 @@ n13171210	large Australasian fern with fanlike repeatedly forked fronds; sometim
 n13171797	aquatic fern of tropical America often used in aquariums
 n13172923	any of numerous ferns of the genus Polypodium
 n13173132	fern having rootstock of a sweetish flavor
-n13173259	fern growing on rocks or tree trunks and having fronds greyish and scurfy below; Americas and South Africa
+n13173259	fern growing on rocks or tree trunks and having fronds grayish and scurfy below; Americas and South Africa
 n13173488	stiff leathery-leaved fern of western North America having ovate fronds parted to the midrib
 n13173697	chiefly lithophytic or epiphytic fern of North America and east Asia
 n13173882	mat-forming lithophytic or terrestrial fern with creeping rootstocks and large pinnatifid fronds found throughout North America and Europe and Africa and east Asia

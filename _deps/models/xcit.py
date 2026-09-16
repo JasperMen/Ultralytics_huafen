@@ -1,4 +1,4 @@
-""" Cross-Covariance Image Transformer (XCiT) in PyTorch
+"""Cross-Covariance Image Transformer (XCiT) in PyTorch.
 
 Paper:
     - https://arxiv.org/abs/2106.09681
@@ -11,42 +11,41 @@ Modifications and additions for timm hacked together by / Copyright 2021, Ross W
 # Copyright (c) 2015-present, Facebook, Inc.
 # All rights reserved.
 
+from __future__ import annotations
+
 import math
 from functools import partial
-from typing import List, Optional, Tuple, Union, Type, Any
 
 import torch
-import torch.nn as nn
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import DropPath, trunc_normal_, to_2tuple, use_fused_attn, Mlp
+from timm.layers import DropPath, Mlp, to_2tuple, trunc_normal_, use_fused_attn
+from torch import nn
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._features_fx import register_notrace_module
 from ._manipulate import checkpoint
-from ._registry import register_model, generate_default_cfgs, register_model_deprecations
+from ._registry import generate_default_cfgs, register_model, register_model_deprecations
 from .cait import ClassAttn
 
-__all__ = ['Xcit']  # model_registry will add each entrypoint fn to this
+__all__ = ["Xcit"]  # model_registry will add each entrypoint fn to this
 
 
 @register_notrace_module  # reason: FX can't symbolically trace torch.arange in forward method
 class PositionalEncodingFourier(nn.Module):
-    """
-    Positional encoding relying on a fourier kernel matching the one used in the "Attention is all you Need" paper.
-    Based on the official XCiT code
-        - https://github.com/facebookresearch/xcit/blob/master/xcit.py
+    """Positional encoding relying on a fourier kernel matching the one used in the "Attention is all you Need" paper.
+    Based on the official XCiT code - https://github.com/facebookresearch/xcit/blob/master/xcit.py.
     """
 
     def __init__(
-            self,
-            hidden_dim: int = 32,
-            dim: int = 768,
-            temperature: float = 10000,
-            device=None,
-            dtype=None,
+        self,
+        hidden_dim: int = 32,
+        dim: int = 768,
+        temperature: float = 10000,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)
         self.scale = 2 * math.pi
@@ -63,7 +62,7 @@ class PositionalEncodingFourier(nn.Module):
         y_embed = y_embed / (y_embed[:, -1:, :] + self.eps) * self.scale
         x_embed = x_embed / (x_embed[:, :, -1:] + self.eps) * self.scale
         dim_t = torch.arange(self.hidden_dim, device=device).to(torch.float32)
-        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode='floor') / self.hidden_dim)
+        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode="floor") / self.hidden_dim)
         pos_x = x_embed[:, :, :, None] / dim_t
         pos_y = y_embed[:, :, :, None] / dim_t
         pos_x = torch.stack([pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()], dim=4).flatten(3)
@@ -74,28 +73,28 @@ class PositionalEncodingFourier(nn.Module):
 
 
 def conv3x3(in_planes, out_planes, stride=1, device=None, dtype=None):
-    """3x3 convolution + batch norm"""
-    dd = {'device': device, 'dtype': dtype}
+    """3x3 convolution + batch norm."""
+    dd = {"device": device, "dtype": dtype}
     return torch.nn.Sequential(
         nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False, **dd),
-        nn.BatchNorm2d(out_planes, **dd)
+        nn.BatchNorm2d(out_planes, **dd),
     )
 
 
 class ConvPatchEmbed(nn.Module):
-    """Image to Patch Embedding using multiple convolutional layers"""
+    """Image to Patch Embedding using multiple convolutional layers."""
 
     def __init__(
-            self,
-            img_size: int = 224,
-            patch_size: int = 16,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            act_layer: Type[nn.Module] = nn.GELU,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        act_layer: type[nn.Module] = nn.GELU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         img_size = to_2tuple(img_size)
         num_patches = (img_size[1] // patch_size) * (img_size[0] // patch_size)
@@ -122,7 +121,7 @@ class ConvPatchEmbed(nn.Module):
                 conv3x3(embed_dim // 2, embed_dim, 2, **dd),
             )
         else:
-            raise('For convolutional projection, patch size has to be in [8, 16]')
+            raise ("For convolutional projection, patch size has to be in [8, 16]")
 
     def forward(self, x):
         x = self.proj(x)
@@ -132,32 +131,33 @@ class ConvPatchEmbed(nn.Module):
 
 
 class LPI(nn.Module):
-    """
-    Local Patch Interaction module that allows explicit communication between tokens in 3x3 windows to augment the
-    implicit communication performed by the block diagonal scatter attention. Implemented using 2 layers of separable
-    3x3 convolutions with GeLU and BatchNorm2d
+    """Local Patch Interaction module that allows explicit communication between tokens in 3x3 windows to augment the
+    implicit communication performed by the block diagonal scatter attention. Implemented using 2 layers of
+    separable 3x3 convolutions with GeLU and BatchNorm2d.
     """
 
     def __init__(
-            self,
-            in_features: int,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            kernel_size: int = 3,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        kernel_size: int = 3,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         out_features = out_features or in_features
         padding = kernel_size // 2
 
         self.conv1 = torch.nn.Conv2d(
-            in_features, in_features, kernel_size=kernel_size, padding=padding, groups=in_features, **dd)
+            in_features, in_features, kernel_size=kernel_size, padding=padding, groups=in_features, **dd
+        )
         self.act = act_layer()
         self.bn = nn.BatchNorm2d(in_features, **dd)
         self.conv2 = torch.nn.Conv2d(
-            in_features, out_features, kernel_size=kernel_size, padding=padding, groups=out_features, **dd)
+            in_features, out_features, kernel_size=kernel_size, padding=padding, groups=out_features, **dd
+        )
 
     def forward(self, x, H: int, W: int):
         B, N, C = x.shape
@@ -171,25 +171,25 @@ class LPI(nn.Module):
 
 
 class ClassAttentionBlock(nn.Module):
-    """Class Attention Layer as in CaiT https://arxiv.org/abs/2103.17239"""
+    """Class Attention Layer as in CaiT https://arxiv.org/abs/2103.17239."""
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            mlp_ratio: float = 4.,
-            qkv_bias: bool = False,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            eta: Optional[float] = 1.,
-            tokens_norm: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = False,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        eta: float | None = 1.0,
+        tokens_norm: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.norm1 = norm_layer(dim, **dd)
         self.attn = ClassAttn(
@@ -200,7 +200,7 @@ class ClassAttentionBlock(nn.Module):
             proj_drop=proj_drop,
             **dd,
         )
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = Mlp(
@@ -210,7 +210,7 @@ class ClassAttentionBlock(nn.Module):
             drop=proj_drop,
             **dd,
         )
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         if eta is not None:  # LayerScale Initialization (no layerscale when None)
             self.gamma1 = nn.Parameter(eta * torch.ones(dim, **dd))
@@ -246,16 +246,16 @@ class XCA(nn.Module):
     """
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            qkv_bias: bool = False,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_heads = num_heads
         self.fused_attn = use_fused_attn(experimental=True)
@@ -291,26 +291,26 @@ class XCA(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {'temperature'}
+        return {"temperature"}
 
 
 class XCABlock(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            mlp_ratio: float = 4.,
-            qkv_bias: bool = False,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            eta: float = 1.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = False,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        eta: float = 1.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.norm1 = norm_layer(dim, **dd)
         self.attn = XCA(
@@ -321,11 +321,11 @@ class XCABlock(nn.Module):
             proj_drop=proj_drop,
             **dd,
         )
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm3 = norm_layer(dim, **dd)
         self.local_mp = LPI(in_features=dim, act_layer=act_layer, **dd)
-        self.drop_path3 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path3 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = Mlp(
@@ -335,7 +335,7 @@ class XCABlock(nn.Module):
             drop=proj_drop,
             **dd,
         )
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.gamma1 = nn.Parameter(eta * torch.ones(dim, **dd))
         self.gamma3 = nn.Parameter(eta * torch.ones(dim, **dd))
@@ -351,37 +351,35 @@ class XCABlock(nn.Module):
 
 
 class Xcit(nn.Module):
-    """
-    Based on timm and DeiT code bases
-    https://github.com/rwightman/pytorch-image-models/tree/master/timm
-    https://github.com/facebookresearch/deit/
+    """Based on timm and DeiT code bases https://github.com/rwightman/pytorch-image-models/tree/master/timm
+    https://github.com/facebookresearch/deit/.
     """
 
     def __init__(
-            self,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            patch_size: int = 16,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'token',
-            embed_dim: int = 768,
-            depth: int = 12,
-            num_heads: int = 12,
-            mlp_ratio: float = 4.,
-            qkv_bias: bool = True,
-            drop_rate: float = 0.,
-            pos_drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            attn_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            act_layer: Optional[Type[nn.Module]] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            cls_attn_layers: int = 2,
-            use_pos_embed: bool = True,
-            eta: float = 1.,
-            tokens_norm: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "token",
+        embed_dim: int = 768,
+        depth: int = 12,
+        num_heads: int = 12,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = True,
+        drop_rate: float = 0.0,
+        pos_drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        act_layer: type[nn.Module] | None = None,
+        norm_layer: type[nn.Module] | None = None,
+        cls_attn_layers: int = 2,
+        use_pos_embed: bool = True,
+        eta: float = 1.0,
+        tokens_norm: bool = False,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -403,18 +401,19 @@ class Xcit(nn.Module):
             cls_attn_layers: (int) Depth of Class attention layers
             use_pos_embed: (bool) whether to use positional encoding
             eta: (float) layerscale initialization value
-            tokens_norm: (bool) Whether to normalize all tokens or just the cls_token in the CA
+            tokens_norm: (bool) Whether to normalize all tokens or just the cls_token in the CA.
 
         Notes:
             - Although `layer_norm` is user specifiable, there are hard-coded `BatchNorm2d`s in the local patch
               interaction (class LPI) and the patch embedding (class ConvPatchEmbed)
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        assert global_pool in ('', 'avg', 'token')
+        dd = {"device": device, "dtype": dtype}
+        assert global_pool in ("", "avg", "token")
         img_size = to_2tuple(img_size)
-        assert (img_size[0] % patch_size == 0) and (img_size[0] % patch_size == 0), \
-            '`patch_size` should divide image dimensions evenly'
+        assert (img_size[0] % patch_size == 0) and (img_size[0] % patch_size == 0), (
+            "`patch_size` should divide image dimensions evenly"
+        )
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         act_layer = act_layer or nn.GELU
 
@@ -441,38 +440,44 @@ class Xcit(nn.Module):
             self.pos_embed = None
         self.pos_drop = nn.Dropout(p=pos_drop_rate)
 
-        self.blocks = nn.ModuleList([
-            XCABlock(
-                dim=embed_dim,
-                num_heads=num_heads,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=qkv_bias,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=drop_path_rate,
-                act_layer=act_layer,
-                norm_layer=norm_layer,
-                eta=eta,
-                **dd,
-            )
-            for _ in range(depth)])
-        self.feature_info = [dict(num_chs=embed_dim, reduction=r, module=f'blocks.{i}') for i in range(depth)]
+        self.blocks = nn.ModuleList(
+            [
+                XCABlock(
+                    dim=embed_dim,
+                    num_heads=num_heads,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    proj_drop=proj_drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=drop_path_rate,
+                    act_layer=act_layer,
+                    norm_layer=norm_layer,
+                    eta=eta,
+                    **dd,
+                )
+                for _ in range(depth)
+            ]
+        )
+        self.feature_info = [{"num_chs": embed_dim, "reduction": r, "module": f"blocks.{i}"} for i in range(depth)]
 
-        self.cls_attn_blocks = nn.ModuleList([
-            ClassAttentionBlock(
-                dim=embed_dim,
-                num_heads=num_heads,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=qkv_bias,
-                proj_drop=drop_rate,
-                attn_drop=attn_drop_rate,
-                act_layer=act_layer,
-                norm_layer=norm_layer,
-                eta=eta,
-                tokens_norm=tokens_norm,
-                **dd,
-            )
-            for _ in range(cls_attn_layers)])
+        self.cls_attn_blocks = nn.ModuleList(
+            [
+                ClassAttentionBlock(
+                    dim=embed_dim,
+                    num_heads=num_heads,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    proj_drop=drop_rate,
+                    attn_drop=attn_drop_rate,
+                    act_layer=act_layer,
+                    norm_layer=norm_layer,
+                    eta=eta,
+                    tokens_norm=tokens_norm,
+                    **dd,
+                )
+                for _ in range(cls_attn_layers)
+            ]
+        )
 
         # Classifier head
         self.norm = norm_layer(embed_dim, **dd)
@@ -480,26 +485,26 @@ class Xcit(nn.Module):
         self.head = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else nn.Identity()
 
         # Init weights
-        trunc_normal_(self.cls_token, std=.02)
+        trunc_normal_(self.cls_token, std=0.02)
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {'pos_embed', 'cls_token'}
+        return {"pos_embed", "cls_token"}
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^cls_token|pos_embed|patch_embed',  # stem and embed
-            blocks=r'^blocks\.(\d+)',
-            cls_attn_blocks=[(r'^cls_attn_blocks\.(\d+)', None), (r'^norm', (99999,))]
-        )
+        return {
+            "stem": r"^cls_token|pos_embed|patch_embed",  # stem and embed
+            "blocks": r"^blocks\.(\d+)",
+            "cls_attn_blocks": [(r"^cls_attn_blocks\.(\d+)", None), (r"^norm", (99999,))],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -509,25 +514,27 @@ class Xcit(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
-            assert global_pool in ('', 'avg', 'token')
+            assert global_pool in ("", "avg", "token")
             self.global_pool = global_pool
-        device = self.head.weight.device if hasattr(self.head, 'weight') else None
-        dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
-        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        device = self.head.weight.device if hasattr(self.head, "weight") else None
+        dtype = self.head.weight.dtype if hasattr(self.head, "weight") else None
+        self.head = (
+            nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        )
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -536,16 +543,14 @@ class Xcit(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW', 'NLC'), 'Output format must be one of NCHW or NLC.'
-        reshape = output_fmt == 'NCHW'
+        assert output_fmt in ("NCHW", "NLC"), "Output format must be one of NCHW or NLC."
+        reshape = output_fmt == "NCHW"
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
 
         # forward pass
-        B, _, height, width = x.shape
+        B, _, _height, _width = x.shape
         x, (Hp, Wp) = self.patch_embed(x)
         if self.pos_embed is not None:
             # `pos_embed` (B, C, Hp, Wp), reshape -> (B, C, N), permute -> (B, N, C)
@@ -556,7 +561,7 @@ class Xcit(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
-            blocks = self.blocks[:max_index + 1]
+            blocks = self.blocks[: max_index + 1]
         for i, blk in enumerate(blocks):
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x, Hp, Wp)
@@ -587,20 +592,19 @@ class Xcit(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
-        self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+        self.blocks = self.blocks[: max_index + 1]  # truncate blocks
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
             self.cls_attn_blocks = nn.ModuleList()  # prune token blocks with head
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -633,7 +637,7 @@ class Xcit(nn.Module):
 
     def forward_head(self, x, pre_logits: bool = False):
         if self.global_pool:
-            x = x[:, 1:].mean(dim=1) if self.global_pool == 'avg' else x[:, 0]
+            x = x[:, 1:].mean(dim=1) if self.global_pool == "avg" else x[:, 0]
         x = self.head_drop(x)
         return x if pre_logits else self.head(x)
 
@@ -644,446 +648,464 @@ class Xcit(nn.Module):
 
 
 def checkpoint_filter_fn(state_dict, model):
-    if 'model' in state_dict:
-        state_dict = state_dict['model']
+    if "model" in state_dict:
+        state_dict = state_dict["model"]
     # For consistency with timm's transformer models while being compatible with official weights source we rename
     # pos_embeder to pos_embed. Also account for use_pos_embed == False
-    use_pos_embed = getattr(model, 'pos_embed', None) is not None
-    pos_embed_keys = [k for k in state_dict if k.startswith('pos_embed')]
+    use_pos_embed = getattr(model, "pos_embed", None) is not None
+    pos_embed_keys = [k for k in state_dict if k.startswith("pos_embed")]
     for k in pos_embed_keys:
         if use_pos_embed:
-            state_dict[k.replace('pos_embeder.', 'pos_embed.')] = state_dict.pop(k)
+            state_dict[k.replace("pos_embeder.", "pos_embed.")] = state_dict.pop(k)
         else:
             del state_dict[k]
     # timm's implementation of class attention in CaiT is slightly more efficient as it does not compute query vectors
     # for all tokens, just the class token. To use official weights source we must split qkv into q, k, v
-    if 'cls_attn_blocks.0.attn.qkv.weight' in state_dict and 'cls_attn_blocks.0.attn.q.weight' in model.state_dict():
+    if "cls_attn_blocks.0.attn.qkv.weight" in state_dict and "cls_attn_blocks.0.attn.q.weight" in model.state_dict():
         num_ca_blocks = len(model.cls_attn_blocks)
         for i in range(num_ca_blocks):
-            qkv_weight = state_dict.pop(f'cls_attn_blocks.{i}.attn.qkv.weight')
+            qkv_weight = state_dict.pop(f"cls_attn_blocks.{i}.attn.qkv.weight")
             qkv_weight = qkv_weight.reshape(3, -1, qkv_weight.shape[-1])
-            for j, subscript in enumerate('qkv'):
-                state_dict[f'cls_attn_blocks.{i}.attn.{subscript}.weight'] = qkv_weight[j]
-            qkv_bias = state_dict.pop(f'cls_attn_blocks.{i}.attn.qkv.bias', None)
+            for j, subscript in enumerate("qkv"):
+                state_dict[f"cls_attn_blocks.{i}.attn.{subscript}.weight"] = qkv_weight[j]
+            qkv_bias = state_dict.pop(f"cls_attn_blocks.{i}.attn.qkv.bias", None)
             if qkv_bias is not None:
                 qkv_bias = qkv_bias.reshape(3, -1)
-                for j, subscript in enumerate('qkv'):
-                    state_dict[f'cls_attn_blocks.{i}.attn.{subscript}.bias'] = qkv_bias[j]
+                for j, subscript in enumerate("qkv"):
+                    state_dict[f"cls_attn_blocks.{i}.attn.{subscript}.bias"] = qkv_bias[j]
     return state_dict
 
 
 def _create_xcit(variant, pretrained=False, default_cfg=None, **kwargs):
-    out_indices = kwargs.pop('out_indices', 3)
+    out_indices = kwargs.pop("out_indices", 3)
     model = build_model_with_cfg(
         Xcit,
         variant,
         pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+        feature_cfg={"out_indices": out_indices, "feature_cls": "getter"},
         **kwargs,
     )
     return model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
-        'crop_pct': 1.0, 'interpolation': 'bicubic', 'fixed_input_size': True,
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'patch_embed.proj.0.0', 'classifier': 'head',
-        'license': 'apache-2.0', **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "crop_pct": 1.0,
+        "interpolation": "bicubic",
+        "fixed_input_size": True,
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "patch_embed.proj.0.0",
+        "classifier": "head",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    # Patch size 16
-    'xcit_nano_12_p16_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p16_224.pth'),
-    'xcit_nano_12_p16_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p16_224_dist.pth'),
-    'xcit_nano_12_p16_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p16_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_tiny_12_p16_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p16_224.pth'),
-    'xcit_tiny_12_p16_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p16_224_dist.pth'),
-    'xcit_tiny_12_p16_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p16_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_tiny_24_p16_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p16_224.pth'),
-    'xcit_tiny_24_p16_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p16_224_dist.pth'),
-    'xcit_tiny_24_p16_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p16_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_small_12_p16_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p16_224.pth'),
-    'xcit_small_12_p16_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p16_224_dist.pth'),
-    'xcit_small_12_p16_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p16_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_small_24_p16_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p16_224.pth'),
-    'xcit_small_24_p16_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p16_224_dist.pth'),
-    'xcit_small_24_p16_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p16_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_medium_24_p16_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p16_224.pth'),
-    'xcit_medium_24_p16_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p16_224_dist.pth'),
-    'xcit_medium_24_p16_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p16_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_large_24_p16_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p16_224.pth'),
-    'xcit_large_24_p16_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p16_224_dist.pth'),
-    'xcit_large_24_p16_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p16_384_dist.pth', input_size=(3, 384, 384)),
-
-    # Patch size 8
-    'xcit_nano_12_p8_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p8_224.pth'),
-    'xcit_nano_12_p8_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p8_224_dist.pth'),
-    'xcit_nano_12_p8_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p8_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_tiny_12_p8_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p8_224.pth'),
-    'xcit_tiny_12_p8_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p8_224_dist.pth'),
-    'xcit_tiny_12_p8_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p8_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_tiny_24_p8_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p8_224.pth'),
-    'xcit_tiny_24_p8_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p8_224_dist.pth'),
-    'xcit_tiny_24_p8_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p8_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_small_12_p8_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p8_224.pth'),
-    'xcit_small_12_p8_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p8_224_dist.pth'),
-    'xcit_small_12_p8_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p8_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_small_24_p8_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p8_224.pth'),
-    'xcit_small_24_p8_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p8_224_dist.pth'),
-    'xcit_small_24_p8_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p8_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_medium_24_p8_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p8_224.pth'),
-    'xcit_medium_24_p8_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p8_224_dist.pth'),
-    'xcit_medium_24_p8_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p8_384_dist.pth', input_size=(3, 384, 384)),
-    'xcit_large_24_p8_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p8_224.pth'),
-    'xcit_large_24_p8_224.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p8_224_dist.pth'),
-    'xcit_large_24_p8_384.fb_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p8_384_dist.pth', input_size=(3, 384, 384)),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        # Patch size 16
+        "xcit_nano_12_p16_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p16_224.pth"
+        ),
+        "xcit_nano_12_p16_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p16_224_dist.pth"
+        ),
+        "xcit_nano_12_p16_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p16_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_tiny_12_p16_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p16_224.pth"
+        ),
+        "xcit_tiny_12_p16_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p16_224_dist.pth"
+        ),
+        "xcit_tiny_12_p16_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p16_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_tiny_24_p16_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p16_224.pth"
+        ),
+        "xcit_tiny_24_p16_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p16_224_dist.pth"
+        ),
+        "xcit_tiny_24_p16_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p16_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_small_12_p16_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p16_224.pth"
+        ),
+        "xcit_small_12_p16_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p16_224_dist.pth"
+        ),
+        "xcit_small_12_p16_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p16_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_small_24_p16_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p16_224.pth"
+        ),
+        "xcit_small_24_p16_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p16_224_dist.pth"
+        ),
+        "xcit_small_24_p16_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p16_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_medium_24_p16_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p16_224.pth"
+        ),
+        "xcit_medium_24_p16_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p16_224_dist.pth"
+        ),
+        "xcit_medium_24_p16_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p16_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_large_24_p16_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p16_224.pth"
+        ),
+        "xcit_large_24_p16_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p16_224_dist.pth"
+        ),
+        "xcit_large_24_p16_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p16_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        # Patch size 8
+        "xcit_nano_12_p8_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p8_224.pth"
+        ),
+        "xcit_nano_12_p8_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p8_224_dist.pth"
+        ),
+        "xcit_nano_12_p8_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_nano_12_p8_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_tiny_12_p8_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p8_224.pth"
+        ),
+        "xcit_tiny_12_p8_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p8_224_dist.pth"
+        ),
+        "xcit_tiny_12_p8_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_12_p8_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_tiny_24_p8_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p8_224.pth"
+        ),
+        "xcit_tiny_24_p8_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p8_224_dist.pth"
+        ),
+        "xcit_tiny_24_p8_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_tiny_24_p8_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_small_12_p8_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p8_224.pth"
+        ),
+        "xcit_small_12_p8_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p8_224_dist.pth"
+        ),
+        "xcit_small_12_p8_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_small_12_p8_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_small_24_p8_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p8_224.pth"
+        ),
+        "xcit_small_24_p8_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p8_224_dist.pth"
+        ),
+        "xcit_small_24_p8_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_small_24_p8_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_medium_24_p8_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p8_224.pth"
+        ),
+        "xcit_medium_24_p8_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p8_224_dist.pth"
+        ),
+        "xcit_medium_24_p8_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_medium_24_p8_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+        "xcit_large_24_p8_224.fb_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p8_224.pth"
+        ),
+        "xcit_large_24_p8_224.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/", url="https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p8_224_dist.pth"
+        ),
+        "xcit_large_24_p8_384.fb_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/xcit/xcit_large_24_p8_384_dist.pth",
+            input_size=(3, 384, 384),
+        ),
+    }
+)
 
 
 @register_model
 def xcit_nano_12_p16_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
-    model = _create_xcit('xcit_nano_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 128, "depth": 12, "num_heads": 4, "eta": 1.0, "tokens_norm": False}
+    model = _create_xcit("xcit_nano_12_p16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_nano_12_p16_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False, img_size=384)
-    model = _create_xcit('xcit_nano_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 16,
+        "embed_dim": 128,
+        "depth": 12,
+        "num_heads": 4,
+        "eta": 1.0,
+        "tokens_norm": False,
+        "img_size": 384,
+    }
+    model = _create_xcit("xcit_nano_12_p16_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_12_p16_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 192, "depth": 12, "num_heads": 4, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_12_p16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_12_p16_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 192, "depth": 12, "num_heads": 4, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_12_p16_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_12_p16_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_small_12_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 384, "depth": 12, "num_heads": 8, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_small_12_p16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_12_p16_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_small_12_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 384, "depth": 12, "num_heads": 8, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_small_12_p16_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_24_p16_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 192, "depth": 24, "num_heads": 4, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_24_p16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_24_p16_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 192, "depth": 24, "num_heads": 4, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_24_p16_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_24_p16_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_small_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 384, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_small_24_p16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_24_p16_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_small_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 384, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_small_24_p16_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_medium_24_p16_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_medium_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 512, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_medium_24_p16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_medium_24_p16_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_medium_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 512, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_medium_24_p16_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_large_24_p16_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_large_24_p16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 768, "depth": 24, "num_heads": 16, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_large_24_p16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_large_24_p16_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=16, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_large_24_p16_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 16, "embed_dim": 768, "depth": 24, "num_heads": 16, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_large_24_p16_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 # Patch size 8x8 models
 @register_model
 def xcit_nano_12_p8_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
-    model = _create_xcit('xcit_nano_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 128, "depth": 12, "num_heads": 4, "eta": 1.0, "tokens_norm": False}
+    model = _create_xcit("xcit_nano_12_p8_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_nano_12_p8_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=128, depth=12, num_heads=4, eta=1.0, tokens_norm=False)
-    model = _create_xcit('xcit_nano_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 128, "depth": 12, "num_heads": 4, "eta": 1.0, "tokens_norm": False}
+    model = _create_xcit("xcit_nano_12_p8_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_12_p8_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 192, "depth": 12, "num_heads": 4, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_12_p8_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_12_p8_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=192, depth=12, num_heads=4, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 192, "depth": 12, "num_heads": 4, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_12_p8_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_12_p8_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_small_12_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 384, "depth": 12, "num_heads": 8, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_small_12_p8_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_12_p8_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=384, depth=12, num_heads=8, eta=1.0, tokens_norm=True)
-    model = _create_xcit('xcit_small_12_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 384, "depth": 12, "num_heads": 8, "eta": 1.0, "tokens_norm": True}
+    model = _create_xcit("xcit_small_12_p8_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_24_p8_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 192, "depth": 24, "num_heads": 4, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_24_p8_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_tiny_24_p8_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=192, depth=24, num_heads=4, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_tiny_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 192, "depth": 24, "num_heads": 4, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_tiny_24_p8_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_24_p8_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_small_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 384, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_small_24_p8_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_small_24_p8_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=384, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_small_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 384, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_small_24_p8_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_medium_24_p8_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_medium_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 512, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_medium_24_p8_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_medium_24_p8_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=512, depth=24, num_heads=8, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_medium_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 512, "depth": 24, "num_heads": 8, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_medium_24_p8_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_large_24_p8_224(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_large_24_p8_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 768, "depth": 24, "num_heads": 16, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_large_24_p8_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def xcit_large_24_p8_384(pretrained=False, **kwargs) -> Xcit:
-    model_args = dict(
-        patch_size=8, embed_dim=768, depth=24, num_heads=16, eta=1e-5, tokens_norm=True)
-    model = _create_xcit('xcit_large_24_p8_384', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"patch_size": 8, "embed_dim": 768, "depth": 24, "num_heads": 16, "eta": 1e-5, "tokens_norm": True}
+    model = _create_xcit("xcit_large_24_p8_384", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
-register_model_deprecations(__name__, {
-    # Patch size 16
-    'xcit_nano_12_p16_224_dist': 'xcit_nano_12_p16_224.fb_dist_in1k',
-    'xcit_nano_12_p16_384_dist': 'xcit_nano_12_p16_384.fb_dist_in1k',
-    'xcit_tiny_12_p16_224_dist': 'xcit_tiny_12_p16_224.fb_dist_in1k',
-    'xcit_tiny_12_p16_384_dist': 'xcit_tiny_12_p16_384.fb_dist_in1k',
-    'xcit_tiny_24_p16_224_dist': 'xcit_tiny_24_p16_224.fb_dist_in1k',
-    'xcit_tiny_24_p16_384_dist': 'xcit_tiny_24_p16_384.fb_dist_in1k',
-    'xcit_small_12_p16_224_dist': 'xcit_small_12_p16_224.fb_dist_in1k',
-    'xcit_small_12_p16_384_dist': 'xcit_small_12_p16_384.fb_dist_in1k',
-    'xcit_small_24_p16_224_dist': 'xcit_small_24_p16_224.fb_dist_in1k',
-    'xcit_small_24_p16_384_dist': 'xcit_small_24_p16_384.fb_dist_in1k',
-    'xcit_medium_24_p16_224_dist': 'xcit_medium_24_p16_224.fb_dist_in1k',
-    'xcit_medium_24_p16_384_dist': 'xcit_medium_24_p16_384.fb_dist_in1k',
-    'xcit_large_24_p16_224_dist': 'xcit_large_24_p16_224.fb_dist_in1k',
-    'xcit_large_24_p16_384_dist': 'xcit_large_24_p16_384.fb_dist_in1k',
-
-    # Patch size 8
-    'xcit_nano_12_p8_224_dist': 'xcit_nano_12_p8_224.fb_dist_in1k',
-    'xcit_nano_12_p8_384_dist': 'xcit_nano_12_p8_384.fb_dist_in1k',
-    'xcit_tiny_12_p8_224_dist': 'xcit_tiny_12_p8_224.fb_dist_in1k',
-    'xcit_tiny_12_p8_384_dist': 'xcit_tiny_12_p8_384.fb_dist_in1k',
-    'xcit_tiny_24_p8_224_dist': 'xcit_tiny_24_p8_224.fb_dist_in1k',
-    'xcit_tiny_24_p8_384_dist': 'xcit_tiny_24_p8_384.fb_dist_in1k',
-    'xcit_small_12_p8_224_dist': 'xcit_small_12_p8_224.fb_dist_in1k',
-    'xcit_small_12_p8_384_dist': 'xcit_small_12_p8_384.fb_dist_in1k',
-    'xcit_small_24_p8_224_dist': 'xcit_small_24_p8_224.fb_dist_in1k',
-    'xcit_small_24_p8_384_dist': 'xcit_small_24_p8_384.fb_dist_in1k',
-    'xcit_medium_24_p8_224_dist': 'xcit_medium_24_p8_224.fb_dist_in1k',
-    'xcit_medium_24_p8_384_dist': 'xcit_medium_24_p8_384.fb_dist_in1k',
-    'xcit_large_24_p8_224_dist': 'xcit_large_24_p8_224.fb_dist_in1k',
-    'xcit_large_24_p8_384_dist': 'xcit_large_24_p8_384.fb_dist_in1k',
-})
+register_model_deprecations(
+    __name__,
+    {
+        # Patch size 16
+        "xcit_nano_12_p16_224_dist": "xcit_nano_12_p16_224.fb_dist_in1k",
+        "xcit_nano_12_p16_384_dist": "xcit_nano_12_p16_384.fb_dist_in1k",
+        "xcit_tiny_12_p16_224_dist": "xcit_tiny_12_p16_224.fb_dist_in1k",
+        "xcit_tiny_12_p16_384_dist": "xcit_tiny_12_p16_384.fb_dist_in1k",
+        "xcit_tiny_24_p16_224_dist": "xcit_tiny_24_p16_224.fb_dist_in1k",
+        "xcit_tiny_24_p16_384_dist": "xcit_tiny_24_p16_384.fb_dist_in1k",
+        "xcit_small_12_p16_224_dist": "xcit_small_12_p16_224.fb_dist_in1k",
+        "xcit_small_12_p16_384_dist": "xcit_small_12_p16_384.fb_dist_in1k",
+        "xcit_small_24_p16_224_dist": "xcit_small_24_p16_224.fb_dist_in1k",
+        "xcit_small_24_p16_384_dist": "xcit_small_24_p16_384.fb_dist_in1k",
+        "xcit_medium_24_p16_224_dist": "xcit_medium_24_p16_224.fb_dist_in1k",
+        "xcit_medium_24_p16_384_dist": "xcit_medium_24_p16_384.fb_dist_in1k",
+        "xcit_large_24_p16_224_dist": "xcit_large_24_p16_224.fb_dist_in1k",
+        "xcit_large_24_p16_384_dist": "xcit_large_24_p16_384.fb_dist_in1k",
+        # Patch size 8
+        "xcit_nano_12_p8_224_dist": "xcit_nano_12_p8_224.fb_dist_in1k",
+        "xcit_nano_12_p8_384_dist": "xcit_nano_12_p8_384.fb_dist_in1k",
+        "xcit_tiny_12_p8_224_dist": "xcit_tiny_12_p8_224.fb_dist_in1k",
+        "xcit_tiny_12_p8_384_dist": "xcit_tiny_12_p8_384.fb_dist_in1k",
+        "xcit_tiny_24_p8_224_dist": "xcit_tiny_24_p8_224.fb_dist_in1k",
+        "xcit_tiny_24_p8_384_dist": "xcit_tiny_24_p8_384.fb_dist_in1k",
+        "xcit_small_12_p8_224_dist": "xcit_small_12_p8_224.fb_dist_in1k",
+        "xcit_small_12_p8_384_dist": "xcit_small_12_p8_384.fb_dist_in1k",
+        "xcit_small_24_p8_224_dist": "xcit_small_24_p8_224.fb_dist_in1k",
+        "xcit_small_24_p8_384_dist": "xcit_small_24_p8_384.fb_dist_in1k",
+        "xcit_medium_24_p8_224_dist": "xcit_medium_24_p8_224.fb_dist_in1k",
+        "xcit_medium_24_p8_384_dist": "xcit_medium_24_p8_384.fb_dist_in1k",
+        "xcit_large_24_p8_224_dist": "xcit_large_24_p8_224.fb_dist_in1k",
+        "xcit_large_24_p8_384_dist": "xcit_large_24_p8_384.fb_dist_in1k",
+    },
+)

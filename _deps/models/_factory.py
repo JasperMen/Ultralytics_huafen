@@ -1,31 +1,32 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any
 from urllib.parse import urlsplit
 
+from timm.layers import set_layer_config
 from torch import nn
 
-from timm.layers import set_layer_config
 from ._helpers import load_checkpoint
 from ._hub import load_model_config_from_hf, load_model_config_from_path
 from ._pretrained import PretrainedCfg
 from ._registry import is_model, model_entrypoint, split_model_name_tag
 
+__all__ = ["create_model", "parse_model_name", "safe_model_name"]
 
-__all__ = ['parse_model_name', 'safe_model_name', 'create_model']
 
-
-def parse_model_name(model_name: str) -> Tuple[Optional[str], str]:
+def parse_model_name(model_name: str) -> tuple[str | None, str]:
     """Parse source and name from potentially prefixed model name."""
-    if model_name.startswith('hf_hub'):
+    if model_name.startswith("hf_hub"):
         # NOTE for backwards compat, deprecate hf_hub use
-        model_name = model_name.replace('hf_hub', 'hf-hub')
+        model_name = model_name.replace("hf_hub", "hf-hub")
     parsed = urlsplit(model_name)
-    assert parsed.scheme in ('', 'hf-hub', 'local-dir')
-    if parsed.scheme == 'hf-hub':
+    assert parsed.scheme in ("", "hf-hub", "local-dir")
+    if parsed.scheme == "hf-hub":
         # FIXME may use fragment as revision, currently `@` in URI path
         return parsed.scheme, parsed.path
-    elif parsed.scheme == 'local-dir':
+    elif parsed.scheme == "local-dir":
         return parsed.scheme, parsed.path
     else:
         model_name = os.path.split(parsed.path)[-1]
@@ -34,24 +35,26 @@ def parse_model_name(model_name: str) -> Tuple[Optional[str], str]:
 
 def safe_model_name(model_name: str, remove_source: bool = True) -> str:
     """Return a filename / path safe model name."""
+
     def make_safe(name: str) -> str:
-        return ''.join(c if c.isalnum() else '_' for c in name).rstrip('_')
+        return "".join(c if c.isalnum() else "_" for c in name).rstrip("_")
+
     if remove_source:
         model_name = parse_model_name(model_name)[-1]
     return make_safe(model_name)
 
 
 def create_model(
-        model_name: str,
-        pretrained: bool = False,
-        pretrained_cfg: Optional[Union[str, Dict[str, Any], PretrainedCfg]] = None,
-        pretrained_cfg_overlay: Optional[Dict[str, Any]] = None,
-        checkpoint_path: Optional[Union[str, Path]] = None,
-        cache_dir: Optional[Union[str, Path]] = None,
-        scriptable: Optional[bool] = None,
-        exportable: Optional[bool] = None,
-        no_jit: Optional[bool] = None,
-        **kwargs: Any,
+    model_name: str,
+    pretrained: bool = False,
+    pretrained_cfg: str | dict[str, Any] | PretrainedCfg | None = None,
+    pretrained_cfg_overlay: dict[str, Any] | None = None,
+    checkpoint_path: str | Path | None = None,
+    cache_dir: str | Path | None = None,
+    scriptable: bool | None = None,
+    exportable: bool | None = None,
+    no_jit: bool | None = None,
+    **kwargs: Any,
 ) -> nn.Module:
     """Create a model.
 
@@ -71,14 +74,12 @@ def create_model(
         scriptable: Set layer config so that model is jit scriptable (not working for all models yet).
         exportable: Set layer config so that model is traceable / ONNX exportable (not fully impl/obeyed yet).
         no_jit: Set layer config so that model doesn't utilize jit scripted layers (so far activations only).
-
-    Keyword Args:
+        Keyword Args:
         drop_rate (float): Classifier dropout rate for training.
         drop_path_rate (float): Stochastic depth drop rate for training.
         global_pool (str): Classifier global pooling type.
 
-    Example:
-
+    Examples:
     ```py
     >>> from timm import create_model
 
@@ -107,20 +108,20 @@ def create_model(
 
     model_source, model_id = parse_model_name(model_name)
     if model_source:
-        assert not pretrained_cfg, 'pretrained_cfg should not be set when sourcing model from Hugging Face Hub.'
-        if model_source == 'hf-hub':
+        assert not pretrained_cfg, "pretrained_cfg should not be set when sourcing model from Hugging Face Hub."
+        if model_source == "hf-hub":
             # For model names specified in the form `hf-hub:path/architecture_name@revision`,
             # load model weights + pretrained_cfg from Hugging Face hub.
             pretrained_cfg, model_name, model_args = load_model_config_from_hf(
                 model_id,
                 cache_dir=cache_dir,
             )
-        elif model_source == 'local-dir':
+        elif model_source == "local-dir":
             pretrained_cfg, model_name, model_args = load_model_config_from_path(
                 model_id,
             )
         else:
-            assert False, f'Unknown model_source {model_source}'
+            assert False, f"Unknown model_source {model_source}"
         if model_args:
             for k, v in model_args.items():
                 kwargs.setdefault(k, v)
@@ -131,7 +132,7 @@ def create_model(
             pretrained_cfg = pretrained_tag
 
     if not is_model(model_name):
-        raise RuntimeError('Unknown model (%s)' % model_name)
+        raise RuntimeError(f"Unknown model ({model_name})")
 
     create_fn = model_entrypoint(model_name)
     with set_layer_config(scriptable=scriptable, exportable=exportable, no_jit=no_jit):

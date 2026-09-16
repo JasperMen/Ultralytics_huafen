@@ -3,7 +3,7 @@
 import math
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class RoPE(nn.Module):
@@ -20,8 +20,7 @@ class RoPE(nn.Module):
             raise ValueError(f"RoPE expects BHWC with channels divisible by 4, got {tuple(x.shape)}")
         frequencies_per_axis = feature_dim // (2 * len(spatial_dims))
         theta = 1 / (
-            self.base
-            ** (torch.arange(frequencies_per_axis, dtype=x.dtype, device=x.device) / frequencies_per_axis)
+            self.base ** (torch.arange(frequencies_per_axis, dtype=x.dtype, device=x.device) / frequencies_per_axis)
         )
         grids = torch.meshgrid(
             *(torch.arange(size, dtype=x.dtype, device=x.device) for size in spatial_dims), indexing="ij"
@@ -83,10 +82,7 @@ class MLLAttentionWithGroupedNorm(nn.Module):
         k_rope = self.rope(k.reshape(b, h, w, c)).reshape(b, n, self.num_heads, head_dim)
         q_rope = q_rope.permute(0, 2, 1, 3)
         k_rope = k_rope.permute(0, 2, 1, 3)
-        q, k, value = (
-            tensor.reshape(b, n, self.num_heads, head_dim).permute(0, 2, 1, 3)
-            for tensor in (q, k, tokens)
-        )
+        q, k, value = (tensor.reshape(b, n, self.num_heads, head_dim).permute(0, 2, 1, 3) for tensor in (q, k, tokens))
 
         normalizer = torch.reciprocal(q @ k.mean(dim=-2, keepdim=True).transpose(-2, -1) + self.eps)
         scale = n**-0.5
