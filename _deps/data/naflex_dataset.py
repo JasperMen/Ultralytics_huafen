@@ -1,4 +1,4 @@
-""" Dynamic Sequence Length Datasets for Variable Resolution Image Processing
+"""Dynamic Sequence Length Datasets for Variable Resolution Image Processing.
 
 Implements two dataset wrappers:
 1. NaFlexMapDatasetWrapper - Map-style dataset that returns batches with variable sequence lengths
@@ -13,26 +13,25 @@ Both support:
 Hacked together by / Copyright 2025, Ross Wightman, Hugging Face
 """
 
+from __future__ import annotations
+
 import math
-import random
 import warnings
-from functools import partial
-from typing import Any, Iterator, List, Tuple, Dict, Optional, Union, Callable
+from typing import Callable, Iterator
 
 import torch
-from torch.utils.data import Dataset, IterableDataset, DataLoader
-from PIL import Image
+from timm.layers import to_2tuple
+from torch.utils.data import Dataset, IterableDataset
 
 from .naflex_transforms import Patchify
-from timm.layers import to_2tuple
 
 
 def calculate_naflex_batch_size(
-        tokens_per_batch: int,
-        seq_len: int,
-        max_size: Optional[int] = None,
-        divisor: int = 1,
-        rounding: str = 'floor',
+    tokens_per_batch: int,
+    seq_len: int,
+    max_size: int | None = None,
+    divisor: int = 1,
+    rounding: str = "floor",
 ) -> int:
     """Calculate batch size based on sequence length with divisibility constraints.
 
@@ -51,9 +50,9 @@ def calculate_naflex_batch_size(
 
     # Apply divisibility with specified rounding method
     if divisor > 1:
-        if rounding == 'floor':
+        if rounding == "floor":
             batch_size = math.floor(raw_batch_size / divisor) * divisor
-        elif rounding == 'ceil':
+        elif rounding == "ceil":
             batch_size = math.ceil(raw_batch_size / divisor) * divisor
         else:  # 'round' is the default
             batch_size = round(raw_batch_size / divisor) * divisor
@@ -74,8 +73,8 @@ class NaFlexCollator:
     """Custom collator for batching NaFlex-style variable-resolution images."""
 
     def __init__(
-            self,
-            max_seq_len: Optional[int] = None,
+        self,
+        max_seq_len: int | None = None,
     ) -> None:
         """Initialize NaFlexCollator.
 
@@ -84,7 +83,9 @@ class NaFlexCollator:
         """
         self.max_seq_len = max_seq_len or 576  # Default ViT-B/16 sequence length (577 = 24*24)
 
-    def __call__(self, batch: List[Tuple[Dict[str, torch.Tensor], Union[int, torch.Tensor]]]) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
+    def __call__(
+        self, batch: list[tuple[dict[str, torch.Tensor], int | torch.Tensor]]
+    ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
         """Collate batch of NaFlex samples.
 
         Args:
@@ -114,10 +115,10 @@ class NaFlexCollator:
             max_patches = self.max_seq_len
         else:
             # Find the maximum number of patches in this batch
-            max_patches = max(item['patches'].shape[0] for item in patch_dicts)
+            max_patches = max(item["patches"].shape[0] for item in patch_dicts)
 
         # Check if patches are flattened or unflattened
-        patches_tensor = patch_dicts[0]['patches']
+        patches_tensor = patch_dicts[0]["patches"]
         is_unflattened = patches_tensor.ndim == 4  # [N, Ph, Pw, C]
 
         if is_unflattened:
@@ -135,27 +136,27 @@ class NaFlexCollator:
 
         # Fill in the tensors
         for i, patch_dict in enumerate(patch_dicts):
-            num_patches = min(patch_dict['patches'].shape[0], max_patches)
+            num_patches = min(patch_dict["patches"].shape[0], max_patches)
 
-            patches[i, :num_patches] = patch_dict['patches'][:num_patches]
-            patch_coord[i, :num_patches] = patch_dict['patch_coord'][:num_patches]
-            patch_valid[i, :num_patches] = patch_dict['patch_valid'][:num_patches]
+            patches[i, :num_patches] = patch_dict["patches"][:num_patches]
+            patch_coord[i, :num_patches] = patch_dict["patch_coord"][:num_patches]
+            patch_valid[i, :num_patches] = patch_dict["patch_valid"][:num_patches]
 
         result = {
-            'patches': patches,
-            'patch_coord': patch_coord,
-            'patch_valid': patch_valid,
-            'seq_len': max_patches,
+            "patches": patches,
+            "patch_coord": patch_coord,
+            "patch_valid": patch_valid,
+            "seq_len": max_patches,
         }
 
         return result, targets
 
 
 def _resolve_patch_cfg(
-        patch_size: Optional[Union[int, Tuple[int, int]]],
-        patch_size_choices: Optional[List[int]],
-        patch_size_choice_probs: Optional[List[float]],
-) -> Tuple[List[Tuple[int, int]], List[float], bool]:
+    patch_size: int | tuple[int, int] | None,
+    patch_size_choices: list[int] | None,
+    patch_size_choice_probs: list[float] | None,
+) -> tuple[list[tuple[int, int]], list[float], bool]:
     """Resolve patch size configuration.
 
     Args:
@@ -164,17 +165,15 @@ def _resolve_patch_cfg(
         patch_size_choice_probs: Probabilities for each patch size choice.
 
     Returns:
-        Tuple of (sizes, probs, variable) where sizes is list of patch size tuples,
-        probs is list of probabilities, and variable indicates if patch size varies.
+        Tuple of (sizes, probs, variable) where sizes is list of patch size tuples,: probs is list of probabilities, and
+            variable indicates if patch size varies.
     """
     # If both are None, default to patch_size=16
     if patch_size is None and patch_size_choices is None:
         patch_size = 16
 
     if (patch_size is None) == (patch_size_choices is None):
-        raise ValueError(
-            "Specify exactly one of `patch_size` or `patch_size_choices`."
-        )
+        raise ValueError("Specify exactly one of `patch_size` or `patch_size_choices`.")
 
     if patch_size is not None:
         sizes = [to_2tuple(patch_size)]
@@ -196,34 +195,31 @@ def _resolve_patch_cfg(
 
 
 class NaFlexMapDatasetWrapper(IterableDataset):
-    """
-    IterableDataset wrapper for a map-style base dataset.
+    """IterableDataset wrapper for a map-style base dataset.
 
-    Yields batches with variable sequence lengths. It calculates a canonical
-    batch schedule (sequence length, batch size pairs) once based on the
-    total dataset size (padded for distribution). Each epoch, it shuffles
-    the order of this canonical schedule and the dataset indices.
-    This ensures a consistent number of batches and samples per epoch
-    across all ranks. Handles distributed training and multiple workers.
+    Yields batches with variable sequence lengths. It calculates a canonical batch schedule (sequence length, batch size
+    pairs) once based on the total dataset size (padded for distribution). Each epoch, it shuffles the order of this
+    canonical schedule and the dataset indices. This ensures a consistent number of batches and samples per epoch across
+    all ranks. Handles distributed training and multiple workers.
     """
 
     def __init__(
-            self,
-            base_dataset: Dataset,
-            patch_size: Optional[Union[int, Tuple[int, int]]] = None,
-            patch_size_choices: Optional[List[int]] = None,
-            patch_size_choice_probs: Optional[List[float]] = None,
-            seq_lens: Tuple[int, ...] = (128, 256, 576, 784, 1024),
-            max_tokens_per_batch: int = 4096 * 4,
-            transform_factory: Optional[Callable] = None,
-            mixup_fn: Optional[Callable] = None,
-            seed: int = 42,
-            shuffle: bool = True,
-            distributed: bool = False,
-            rank: int = 0,
-            world_size: int = 1,
-            epoch: int = 0,
-            batch_divisor: int = 8,
+        self,
+        base_dataset: Dataset,
+        patch_size: int | tuple[int, int] | None = None,
+        patch_size_choices: list[int] | None = None,
+        patch_size_choice_probs: list[float] | None = None,
+        seq_lens: tuple[int, ...] = (128, 256, 576, 784, 1024),
+        max_tokens_per_batch: int = 4096 * 4,
+        transform_factory: Callable | None = None,
+        mixup_fn: Callable | None = None,
+        seed: int = 42,
+        shuffle: bool = True,
+        distributed: bool = False,
+        rank: int = 0,
+        world_size: int = 1,
+        epoch: int = 0,
+        batch_divisor: int = 8,
     ) -> None:
         """Initialize NaFlexMapDatasetWrapper.
 
@@ -245,11 +241,11 @@ class NaFlexMapDatasetWrapper(IterableDataset):
             batch_divisor: Ensure batch size is divisible by this.
         """
         super().__init__()
-        if not hasattr(base_dataset, '__len__') or not hasattr(base_dataset, '__getitem__'):
+        if not hasattr(base_dataset, "__len__") or not hasattr(base_dataset, "__getitem__"):
             raise TypeError("base_dataset must be a map-style dataset (implement __len__ and __getitem__)")
 
         self.base_dataset = base_dataset
-        self.seq_lens = sorted(list(set(seq_lens))) # Ensure unique and sorted
+        self.seq_lens = sorted(set(seq_lens))  # Ensure unique and sorted
         self.max_tokens_per_batch = max_tokens_per_batch
         self.seed = seed
         self.shuffle = shuffle
@@ -261,25 +257,20 @@ class NaFlexMapDatasetWrapper(IterableDataset):
 
         # Resolve patch size configuration
         self.patch_sizes, self.patch_size_probs, self.variable_patch_size = _resolve_patch_cfg(
-            patch_size,
-            patch_size_choices,
-            patch_size_choice_probs
+            patch_size, patch_size_choices, patch_size_choice_probs
         )
 
         # Pre-initialize transforms and collate fns for each (seq_len, patch_idx) combination
-        self.transforms: Dict[Tuple[int, int], Optional[Callable]] = {}
-        self.collate_fns: Dict[int, Callable] = {}
-        self.patchifiers: List[Callable] = []
+        self.transforms: dict[tuple[int, int], Callable | None] = {}
+        self.collate_fns: dict[int, Callable] = {}
+        self.patchifiers: list[Callable] = []
 
         for seq_len in self.seq_lens:
             self.collate_fns[seq_len] = NaFlexCollator(seq_len)
 
         for patch_idx, patch_size_tuple in enumerate(self.patch_sizes):
             # Pre-initialize patchifiers for each patch size (indexed by patch_idx)
-            self.patchifiers.append(Patchify(
-                patch_size=patch_size_tuple,
-                flatten_patches=not self.variable_patch_size
-            ))
+            self.patchifiers.append(Patchify(patch_size=patch_size_tuple, flatten_patches=not self.variable_patch_size))
 
             # Create transforms for each (seq_len, patch_idx) combination
             for seq_len in self.seq_lens:
@@ -287,27 +278,25 @@ class NaFlexMapDatasetWrapper(IterableDataset):
                 if transform_factory:
                     self.transforms[key] = transform_factory(max_seq_len=seq_len, patch_size=patch_size_tuple)
                 else:
-                    self.transforms[key] = None # No transform
+                    self.transforms[key] = None  # No transform
 
         self.mixup_fn = mixup_fn
 
         # Canonical Schedule Calculation (Done Once)
-        self._canonical_batch_schedule: List[Tuple[int, int]] = []
+        self._canonical_batch_schedule: list[tuple[int, int]] = []
         self._num_batches_per_rank: int = 0
         self._padded_samples_per_rank: int = 0
-        self._create_canonical_schedule() # Calculate schedule based on padded size
+        self._create_canonical_schedule()  # Calculate schedule based on padded size
 
         # Per-Epoch State
         # Stores (seq_len, list_of_indices) for the current epoch, specific to this rank
-        self._epoch_batches: List[Tuple[int, List[int]]] = []
+        self._epoch_batches: list[tuple[int, list[int]]] = []
         self._prepare_epoch_batches(self.epoch)  # setup for initial epoch
 
     def _create_canonical_schedule(self):
-        """
-        Calculates the canonical batch schedule (seq_len, batch_size pairs)
-        based on the dataset size, padded for distributed training.
-        This schedule is the *same* for all ranks and ensures consistent
-        epoch length. It is calculated once during initialization.
+        """Calculates the canonical batch schedule (seq_len, batch_size pairs) based on the dataset size, padded for
+        distributed training. This schedule is the *same* for all ranks and ensures consistent epoch length. It
+        is calculated once during initialization.
         """
         total_len = len(self.base_dataset)
         padded_total_len = total_len
@@ -316,33 +305,37 @@ class NaFlexMapDatasetWrapper(IterableDataset):
         if self.distributed and self.world_size > 1:
             # Calculate padding needed for even distribution
             if total_len % self.world_size != 0:
-                 pad_size = self.world_size - (total_len % self.world_size)
-                 padded_total_len += pad_size
-                 print(f"Rank {self.rank}: Padding dataset with {pad_size} samples for distributed training (total size {padded_total_len}).")
+                pad_size = self.world_size - (total_len % self.world_size)
+                padded_total_len += pad_size
+                print(
+                    f"Rank {self.rank}: Padding dataset with {pad_size} samples for distributed training (total size {padded_total_len})."
+                )
             else:
-                 pad_size = 0
+                pad_size = 0
 
             if padded_total_len % self.world_size != 0:
-                 # This should not happen with the padding logic, but safeguard
-                 raise RuntimeError(f"Internal Error: Padded total length {padded_total_len} not divisible by world size {self.world_size}")
+                # This should not happen with the padding logic, but safeguard
+                raise RuntimeError(
+                    f"Internal Error: Padded total length {padded_total_len} not divisible by world size {self.world_size}"
+                )
 
             num_samples_per_rank = padded_total_len // self.world_size
         elif self.distributed and self.world_size <= 1:
-             # Distributed flag set but world_size is 1, treat as non-distributed
-             pass # num_samples_per_rank remains total_len
+            # Distributed flag set but world_size is 1, treat as non-distributed
+            pass  # num_samples_per_rank remains total_len
 
         self._padded_samples_per_rank = num_samples_per_rank
 
         if num_samples_per_rank == 0:
-             self._canonical_batch_schedule = []
-             self._num_batches_per_rank = 0
-             return
+            self._canonical_batch_schedule = []
+            self._num_batches_per_rank = 0
+            return
 
         # Use a fixed seed for generating the canonical schedule structure
         g = torch.Generator()
-        g.manual_seed(self.seed) # Use base seed, NOT epoch seed
+        g.manual_seed(self.seed)  # Use base seed, NOT epoch seed
 
-        current_schedule: List[Tuple[int, int]] = []
+        current_schedule: list[tuple[int, int]] = []
         remaining_samples = num_samples_per_rank
         total_scheduled_samples = 0
 
@@ -358,15 +351,17 @@ class NaFlexMapDatasetWrapper(IterableDataset):
                 # max_size should be remaining_samples to avoid overshooting
                 max_size=remaining_samples,
                 divisor=self.batch_divisor,
-                rounding='floor',
+                rounding="floor",
             )
             # Ensure batch size is positive and doesn't exceed remaining samples
             batch_size = max(1, batch_size)
             batch_size = min(batch_size, remaining_samples)
 
             if batch_size <= 0:
-                 warnings.warn(f"Calculated batch size <= 0 (seq_len={seq_len}, remaining={remaining_samples}). Stopping schedule generation early.")
-                 break # Avoid infinite loop if something goes wrong
+                warnings.warn(
+                    f"Calculated batch size <= 0 (seq_len={seq_len}, remaining={remaining_samples}). Stopping schedule generation early."
+                )
+                break  # Avoid infinite loop if something goes wrong
 
             current_schedule.append((seq_len, batch_size))
             remaining_samples -= batch_size
@@ -385,20 +380,18 @@ class NaFlexMapDatasetWrapper(IterableDataset):
 
         self._canonical_batch_schedule = current_schedule
         self._num_batches_per_rank = len(current_schedule)
-        print(f"Rank {self.rank}: Created canonical schedule with {self._num_batches_per_rank} batches for {self._padded_samples_per_rank} samples/rank.")
-
+        print(
+            f"Rank {self.rank}: Created canonical schedule with {self._num_batches_per_rank} batches for {self._padded_samples_per_rank} samples/rank."
+        )
 
     def _prepare_epoch_batches(self, epoch: int):
-        """
-        Prepares the batches for the current epoch by:
-        1. Shuffling the full dataset indices (using epoch seed).
-        2. Applying padding if in distributed mode.
-        3. Selecting indices for the current rank.
-        4. Shuffling the *order* of the canonical batch schedule (using epoch seed).
-        5. Assigning the rank's indices to the shuffled batches.
+        """Prepares the batches for the current epoch by: 1. Shuffling the full dataset indices (using epoch seed). 2.
+        Applying padding if in distributed mode. 3. Selecting indices for the current rank. 4. Shuffling the
+        *order* of the canonical batch schedule (using epoch seed). 5. Assigning the rank's indices to the
+        shuffled batches.
         """
         g = torch.Generator()
-        g.manual_seed(self.seed + epoch) # Epoch-specific seed for shuffling
+        g.manual_seed(self.seed + epoch)  # Epoch-specific seed for shuffling
 
         # 1. Get shuffled global indices
         total_len = len(self.base_dataset)
@@ -417,36 +410,38 @@ class NaFlexMapDatasetWrapper(IterableDataset):
                 indices_for_ranks = all_indices_shuffled + all_indices_shuffled[:pad_size]
             # Ensure length matches expectation
             if len(indices_for_ranks) != padded_total_len:
-                 raise RuntimeError(f"Internal Error: Padded index list length {len(indices_for_ranks)} does not match expected {padded_total_len}")
+                raise RuntimeError(
+                    f"Internal Error: Padded index list length {len(indices_for_ranks)} does not match expected {padded_total_len}"
+                )
 
         # 3. Select indices for the current rank
         if self.distributed and self.world_size > 1:
-            indices_this_rank = indices_for_ranks[self.rank::self.world_size]
-        else: # Non-distributed or world_size=1
+            indices_this_rank = indices_for_ranks[self.rank :: self.world_size]
+        else:  # Non-distributed or world_size=1
             indices_this_rank = indices_for_ranks
 
         # Sanity check length
         if len(indices_this_rank) != self._padded_samples_per_rank:
-             # This might happen if canonical schedule generation had warnings/issues
-             warnings.warn(
-                 f"Rank {self.rank}: Number of indices for this rank ({len(indices_this_rank)}) "
-                 f"does not match expected padded samples per rank ({self._padded_samples_per_rank}). "
-                 f"Epoch generation might be inconsistent."
-              )
-             # Adjust expected samples? Or truncate/pad indices? Let's proceed but warn.
-             # Using min() prevents IndexError later if indices are fewer than expected.
-             effective_samples_this_rank = min(len(indices_this_rank), self._padded_samples_per_rank)
-             indices_this_rank = indices_this_rank[:effective_samples_this_rank]
+            # This might happen if canonical schedule generation had warnings/issues
+            warnings.warn(
+                f"Rank {self.rank}: Number of indices for this rank ({len(indices_this_rank)}) "
+                f"does not match expected padded samples per rank ({self._padded_samples_per_rank}). "
+                f"Epoch generation might be inconsistent."
+            )
+            # Adjust expected samples? Or truncate/pad indices? Let's proceed but warn.
+            # Using min() prevents IndexError later if indices are fewer than expected.
+            effective_samples_this_rank = min(len(indices_this_rank), self._padded_samples_per_rank)
+            indices_this_rank = indices_this_rank[:effective_samples_this_rank]
 
         else:
-             effective_samples_this_rank = self._padded_samples_per_rank
+            effective_samples_this_rank = self._padded_samples_per_rank
 
         # 4. Shuffle the order of the canonical batch schedule for this epoch
         if self.shuffle:
             schedule_perm = torch.randperm(self._num_batches_per_rank, generator=g).tolist()
             shuffled_schedule = [self._canonical_batch_schedule[i] for i in schedule_perm]
         else:
-            shuffled_schedule = list(self._canonical_batch_schedule) # Keep original order
+            shuffled_schedule = list(self._canonical_batch_schedule)  # Keep original order
 
         # 5. Assign indices to the shuffled batches
         self._epoch_batches = []
@@ -456,10 +451,12 @@ class NaFlexMapDatasetWrapper(IterableDataset):
             # Ensure we don't try to grab more indices than available for the rank
             actual_bs = min(bs, effective_samples_this_rank - idx_pos)
             if actual_bs <= 0:
-                 if scheduled_samples_count < effective_samples_this_rank:
-                     # This indicates mismatch between schedule total and actual samples
-                     warnings.warn(f"Rank {self.rank}: Ran out of samples ({idx_pos}/{effective_samples_this_rank}) before processing entire schedule. Check schedule generation.")
-                 break # Stop if no more indices or batch size is zero
+                if scheduled_samples_count < effective_samples_this_rank:
+                    # This indicates mismatch between schedule total and actual samples
+                    warnings.warn(
+                        f"Rank {self.rank}: Ran out of samples ({idx_pos}/{effective_samples_this_rank}) before processing entire schedule. Check schedule generation."
+                    )
+                break  # Stop if no more indices or batch size is zero
 
             batch_indices = indices_this_rank[idx_pos : idx_pos + actual_bs]
             self._epoch_batches.append((seq_len, batch_indices))
@@ -468,11 +465,11 @@ class NaFlexMapDatasetWrapper(IterableDataset):
 
         # Final check
         if scheduled_samples_count != effective_samples_this_rank:
-             warnings.warn(
+            warnings.warn(
                 f"Rank {self.rank}: Assigned {scheduled_samples_count} samples to batches, "
                 f"but expected {effective_samples_this_rank} effective samples this epoch. "
                 f"Indices remaining: {effective_samples_this_rank - scheduled_samples_count}."
-             )
+            )
 
     def set_epoch(self, epoch: int) -> None:
         """Updates the epoch, regenerating the epoch-specific batches.
@@ -493,7 +490,7 @@ class NaFlexMapDatasetWrapper(IterableDataset):
         """
         return self._num_batches_per_rank
 
-    def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
+    def __iter__(self) -> Iterator[tuple[dict[str, torch.Tensor], torch.Tensor]]:
         """Iterates through pre-calculated batches for the current epoch.
 
         Yields:
@@ -507,8 +504,8 @@ class NaFlexMapDatasetWrapper(IterableDataset):
         # Each worker processes a slice of the batches prepared in _prepare_epoch_batches
         batches_for_worker = self._epoch_batches[worker_id::num_workers]
         for seq_len, indices in batches_for_worker:
-            if not indices: # Skip if a batch ended up with no indices (shouldn't happen often)
-                 continue
+            if not indices:  # Skip if a batch ended up with no indices (shouldn't happen often)
+                continue
 
             # Select patch size for this batch
             patch_idx = 0
@@ -539,19 +536,21 @@ class NaFlexMapDatasetWrapper(IterableDataset):
                     batch_targets.append(label)
 
                 except IndexError:
-                     warnings.warn(f"IndexError encountered for index {idx} (possibly due to padding/repeated indices). Skipping sample.")
-                     continue
+                    warnings.warn(
+                        f"IndexError encountered for index {idx} (possibly due to padding/repeated indices). Skipping sample."
+                    )
+                    continue
                 except Exception as e:
                     # Log other potential errors during data loading/processing
                     warnings.warn(f"Error processing sample index {idx}. Error: {e}. Skipping sample.")
-                    continue # Skip problematic sample
+                    continue  # Skip problematic sample
 
             if self.mixup_fn is not None:
                 batch_imgs, batch_targets = self.mixup_fn(batch_imgs, batch_targets)
 
             batch_imgs = [batch_patchifier(img) for img in batch_imgs]
             batch_samples = list(zip(batch_imgs, batch_targets))
-            if batch_samples: # Only yield if we successfully processed samples
+            if batch_samples:  # Only yield if we successfully processed samples
                 # Collate the processed samples into a batch
                 yield self.collate_fns[seq_len](batch_samples)
 

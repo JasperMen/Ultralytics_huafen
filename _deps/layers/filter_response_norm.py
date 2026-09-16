@@ -1,13 +1,14 @@
-""" Filter Response Norm in PyTorch
+"""Filter Response Norm in PyTorch.
 
 Based on `Filter Response Normalization Layer` - https://arxiv.org/abs/1911.09737
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import Optional, Type
+
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .create_act import create_act_layer
 from .trace_utils import _assert
@@ -20,16 +21,16 @@ def inv_instance_rms(x, eps: float = 1e-5):
 
 class FilterResponseNormTlu2d(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            apply_act: bool = True,
-            eps: float = 1e-5,
-            rms: bool = True,
-            device=None,
-            dtype=None,
-            **_,
+        self,
+        num_features: int,
+        apply_act: bool = True,
+        eps: float = 1e-5,
+        rms: bool = True,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.rms = rms
@@ -47,7 +48,7 @@ class FilterResponseNormTlu2d(nn.Module):
             nn.init.zeros_(self.tau)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         x = x * inv_instance_rms(x, self.eps)
@@ -57,18 +58,18 @@ class FilterResponseNormTlu2d(nn.Module):
 
 class FilterResponseNormAct2d(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            apply_act: bool = True,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            inplace: Optional[bool] = None,
-            rms: bool = True,
-            eps: float = 1e-5,
-            device=None,
-            dtype=None,
-            **_,
+        self,
+        num_features: int,
+        apply_act: bool = True,
+        act_layer: type[nn.Module] = nn.ReLU,
+        inplace: bool | None = None,
+        rms: bool = True,
+        eps: float = 1e-5,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if act_layer is not None and apply_act:
             self.act = create_act_layer(act_layer, inplace=inplace)
@@ -86,7 +87,7 @@ class FilterResponseNormAct2d(nn.Module):
         nn.init.zeros_(self.bias)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         x = x * inv_instance_rms(x, self.eps)

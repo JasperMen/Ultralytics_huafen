@@ -1,4 +1,4 @@
-""" Muon Optimizer
+"""Muon Optimizer.
 
 Improved Muon optimizer implementation with flexible handling of high-dimensional tensors.
 
@@ -20,13 +20,18 @@ Based on implementation by Keller Jordan, see
 
 Hacked together by Ross Wightman
 """
+
+from __future__ import annotations
+
 import logging
 import numbers
-from typing import List, Mapping, Optional, Sequence, Tuple, Union
+from typing import List, Mapping, Sequence, Tuple, Union
 
 import torch
+
 try:
     from torch.distributed.tensor import DTensor
+
     has_dtensor = True
 except ImportError:
     has_dtensor = False
@@ -86,13 +91,13 @@ NSCoeff = Union[str, Tuple[float, float, float], List[Tuple[float, float, float]
 
 
 def scale_eps_for_ns(
-        eps: float,
-        shape: Tuple[int, ...],
+    eps: float,
+    shape: tuple[int, ...],
 ) -> float:
     """Scale epsilon for Newton-Schulz based on matrix dimensions (μP-style).
 
-    For μP compatibility, epsilon should scale as eps * sqrt(din/dout) to maintain
-    consistent damping behavior across different model widths.
+    For μP compatibility, epsilon should scale as eps * sqrt(din/doubt) to maintain consistent damping behavior across
+    different model widths.
 
     Reference: https://arxiv.org/abs/2512.05620
 
@@ -103,20 +108,20 @@ def scale_eps_for_ns(
     Returns:
         Scaled epsilon value
     """
-    # Get din, dout from shape (handle both 2D and 3D batched)
-    # FIXME TBD paper includes depth in the damping scale, e.g: eps * (din / dout) ** 0.5 / N
-    dout, din = (shape[-2], shape[-1])
-    return eps * (din / dout) ** 0.5
+    # Get din, doubt from shape (handle both 2D and 3D batched)
+    # FIXME TBD paper includes depth in the damping scale, e.g: eps * (din / doubt) ** 0.5 / N
+    doubt, din = (shape[-2], shape[-1])
+    return eps * (din / doubt) ** 0.5
 
 
 def zeropower_via_newtonschulz(
-        G: torch.Tensor,
-        steps: int,
-        coefficients: List[Tuple[float, float, float]],
-        eps: float = MUON_EPS,
-        safety_factor: float = 1.0,
-        dtype: torch.dtype = torch.bfloat16,
-        scale_eps: bool = False,
+    G: torch.Tensor,
+    steps: int,
+    coefficients: list[tuple[float, float, float]],
+    eps: float = MUON_EPS,
+    safety_factor: float = 1.0,
+    dtype: torch.dtype = torch.bfloat16,
+    scale_eps: bool = False,
 ) -> torch.Tensor:
     """Newton-Schulz quintic iteration to compute the zeroth power / orthogonalization of gradient.
 
@@ -134,7 +139,7 @@ def zeropower_via_newtonschulz(
         eps: Numerical stability epsilon for norm
         safety_factor: Multiplicative safety factor for norm (1.01 is common safety value in 'polar express' variants)
         dtype: Computation dtype
-        scale_eps: If True, scale epsilon by sqrt(din/dout) for μP compatibility
+        scale_eps: If True, scale epsilon by sqrt(din/doubt) for μP compatibility
 
     Returns:
         Orthogonalized tensor of same shape as G
@@ -143,10 +148,9 @@ def zeropower_via_newtonschulz(
     num_cs = len(coefficients)
     assert num_cs >= 1 and len(coefficients[0]) == 3
     # match coefficients with # of steps, truncate or repeat last
-    coeff_sequence = coefficients[:steps] if steps <= num_cs else \
-        coefficients + [coefficients[-1]] * (steps - num_cs)
+    coeff_sequence = coefficients[:steps] if steps <= num_cs else coefficients + [coefficients[-1]] * (steps - num_cs)
 
-    # Scale epsilon by sqrt(din/dout) for μP compatibility if requested
+    # Scale epsilon by sqrt(din/doubt) for μP compatibility if requested
     if scale_eps:
         eps = scale_eps_for_ns(eps, G.shape)
 
@@ -197,8 +201,8 @@ def zeropower_via_newtonschulz(
 
 
 def get_lr_scale(
-        param_shape: torch.Size,
-        adjust_lr_fn: str = "match_rms_adamw",
+    param_shape: torch.Size,
+    adjust_lr_fn: str = "match_rms_adamw",
 ) -> float:
     """Adjust learning rate based on parameter shape for Muon.
 
@@ -209,7 +213,7 @@ def get_lr_scale(
             - "match_rms_adamw": 0.2 * sqrt(max(out, in)) - Kimi scaling
             - "rms_to_rms": sqrt(out/in) - Scion/Bernstein scaling
     """
-    out_chs, in_chs = (param_shape[-2], param_shape[-1]) if len(param_shape) > 1 else (1., 1.)
+    out_chs, in_chs = (param_shape[-2], param_shape[-1]) if len(param_shape) > 1 else (1.0, 1.0)
 
     if adjust_lr_fn == "original":
         # Original Muon impl (https://kellerjordan.github.io/posts/muon/)
@@ -226,9 +230,9 @@ def get_lr_scale(
 
 
 def get_adamuon_lr_scale(
-        param_shape: torch.Size,
-        adjust_lr_fn: str = "match_rms_adamw",
-) -> Tuple[float, bool]:
+    param_shape: torch.Size,
+    adjust_lr_fn: str = "match_rms_adamw",
+) -> tuple[float, bool]:
     """Adjust learning rate based on parameter shape for AdaMuon.
 
     Args:
@@ -238,7 +242,7 @@ def get_adamuon_lr_scale(
     Returns:
         Tuple of (scale_factor, use_rms_norm)
     """
-    out_chs, in_chs = (param_shape[-2], param_shape[-1]) if len(param_shape) > 1 else (1., 1.)
+    out_chs, in_chs = (param_shape[-2], param_shape[-1]) if len(param_shape) > 1 else (1.0, 1.0)
 
     if adjust_lr_fn == "match_rms_adamw":
         # AdaMuon paper: normalize by RMS, then scale by 0.2 * sqrt(numel)
@@ -247,17 +251,17 @@ def get_adamuon_lr_scale(
     elif adjust_lr_fn == "rms_to_rms":
         return (out_chs / in_chs) ** 0.5, False
     elif adjust_lr_fn == "rsqrt_in":
-        return in_chs ** -0.5, False
+        return in_chs**-0.5, False
     else:
         assert False, f'Invalid scaling function "{adjust_lr_fn}" for AdaMuon'
 
 
 def _is_suitable_for_muon(
-        param: torch.Tensor,
-        min_dim_size: int = 4,
-        max_aspect_ratio: float = 128.,
-        return_reason: bool = False,
-) -> Union[bool, Tuple[bool, str]]:
+    param: torch.Tensor,
+    min_dim_size: int = 4,
+    max_aspect_ratio: float = 128.0,
+    return_reason: bool = False,
+) -> bool | tuple[bool, str]:
     """Check if a parameter is suitable for Muon optimization.
 
     Args:
@@ -280,7 +284,6 @@ def _is_suitable_for_muon(
     NOTE: these rules were created to balance complexity with covering common timm model cases
     Please let me know if there are non-optimal cases that you run into.
     """
-
     s = param.shape
     # Must have at least 2 non-unit dimensions
     if param.ndim < 2 or sum(1 for dim_size in s if dim_size > 1) < 2:
@@ -325,9 +328,9 @@ def _is_suitable_for_muon(
 
 
 def reshape_for_muon(
-        tensor: torch.Tensor,
-        mode: str = "flatten",
-) -> Tuple[torch.Tensor, torch.Size]:
+    tensor: torch.Tensor,
+    mode: str = "flatten",
+) -> tuple[torch.Tensor, torch.Size]:
     """Reshape high-dimensional tensor for Muon processing.
 
     Args:
@@ -360,22 +363,22 @@ def reshape_for_muon(
 
 
 def muon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
-        *,
-        lr: float,
-        weight_decay: float,
-        momentum: float,
-        nesterov: bool,
-        ns_steps: int,
-        ns_coefficients: NSCoeff,
-        eps: float,
-        safety_factor: float,
-        adjust_lr_fn: Optional[str],
-        conv_mode: str,
-        normalize_spatial: bool,
-        scale_eps: bool,
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    momentum_bufs: list[torch.Tensor],
+    *,
+    lr: float,
+    weight_decay: float,
+    momentum: float,
+    nesterov: bool,
+    ns_steps: int,
+    ns_coefficients: NSCoeff,
+    eps: float,
+    safety_factor: float,
+    adjust_lr_fn: str | None,
+    conv_mode: str,
+    normalize_spatial: bool,
+    scale_eps: bool,
 ) -> None:
     """Functional API that performs Muon algorithm computation."""
     _single_tensor_muon(
@@ -398,31 +401,30 @@ def muon(
 
 
 def adamuon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
-        exp_avg_sqs: List[torch.Tensor],
-        state_steps: List[torch.Tensor],
-        *,
-        lr: float,
-        weight_decay: float,
-        momentum: float,
-        nesterov: bool,
-        beta2: float,
-        ns_steps: int,
-        ns_coefficients: NSCoeff,
-        eps: float,
-        safety_factor: float,
-        adjust_lr_fn: Optional[str],
-        conv_mode: str,
-        normalize_spatial: bool,
-        scale_eps: bool,
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    momentum_bufs: list[torch.Tensor],
+    exp_avg_sqs: list[torch.Tensor],
+    state_steps: list[torch.Tensor],
+    *,
+    lr: float,
+    weight_decay: float,
+    momentum: float,
+    nesterov: bool,
+    beta2: float,
+    ns_steps: int,
+    ns_coefficients: NSCoeff,
+    eps: float,
+    safety_factor: float,
+    adjust_lr_fn: str | None,
+    conv_mode: str,
+    normalize_spatial: bool,
+    scale_eps: bool,
 ) -> None:
     """Functional API that performs AdaMuon algorithm computation.
 
-    AdaMuon extends Muon with element-wise second moment estimation applied
-    to orthogonalized update directions, providing Adam-like adaptive scaling
-    while preserving Muon's geometric benefits.
+    AdaMuon extends Muon with element-wise second moment estimation applied to orthogonalized update directions,
+    providing Adam-like adaptive scaling while preserving Muon's geometric benefits.
 
     Reference: https://arxiv.org/abs/2507.11005
     """
@@ -449,22 +451,22 @@ def adamuon(
 
 
 def _single_tensor_muon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
-        *,
-        lr: float,
-        weight_decay: float,
-        momentum: float,
-        nesterov: bool,
-        ns_steps: int,
-        ns_coefficients: NSCoeff,
-        eps: float,
-        safety_factor: float,
-        adjust_lr_fn: Optional[str],
-        conv_mode: str,
-        normalize_spatial: bool,
-        scale_eps: bool,
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    momentum_bufs: list[torch.Tensor],
+    *,
+    lr: float,
+    weight_decay: float,
+    momentum: float,
+    nesterov: bool,
+    ns_steps: int,
+    ns_coefficients: NSCoeff,
+    eps: float,
+    safety_factor: float,
+    adjust_lr_fn: str | None,
+    conv_mode: str,
+    normalize_spatial: bool,
+    scale_eps: bool,
 ) -> None:
     """Single tensor Muon update."""
     ns_coefficients = resolve_ns_coefficients(ns_coefficients, _COEFFICIENTS)
@@ -477,7 +479,7 @@ def _single_tensor_muon(
         param.mul_(1 - lr * weight_decay)
 
         # Update momentum buffer
-        momentum_buf.lerp_(grad, 1. - momentum)
+        momentum_buf.lerp_(grad, 1.0 - momentum)
         update = grad.lerp_(momentum_buf, momentum) if nesterov else momentum_buf.clone()
 
         # Reshape for processing (handle 3D+ tensors like conv weights)
@@ -518,30 +520,30 @@ def _single_tensor_muon(
 
 
 def _single_tensor_adamuon(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        momentum_bufs: List[torch.Tensor],
-        exp_avg_sqs: List[torch.Tensor],
-        state_steps: List[torch.Tensor],
-        *,
-        lr: float,
-        weight_decay: float,
-        momentum: float,
-        nesterov: bool,
-        beta2: float,
-        ns_steps: int,
-        ns_coefficients: NSCoeff,
-        eps: float,
-        safety_factor: float,
-        adjust_lr_fn: Optional[str],
-        conv_mode: str,
-        normalize_spatial: bool,
-        scale_eps: bool,
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    momentum_bufs: list[torch.Tensor],
+    exp_avg_sqs: list[torch.Tensor],
+    state_steps: list[torch.Tensor],
+    *,
+    lr: float,
+    weight_decay: float,
+    momentum: float,
+    nesterov: bool,
+    beta2: float,
+    ns_steps: int,
+    ns_coefficients: NSCoeff,
+    eps: float,
+    safety_factor: float,
+    adjust_lr_fn: str | None,
+    conv_mode: str,
+    normalize_spatial: bool,
+    scale_eps: bool,
 ) -> None:
     """Single tensor AdaMuon update.
 
-    AdaMuon applies second-moment estimation to the orthogonalized directions,
-    then rescales using RMS-alignment to maintain stable step sizes.
+    AdaMuon applies second-moment estimation to the orthogonalized directions, then rescales using RMS-alignment to
+    maintain stable step sizes.
 
     Algorithm:
         1. Update momentum buffer: M = β₁·M + (1-β₁)·G
@@ -567,7 +569,7 @@ def _single_tensor_adamuon(
         param.mul_(1 - lr * weight_decay)
 
         # Update momentum buffer
-        momentum_buf.lerp_(grad, 1. - momentum)
+        momentum_buf.lerp_(grad, 1.0 - momentum)
         update = grad.lerp_(momentum_buf, momentum) if nesterov else momentum_buf.clone()
 
         # Reshape for processing (handle 3D+ tensors like conv weights)
@@ -607,7 +609,7 @@ def _single_tensor_adamuon(
             denom = exp_avg_sq.sqrt().add_(eps)
         else:
             # Bias correction for second moment
-            bias_correction2 = 1.0 - beta2 ** step
+            bias_correction2 = 1.0 - beta2**step
             denom = (exp_avg_sq / bias_correction2).sqrt().add_(eps)
 
         # Adaptive scaling: divide by sqrt of bias-corrected second moment
@@ -622,22 +624,21 @@ def _single_tensor_adamuon(
             update_adaptive = update_adaptive / update_norm
 
         # Apply spatial normalization if in batched mode
-        if conv_mode == "batched" and len(original_shape) >= 3:
-            if normalize_spatial:
-                spatial_prod = 1
-                for d in original_shape[2:]:
-                    spatial_prod *= d
-                scale *= spatial_prod ** -0.5
+        if conv_mode == "batched" and len(original_shape) >= 3 and normalize_spatial:
+            spatial_prod = 1
+            for d in original_shape[2:]:
+                spatial_prod *= d
+            scale *= spatial_prod**-0.5
 
         # Apply update
         param.add_(update_adaptive, alpha=-lr * scale)
 
 
 class Muon(torch.optim.Optimizer):
-    """Muon - MomentUm Orthogonalized by Newton-schulz
+    """Muon - MomentUm Orthogonalized by Newton-schulz.
 
-    Combines Muon for 2D+ parameters (weight matrices) with AdamW for 1D parameters (biases, norms) and
-    parameter groups with 'use_fallback=True' set (or 'use_muon=False' for compatibility).
+    Combines Muon for 2D+ parameters (weight matrices) with AdamW for 1D parameters (biases, norms) and parameter groups
+    with 'use_fallback=True' set (or 'use_muon=False' for compatibility).
 
     Supports two algorithms:
     - "muon": Standard Muon algorithm with momentum + orthogonalization
@@ -646,26 +647,27 @@ class Muon(torch.optim.Optimizer):
     """
 
     def __init__(
-            self,
-            params: ParamsT,
-            lr: float = 0.02,
-            weight_decay: float = 0,
-            momentum: float = 0.95,
-            nesterov: bool = False,
-            ns_steps: int = DEFAULT_NS_STEPS,
-            ns_coefficients: NSCoeff = "quintic",
-            eps: float = MUON_EPS,
-            safety_factor: float = 1.0,
-            adjust_lr_fn: Optional[str] = "match_rms_adamw",
-            conv_mode: str = "flatten",
-            normalize_spatial: bool = True,
-            adamw_lr: Optional[float] = None,
-            betas: Tuple[float, float] = (0.9, 0.95),
-            algo: str = "muon",
-            scale_eps: bool = False,
-            verbose: bool = False,
+        self,
+        params: ParamsT,
+        lr: float = 0.02,
+        weight_decay: float = 0,
+        momentum: float = 0.95,
+        nesterov: bool = False,
+        ns_steps: int = DEFAULT_NS_STEPS,
+        ns_coefficients: NSCoeff = "quintic",
+        eps: float = MUON_EPS,
+        safety_factor: float = 1.0,
+        adjust_lr_fn: str | None = "match_rms_adamw",
+        conv_mode: str = "flatten",
+        normalize_spatial: bool = True,
+        adamw_lr: float | None = None,
+        betas: tuple[float, float] = (0.9, 0.95),
+        algo: str = "muon",
+        scale_eps: bool = False,
+        verbose: bool = False,
     ):
-        """ Create Muon optimizer.
+        """Create Muon optimizer.
+
         Args:
             params: Iterable of parameters or dicts defining parameter groups
             lr: Learning rate (default: 0.02 for Muon parameters)
@@ -676,20 +678,20 @@ class Muon(torch.optim.Optimizer):
             ns_coefficients: Coefficients for NS iteration
             eps: Numerical stability epsilon
             safety_factor: Multiplicative safety factor for NS norm
-            adjust_lr_fn: LR adjustment function - "original", "match_rms_adamw", or "rms_to_rms".
-                For adamuon mode, can set to None to disable (RMS rescaling handles scaling).
+            adjust_lr_fn: LR adjustment function - "original", "match_rms_adamw", or "rms_to_rms". For adamuon mode, can
+                set to None to disable (RMS rescaling handles scaling).
             conv_mode: How to handle convolutions - "flatten" or "batched"
             normalize_spatial: Whether to normalize by sqrt(spatial_size) in batched mode
             adamw_lr: Learning rate for AdamW (1D params), defaults to lr if not specified
-            betas: Beta coefficients - (beta1, beta2) where beta1 is used for AdamW fallback
-                and beta2 is used for both AdamW fallback and AdaMuon second moment
+            betas: Beta coefficients - (beta1, beta2) where beta1 is used for AdamW fallback and beta2 is used for both
+                AdamW fallback and AdaMuon second moment
             algo: Algorithm - "muon" for standard Muon, "adamuon" for AdaMuon with
-                adaptive second moment estimation (https://arxiv.org/abs/2507.11005)
-            scale_eps: If True, scale epsilon by sqrt(din/dout) in Newton-Schulz for μP
-                compatibility (https://arxiv.org/abs/2512.05620)
-            verbose: Log parameter routing decisions (Muon vs AdamW)
+            adaptive second moment estimation (https: //arxiv.org/abs/2507.11005)
+            scale_eps: If True, scale epsilon by sqrt(din/doubt) in Newton-Schulz for μP
+            compatibility (https: //arxiv.org/abs/2512.05620)
+            verbose: Log parameter routing decisions (Muon vs AdamW).
 
-        Example:
+        Examples:
             ```python
             # Simple usage - automatically uses Muon for 2D+ params, AdamW for 1D
             optimizer = Muon(model.parameters(), lr=0.02)
@@ -698,10 +700,12 @@ class Muon(torch.optim.Optimizer):
             optimizer = Muon(model.parameters(), lr=6e-4, algo="adamuon")
 
             # Manual control over parameter groups
-            optimizer = Muon([
-                {'params': weight_matrices, 'lr': 0.02},
-                {'params': biases, 'use_fallback': True, 'lr': 3e-4}, # use AdamW if use_fallback=True
-            ])
+            optimizer = Muon(
+                [
+                    {"params": weight_matrices, "lr": 0.02},
+                    {"params": biases, "use_fallback": True, "lr": 3e-4},  # use AdamW if use_fallback=True
+                ]
+            )
             ```
         """
         if not 0.0 <= lr:
@@ -717,31 +721,31 @@ class Muon(torch.optim.Optimizer):
         if algo not in ["muon", "adamuon"]:
             raise ValueError(f"Invalid algo: {algo}. Must be 'muon' or 'adamuon'")
 
-        defaults = dict(
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=momentum,
-            nesterov=nesterov,
-            ns_steps=ns_steps,
-            ns_coefficients=ns_coefficients,
-            eps=eps,
-            safety_factor=safety_factor,
-            adjust_lr_fn=adjust_lr_fn,
-            conv_mode=conv_mode,
-            normalize_spatial=normalize_spatial,
-            adamw_lr=adamw_lr if adamw_lr is not None else lr,
-            betas=betas,
-            algo=algo,
-            scale_eps=scale_eps,
-            verbose=verbose,
-        )
+        defaults = {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "momentum": momentum,
+            "nesterov": nesterov,
+            "ns_steps": ns_steps,
+            "ns_coefficients": ns_coefficients,
+            "eps": eps,
+            "safety_factor": safety_factor,
+            "adjust_lr_fn": adjust_lr_fn,
+            "conv_mode": conv_mode,
+            "normalize_spatial": normalize_spatial,
+            "adamw_lr": adamw_lr if adamw_lr is not None else lr,
+            "betas": betas,
+            "algo": algo,
+            "scale_eps": scale_eps,
+            "verbose": verbose,
+        }
         super().__init__(params, defaults)
 
     def __setstate__(self, state):
         super().__setstate__(state)
         for group in self.param_groups:
-            group.setdefault('algo', 'muon')
-            group.setdefault('scale_eps', False)
+            group.setdefault("algo", "muon")
+            group.setdefault("scale_eps", False)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -829,7 +833,7 @@ class Muon(torch.optim.Optimizer):
                     # Additional state for adamuon mode
                     if algo == "adamuon":
                         if "step" not in state:
-                            state["step"] = torch.tensor(0.)
+                            state["step"] = torch.tensor(0.0)
                             state["exp_avg_sq"] = torch.zeros_like(p, memory_format=torch.preserve_format)
                         muon_exp_avg_sqs.append(state["exp_avg_sq"])
                         muon_state_steps.append(state["step"])
@@ -841,7 +845,7 @@ class Muon(torch.optim.Optimizer):
 
                     # State initialization for AdamW
                     if "step" not in state:
-                        state["step"] = torch.tensor(0.)
+                        state["step"] = torch.tensor(0.0)
                         state["exp_avg"] = torch.zeros_like(p, memory_format=torch.preserve_format)
                         state["exp_avg_sq"] = torch.zeros_like(p, memory_format=torch.preserve_format)
 
@@ -933,7 +937,7 @@ class Muon(torch.optim.Optimizer):
                         maximize=False,
                         capturable=False,
                         max_lr=None,
-                )
+                    )
 
         # Log routing summary when we have new routing decisions
         if routing_reasons and len(routing_reasons) > 0:
@@ -968,14 +972,13 @@ class Muon(torch.optim.Optimizer):
 
 
 def resolve_ns_coefficients(
-        value: Union[str, Sequence[float], Sequence[Sequence[float]]],
-        presets: Mapping[str, Sequence[Sequence[float]]]
-) -> List[Tuple[float, float, float]]:
+    value: str | Sequence[float] | Sequence[Sequence[float]], presets: Mapping[str, Sequence[Sequence[float]]]
+) -> list[tuple[float, float, float]]:
     # tiny helpers (kept inline for succinctness)
     is_seq = lambda x: isinstance(x, Sequence) and not isinstance(x, (str, bytes))
     is_real = lambda x: isinstance(x, numbers.Real) and not isinstance(x, bool)
 
-    def as_coeff(x: Sequence[float]) -> Tuple[float, float, float]:
+    def as_coeff(x: Sequence[float]) -> tuple[float, float, float]:
         if not is_seq(x) or len(x) != 3 or not all(is_real(v) for v in x):
             raise ValueError(f"Coefficient must be length-3 of real numbers, got: {x!r}")
         a, b, c = x  # type: ignore[misc]
@@ -991,10 +994,7 @@ def resolve_ns_coefficients(
         return [as_coeff(item) for item in seq]  # validate & cast
 
     if not is_seq(value):
-        raise TypeError(
-            "Coefficients must be a preset name (str), a 3-sequence (a,b,c), "
-            "or a sequence of 3-sequences."
-        )
+        raise TypeError("Coefficients must be a preset name (str), a 3-sequence (a,b,c), or a sequence of 3-sequences.")
 
     # Decide single triple vs list-of-triples by structure
     if len(value) == 3 and all(is_real(v) for v in value):  # type: ignore[index]

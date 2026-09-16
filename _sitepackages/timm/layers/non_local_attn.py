@@ -1,10 +1,11 @@
-""" Bilinear-Attention-Transform and Non-Local Attention
+"""Bilinear-Attention-Transform and Non-Local Attention.
 
 Paper: `Non-Local Neural Networks With Grouped Bilinear Attentional Transforms`
     - https://openaccess.thecvf.com/content_CVPR_2020/html/Chi_Non-Local_Neural_Networks_With_Grouped_Bilinear_Attentional_Transforms_CVPR_2020_paper.html
 Adapted from original code: https://github.com/BA-Transform/BAT-Image-Classification
 """
-from typing import Optional, Type
+
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -19,26 +20,26 @@ from .trace_utils import _assert
 class NonLocalAttn(nn.Module):
     """Spatial NL block for image classification.
 
-    This was adapted from https://github.com/BA-Transform/BAT-Image-Classification
-    Their NonLocal impl inspired by https://github.com/facebookresearch/video-nonlocal-net.
+    This was adapted from https://github.com/BA-Transform/BAT-Image-Classification Their NonLocal impl inspired by
+    https://github.com/facebookresearch/video-nonlocal-net.
     """
 
     def __init__(
-            self,
-            in_channels,
-            use_scale=True,
-            rd_ratio=1/8,
-            rd_channels=None,
-            rd_divisor=8,
-            device=None,
-            dtype=None,
-            **_,
+        self,
+        in_channels,
+        use_scale=True,
+        rd_ratio=1 / 8,
+        rd_channels=None,
+        rd_divisor=8,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if rd_channels is None:
             rd_channels = make_divisible(in_channels * rd_ratio, divisor=rd_divisor)
-        self.scale = in_channels ** -0.5 if use_scale else 1.0
+        self.scale = in_channels**-0.5 if use_scale else 1.0
         self.t = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)
         self.p = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)
         self.g = nn.Conv2d(in_channels, rd_channels, kernel_size=1, stride=1, bias=True, **dd)
@@ -71,32 +72,27 @@ class NonLocalAttn(nn.Module):
     def reset_parameters(self):
         for name, m in self.named_modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(
-                    m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if len(list(m.parameters())) > 1:
                     nn.init.constant_(m.bias, 0.0)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 0)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.GroupNorm):
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 0)
                 nn.init.constant_(m.bias, 0)
 
 
 @register_notrace_module
 class BilinearAttnTransform(nn.Module):
-
     def __init__(
-            self,
-            in_channels: int,
-            block_size: int,
-            groups: int,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        block_size: int,
+        groups: int,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv1 = ConvNormAct(in_channels, groups, 1, act_layer=act_layer, norm_layer=norm_layer, **dd)
         self.conv_p = nn.Conv2d(groups, block_size * block_size * groups, kernel_size=(block_size, 1), **dd)
@@ -108,7 +104,7 @@ class BilinearAttnTransform(nn.Module):
 
     def resize_mat(self, x, t: int):
         B, C, block_size, block_size1 = x.shape
-        _assert(block_size == block_size1, '')
+        _assert(block_size == block_size1, "")
         if t <= 1:
             return x
         x = x.view(B * C, -1, 1, 1)
@@ -120,8 +116,8 @@ class BilinearAttnTransform(nn.Module):
         return x
 
     def forward(self, x):
-        _assert(x.shape[-1] % self.block_size == 0, '')
-        _assert(x.shape[-2] % self.block_size == 0, '')
+        _assert(x.shape[-1] % self.block_size == 0, "")
+        _assert(x.shape[-2] % self.block_size == 0, "")
         B, C, H, W = x.shape
         out = self.conv1(x)
         rp = F.adaptive_max_pool2d(out, (self.block_size, 1))
@@ -130,11 +126,17 @@ class BilinearAttnTransform(nn.Module):
         q = self.conv_q(cp).view(B, self.groups, self.block_size, self.block_size).sigmoid()
         p = p / p.sum(dim=3, keepdim=True)
         q = q / q.sum(dim=2, keepdim=True)
-        p = p.view(B, self.groups, 1, self.block_size, self.block_size).expand(x.size(
-            0), self.groups, C // self.groups, self.block_size, self.block_size).contiguous()
+        p = (
+            p.view(B, self.groups, 1, self.block_size, self.block_size)
+            .expand(x.size(0), self.groups, C // self.groups, self.block_size, self.block_size)
+            .contiguous()
+        )
         p = p.view(B, C, self.block_size, self.block_size)
-        q = q.view(B, self.groups, 1, self.block_size, self.block_size).expand(x.size(
-            0), self.groups, C // self.groups, self.block_size, self.block_size).contiguous()
+        q = (
+            q.view(B, self.groups, 1, self.block_size, self.block_size)
+            .expand(x.size(0), self.groups, C // self.groups, self.block_size, self.block_size)
+            .contiguous()
+        )
         q = q.view(B, C, self.block_size, self.block_size)
         p = self.resize_mat(p, H // self.block_size)
         q = self.resize_mat(q, W // self.block_size)
@@ -146,26 +148,25 @@ class BilinearAttnTransform(nn.Module):
 
 
 class BatNonLocalAttn(nn.Module):
-    """ BAT
-    Adapted from: https://github.com/BA-Transform/BAT-Image-Classification
+    """BAT Adapted from: https://github.com/BA-Transform/BAT-Image-Classification.
     """
 
     def __init__(
-            self,
-            in_channels: int,
-            block_size: int = 7,
-            groups: int = 2,
-            rd_ratio: float = 0.25,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            drop_rate: float = 0.2,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
-            **_,
+        self,
+        in_channels: int,
+        block_size: int = 7,
+        groups: int = 2,
+        rd_ratio: float = 0.25,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        drop_rate: float = 0.2,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if rd_channels is None:
             rd_channels = make_divisible(in_channels * rd_ratio, divisor=rd_divisor)
