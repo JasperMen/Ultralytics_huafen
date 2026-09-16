@@ -1,4 +1,5 @@
-from typing import Any, Dict, Iterable, Union, Protocol, Type
+from typing import Any, Dict, Iterable, Protocol, Type, Union
+
 try:
     from typing import TypeAlias
 except ImportError:
@@ -6,7 +7,7 @@ except ImportError:
 try:
     from typing import TypeVar
 except ImportError:
-    from typing_extensions import TypeVar
+    pass
 
 import torch
 import torch.optim
@@ -26,4 +27,4 @@ class OptimizerCallable(Protocol):
     def __call__(self, params: ParamsT, **kwargs) -> torch.optim.Optimizer: ...
 
 
-__all__ = ['ParamsT', 'OptimType', 'OptimizerCallable']
+__all__ = ["OptimType", "OptimizerCallable", "ParamsT"]

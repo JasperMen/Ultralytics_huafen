@@ -1,4 +1,4 @@
-""" NaFlex (NaViT + FlexiViT) Transforms and Collation
+"""NaFlex (NaViT + FlexiViT) Transforms and Collation.
 
 Implements PyTorch versions of the transforms described in the NaViT and FlexiViT papers:
 - NaViT: https://arxiv.org/abs/2307.14995
@@ -9,10 +9,12 @@ Enables variable resolution/aspect ratio image handling with efficient patching.
 Hacked together by / Copyright 2025, Ross Wightman, Hugging Face
 """
 
+from __future__ import annotations
+
 import math
 import random
 import warnings
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 import torch
 from PIL import Image
@@ -20,21 +22,21 @@ from torchvision import transforms
 from torchvision.transforms import functional as F
 from torchvision.transforms.functional import InterpolationMode
 
-from .transforms import str_to_interp_mode, crop_or_pad, center_crop_or_pad
+from .transforms import center_crop_or_pad, crop_or_pad, str_to_interp_mode
 
 
 def get_image_size_for_seq(
-        image_hw: Tuple[int, int],
-        patch_size: Union[int, Tuple[int, int]] = 16,
-        max_seq_len: int = 1024,
-        divisible_by_patch: bool = True,
-        max_ratio: Optional[float] = None,
-        eps: float = 1e-5,
-) -> Tuple[float, Tuple[int, int]]:
+    image_hw: tuple[int, int],
+    patch_size: int | tuple[int, int] = 16,
+    max_seq_len: int = 1024,
+    divisible_by_patch: bool = True,
+    max_ratio: float | None = None,
+    eps: float = 1e-5,
+) -> tuple[float, tuple[int, int]]:
     """Determine scaling ratio and image size for sequence length constraint.
 
-    Calculates the scaling ratio needed so that when image_hw is scaled,
-    the total number of resulting patches does not exceed max_seq_len.
+    Calculates the scaling ratio needed so that when image_hw is scaled, the total number of resulting patches does not
+    exceed max_seq_len.
 
     Args:
         image_hw: Original image dimensions (height, width).
@@ -45,10 +47,9 @@ def get_image_size_for_seq(
         eps: Convergence threshold for binary search.
 
     Returns:
-        Tuple of (ratio, target_hw) where ratio is the scaling factor and
-        target_hw is the resulting (height, width) after scaling.
+        Tuple of (ratio, target_hw) where ratio is the scaling factor and: target_hw is the resulting (height, width)
+            after scaling.
     """
-
     # Handle patch size input, extract patch_h, patch_w
     if isinstance(patch_size, int):
         patch_h, patch_w = patch_size, patch_size
@@ -120,23 +121,24 @@ def get_image_size_for_seq(
     return ratio, target_hw
 
 
-_RANDOM_INTERPOLATION = (str_to_interp_mode('bilinear'), str_to_interp_mode('bicubic'))
+_RANDOM_INTERPOLATION = (str_to_interp_mode("bilinear"), str_to_interp_mode("bicubic"))
 
 
 class ResizeToSequence(torch.nn.Module):
     """Resize image to fit within a maximum sequence length constraint when patchified.
 
-    This maintains aspect ratio while ensuring the resulting image, when divided into patches,
-    will not exceed the specified maximum sequence length.
+    This maintains aspect ratio while ensuring the resulting image, when divided into patches, will not exceed the
+    specified maximum sequence length.
     """
+
     def __init__(
-            self,
-            patch_size: int,
-            max_seq_len: int = 1024,
-            divisible_by_patch: bool = True,
-            max_ratio: Optional[float] = None,
-            interpolation: Union[str, InterpolationMode, Tuple[InterpolationMode, ...]] = 'bicubic',
-        ) -> None:
+        self,
+        patch_size: int,
+        max_seq_len: int = 1024,
+        divisible_by_patch: bool = True,
+        max_ratio: float | None = None,
+        interpolation: str | InterpolationMode | tuple[InterpolationMode, ...] = "bicubic",
+    ) -> None:
         """Initialize ResizeToSequence transform.
 
         Args:
@@ -152,13 +154,12 @@ class ResizeToSequence(torch.nn.Module):
         self.divisible_by_patch = divisible_by_patch
         self.max_ratio = max_ratio
         if isinstance(interpolation, str):
-            if interpolation == 'random':
+            if interpolation == "random":
                 self.interpolation = _RANDOM_INTERPOLATION
             else:
                 self.interpolation = str_to_interp_mode(interpolation)
         else:
             self.interpolation = interpolation
-
 
     def forward(self, img: torch.Tensor) -> torch.Tensor:
         """Resize image to maintain aspect ratio and fit sequence constraint.
@@ -190,23 +191,21 @@ class ResizeToSequence(torch.nn.Module):
 
 
 class ResizeKeepRatioToSequence(torch.nn.Module):
-    """
-    Resize and Keep Aspect Ratio, adapted to fit sequence length constraints.
-    """
+    """Resize and Keep Aspect Ratio, adapted to fit sequence length constraints."""
 
     def __init__(
-            self,
-            patch_size=16,
-            max_sequence_len=1024,
-            divisible_by_patch=True,
-            longest=0.,
-            interpolation='bilinear',
-            random_scale_prob=0.,
-            random_scale_range=(0.85, 1.05),
-            random_scale_area=False,
-            random_aspect_prob=0.,
-            random_aspect_range=(0.9, 1.11),
-            max_ratio=None,
+        self,
+        patch_size=16,
+        max_sequence_len=1024,
+        divisible_by_patch=True,
+        longest=0.0,
+        interpolation="bilinear",
+        random_scale_prob=0.0,
+        random_scale_range=(0.85, 1.05),
+        random_scale_area=False,
+        random_aspect_prob=0.0,
+        random_aspect_range=(0.9, 1.11),
+        max_ratio=None,
     ):
         """
         Args:
@@ -220,7 +219,7 @@ class ResizeKeepRatioToSequence(torch.nn.Module):
             random_scale_area: If True, scale factors affect area (√ factor)
             random_aspect_prob: Probability of applying random aspect ratio jittering
             random_aspect_range: Range for random aspect ratio (min, max)
-            max_ratio: Maximum allowed scaling ratio
+            max_ratio: Maximum allowed scaling ratio.
         """
         super().__init__()
         self.patch_size = patch_size
@@ -228,7 +227,7 @@ class ResizeKeepRatioToSequence(torch.nn.Module):
         self.divisible_by_patch = divisible_by_patch
         self.longest = float(longest)
 
-        if interpolation == 'random':
+        if interpolation == "random":
             self.interpolation = _RANDOM_INTERPOLATION
         else:
             self.interpolation = str_to_interp_mode(interpolation)
@@ -242,17 +241,17 @@ class ResizeKeepRatioToSequence(torch.nn.Module):
 
     @staticmethod
     def get_params(
-            img,
-            patch_size,
-            max_sequence_len,
-            divisible_by_patch,
-            longest,
-            random_scale_prob=0.,
-            random_scale_range=(1.0, 1.33),
-            random_scale_area=False,
-            random_aspect_prob=0.,
-            random_aspect_range=(0.9, 1.11),
-            max_ratio=None,
+        img,
+        patch_size,
+        max_sequence_len,
+        divisible_by_patch,
+        longest,
+        random_scale_prob=0.0,
+        random_scale_range=(1.0, 1.33),
+        random_scale_area=False,
+        random_aspect_prob=0.0,
+        random_aspect_range=(0.9, 1.11),
+        max_ratio=None,
     ):
         """Get parameters for resizing."""
         # Get image dimensions
@@ -272,17 +271,17 @@ class ResizeKeepRatioToSequence(torch.nn.Module):
         ratio_h = target_h / img_h
         ratio_w = target_w / img_w
         # Apply longest blending
-        ratio = max(ratio_h, ratio_w) * longest + min(ratio_h, ratio_w) * (1. - longest)
+        ratio = max(ratio_h, ratio_w) * longest + min(ratio_h, ratio_w) * (1.0 - longest)
 
         # Apply random scaling
         if random_scale_prob > 0 and random.random() < random_scale_prob:
             ratio_factor = random.uniform(random_scale_range[0], random_scale_range[1])
             if random_scale_area:
                 # Make ratio factor equivalent to area change
-                ratio_factor = 1. / math.sqrt(ratio_factor)
+                ratio_factor = 1.0 / math.sqrt(ratio_factor)
             ratio_factor = (ratio_factor, ratio_factor)
         else:
-            ratio_factor = (1., 1.)
+            ratio_factor = (1.0, 1.0)
 
         # Apply random aspect
         if random_aspect_prob > 0 and random.random() < random_aspect_prob:
@@ -329,9 +328,7 @@ class ResizeKeepRatioToSequence(torch.nn.Module):
         return size
 
     def forward(self, img):
-        """
-        Resize the image with aspect ratio preservation and sequence length constraints.
-        """
+        """Resize the image with aspect ratio preservation and sequence length constraints."""
         size = self.get_params(
             img,
             self.patch_size,
@@ -354,24 +351,27 @@ class ResizeKeepRatioToSequence(torch.nn.Module):
         return F.resize(img, size, interpolation)
 
     def __repr__(self):
-        interpolate_str = "random" if isinstance(self.interpolation, (tuple, list)) else str(self.interpolation)
-        return (f"{self.__class__.__name__}(patch_size={self.patch_size}, "
-                f"max_sequence_len={self.max_sequence_len}, "
-                f"longest={self.longest:.3f}, "
-                f"random_scale_prob={self.random_scale_prob:.3f}, "
-                f"random_aspect_prob={self.random_aspect_prob:.3f})")
+        "random" if isinstance(self.interpolation, (tuple, list)) else str(self.interpolation)
+        return (
+            f"{self.__class__.__name__}(patch_size={self.patch_size}, "
+            f"max_sequence_len={self.max_sequence_len}, "
+            f"longest={self.longest:.3f}, "
+            f"random_scale_prob={self.random_scale_prob:.3f}, "
+            f"random_aspect_prob={self.random_aspect_prob:.3f})"
+        )
 
 
 class CenterCropToSequence(torch.nn.Module):
     """Center crop the image such that the resulting patch sequence length meets constraints."""
+
     def __init__(
-            self,
-            patch_size: int,
-            max_seq_len: int,
-            divisible_by_patch: bool = True,
-            fill: Union[int, Tuple[int, int, int]] = 0,
-            padding_mode: str = 'constant'
-        ):
+        self,
+        patch_size: int,
+        max_seq_len: int,
+        divisible_by_patch: bool = True,
+        fill: int | tuple[int, int, int] = 0,
+        padding_mode: str = "constant",
+    ):
         super().__init__()
         self.patch_size = patch_size
         self.max_seq_len = max_seq_len
@@ -379,16 +379,10 @@ class CenterCropToSequence(torch.nn.Module):
         self.fill = fill
         self.padding_mode = padding_mode
 
-
     def forward(self, img):
         """Center crop the image to maintain aspect ratio and fit sequence constraint."""
         _, h, w = transforms.functional.get_dimensions(img)
-        _, target_hw = get_image_size_for_seq(
-            (h, w),
-            self.patch_size,
-            self.max_seq_len,
-            self.divisible_by_patch
-        )
+        _, target_hw = get_image_size_for_seq((h, w), self.patch_size, self.max_seq_len, self.divisible_by_patch)
 
         # Use center crop
         return center_crop_or_pad(img, target_hw, fill=self.fill, padding_mode=self.padding_mode)
@@ -397,18 +391,17 @@ class CenterCropToSequence(torch.nn.Module):
 class RandomCropToSequence(torch.nn.Module):
     """Randomly crop and/or pad the image to fit sequence length constraints.
 
-    This maintains aspect ratio while ensuring the resulting image, when divided into patches,
-    will not exceed the specified maximum sequence length. Similar to CentralCropToSequence
-    but with randomized positioning.
+    This maintains aspect ratio while ensuring the resulting image, when divided into patches, will not exceed the
+    specified maximum sequence length. Similar to CentralCropToSequence but with randomized positioning.
     """
 
     def __init__(
-            self,
-            patch_size: int,
-            max_sequence_len: int,
-            divisible_by_patch: bool = True,
-            fill: Union[int, Tuple[int, int, int]] = 0,
-            padding_mode: str = 'constant'
+        self,
+        patch_size: int,
+        max_sequence_len: int,
+        divisible_by_patch: bool = True,
+        fill: int | tuple[int, int, int] = 0,
+        padding_mode: str = "constant",
     ):
         """
         Args:
@@ -416,7 +409,7 @@ class RandomCropToSequence(torch.nn.Module):
             max_sequence_len: Maximum allowed sequence length for the resulting image
             divisible_by_patch: If True, resulting image dimensions will be multiples of patch_size
             fill: Fill value for padding
-            padding_mode: Padding mode ('constant', 'edge', 'reflect', 'symmetric')
+            padding_mode: Padding mode ('constant', 'edge', 'reflect', 'symmetric').
         """
         super().__init__()
         self.patch_size = patch_size
@@ -457,7 +450,7 @@ class RandomCropToSequence(torch.nn.Module):
             self.patch_size,
             self.max_sequence_len,
             self.divisible_by_patch,
-            max_ratio=1.0  # Prevent upscaling
+            max_ratio=1.0,  # Prevent upscaling
         )
 
         # Get random position for crop/pad
@@ -475,9 +468,11 @@ class RandomCropToSequence(torch.nn.Module):
         )
 
     def __repr__(self) -> str:
-        return (f"{self.__class__.__name__}(patch_size={self.patch_size}, "
-                f"max_sequence_len={self.max_sequence_len}, "
-                f"divisible_by_patch={self.divisible_by_patch})")
+        return (
+            f"{self.__class__.__name__}(patch_size={self.patch_size}, "
+            f"max_sequence_len={self.max_sequence_len}, "
+            f"divisible_by_patch={self.divisible_by_patch})"
+        )
 
 
 def _validate_range(value, name, length=2):
@@ -494,58 +489,44 @@ def _validate_range(value, name, length=2):
 
 
 class RandomResizedCropToSequence(torch.nn.Module):
-    """
-    Randomly crop the input image to a subregion with varying area and aspect ratio
-    (relative to the original), then resize that crop to a target size. The target size
-    is determined such that patchifying the resized image (with `patch_size`)
-    does not exceed `max_seq_len` patches, while maintaining the aspect ratio of the crop.
+    """Randomly crop the input image to a subregion with varying area and aspect ratio (relative to the original), then
+    resize that crop to a target size. The target size is determined such that patchifying the resized image (with
+    `patch_size`) does not exceed `max_seq_len` patches, while maintaining the aspect ratio of the crop.
 
     This combines aspects of torchvision's RandomResizedCrop with sequence length constraints.
 
     Args:
-        patch_size (int or tuple[int, int]):
-            Patch dimensions (patch_h, patch_w) for sequence length calculation.
-        max_seq_len (int):
-            Maximum number of patches allowed in the final image.
-        scale (tuple[float, float]):
-            Range (min, max) of area fraction of the original image to crop.
-        ratio (tuple[float, float]):
-            Range (min, max) of aspect ratio *multipliers* for the crop, relative
-            to the original image's aspect ratio. E.g., (0.75, 1.333) means the
-            crop's aspect ratio will be sampled between 0.75*orig_ar and 1.333*orig_ar.
-            Uses log-uniform sampling.
-        interpolation (str or InterpolationMode):
-            Interpolation mode for resizing. Can be 'bilinear', 'bicubic', 'nearest',
-            or 'random' (chooses between bilinear and bicubic).
-            Defaults to 'bicubic'.
-        divisible_by_patch (bool):
-            If True, the final image height and width will be multiples of the
-            respective patch dimensions. Defaults to True.
-        max_ratio (float, optional):
-            An optional upper limit on the scaling ratio applied during resizing.
-            Prevents excessive upsampling of the initial crop. `max_ratio=1.0`
-            prevents any upsampling beyond the cropped size. Defaults to None (no limit).
-        final_scale_range (tuple[float, float], optional):
-            If provided, applies an *additional* random scaling factor to the
-            final target size. The factor is sampled uniformly from this range,
-            and multiplied by the size determined by `get_image_size_for_seq`.
-            E.g., (0.8, 1.0) means the final size will be between 80% and 100%
+        patch_size (int or tuple[int, int]): Patch dimensions (patch_h, patch_w) for sequence length calculation.
+        max_seq_len (int): Maximum number of patches allowed in the final image.
+        scale (tuple[float, float]): Range (min, max) of area fraction of the original image to crop.
+        ratio (tuple[float, float]): Range (min, max) of aspect ratio *multipliers* for the crop, relative to the
+            original image's aspect ratio. E.g., (0.75, 1.333) means the crop's aspect ratio will be sampled between
+            0.75*orig_ar and 1.333*orig_ar. Uses log-uniform sampling.
+        interpolation (str or InterpolationMode): Interpolation mode for resizing. Can be 'bilinear', 'bicubic',
+            'nearest', or 'random' (chooses between bilinear and bicubic). Defaults to 'bicubic'.
+        divisible_by_patch (bool): If True, the final image height and width will be multiples of the respective patch
+            dimensions. Defaults to True.
+        max_ratio (float, optional): An optional upper limit on the scaling ratio applied during resizing. Prevents
+            excessive upsampling of the initial crop. `max_ratio=1.0` prevents any upsampling beyond the cropped size.
+            Defaults to None (no limit).
+        final_scale_range (tuple[float, float], optional): If provided, applies an *additional* random scaling factor to
+            the final target size. The factor is sampled uniformly from this range, and multiplied by the size
+            determined by `get_image_size_for_seq`. E.g., (0.8, 1.0) means the final size will be between 80% and 100%
             of the maximum feasible size. Defaults to None (use maximum feasible size).
-        attempts (int):
-            Number of attempts to sample a valid crop geometry before falling back
-            to a center crop strategy. Defaults to 10.
+        attempts (int): Number of attempts to sample a valid crop geometry before falling back to a center crop
+            strategy. Defaults to 10.
     """
 
     def __init__(
         self,
-        patch_size: Union[int, Tuple[int, int]] = 16,
+        patch_size: int | tuple[int, int] = 16,
         max_seq_len: int = 1024,
-        scale: Tuple[float, float] = (0.08, 1.0),
-        ratio: Tuple[float, float] = (.8, 1.25),
-        interpolation: Union[str, InterpolationMode] = 'bicubic',
+        scale: tuple[float, float] = (0.08, 1.0),
+        ratio: tuple[float, float] = (0.8, 1.25),
+        interpolation: str | InterpolationMode = "bicubic",
         divisible_by_patch: bool = True,
-        max_ratio: Optional[float] = None,
-        final_scale_range: Optional[Tuple[float, float]] = None,
+        max_ratio: float | None = None,
+        final_scale_range: tuple[float, float] | None = None,
         attempts: int = 10,
     ):
         super().__init__()
@@ -564,7 +545,7 @@ class RandomResizedCropToSequence(torch.nn.Module):
         self.final_scale_range = final_scale_range
         self.attempts = attempts
         if isinstance(interpolation, str):
-            if interpolation == 'random':
+            if interpolation == "random":
                 self.interpolation = _RANDOM_INTERPOLATION
             else:
                 self.interpolation = str_to_interp_mode(interpolation)
@@ -585,23 +566,22 @@ class RandomResizedCropToSequence(torch.nn.Module):
 
     @staticmethod
     def get_params(
-            img: torch.Tensor,
-            scale: Tuple[float, float],
-            ratio: Tuple[float, float],
-            crop_attempts: int = 10,
-            patch_h: int = 16,
-            patch_w: int = 16,
-            max_seq_len: int = 1024,
-            divisible_by_patch: bool = True,
-            max_ratio: Optional[float] = None,
-            final_scale_range: Optional[Tuple[float, float]] = None,
-            interpolation: Union[List[InterpolationMode], InterpolationMode] = _RANDOM_INTERPOLATION,
-    ) -> Tuple[Tuple[int, int, int, int], Tuple[int, int], InterpolationMode]:
-        """ Get parameters for a random sized crop relative to image aspect ratio.
-        """
+        img: torch.Tensor,
+        scale: tuple[float, float],
+        ratio: tuple[float, float],
+        crop_attempts: int = 10,
+        patch_h: int = 16,
+        patch_w: int = 16,
+        max_seq_len: int = 1024,
+        divisible_by_patch: bool = True,
+        max_ratio: float | None = None,
+        final_scale_range: tuple[float, float] | None = None,
+        interpolation: list[InterpolationMode] | InterpolationMode = _RANDOM_INTERPOLATION,
+    ) -> tuple[tuple[int, int, int, int], tuple[int, int], InterpolationMode]:
+        """Get parameters for a random sized crop relative to image aspect ratio."""
         _, height, width = F.get_dimensions(img)
         if height <= 0 or width <= 0:
-             raise ValueError(f"Input image must have positive dimensions, got H={height}, W={width}")
+            raise ValueError(f"Input image must have positive dimensions, got H={height}, W={width}")
 
         area = height * width
         orig_aspect = width / height
@@ -616,8 +596,8 @@ class RandomResizedCropToSequence(torch.nn.Module):
             # target_area = crop_w * crop_h, aspect_ratio = crop_w / crop_h
             # => crop_h = sqrt(target_area / aspect_ratio)
             # => crop_w = sqrt(target_area * aspect_ratio)
-            crop_h = int(round(math.sqrt(target_area / aspect_ratio)))
-            crop_w = int(round(math.sqrt(target_area * aspect_ratio)))
+            crop_h = round(math.sqrt(target_area / aspect_ratio))
+            crop_w = round(math.sqrt(target_area * aspect_ratio))
 
             if 0 < crop_w <= width and 0 < crop_h <= height:
                 top = random.randint(0, height - crop_h)
@@ -631,11 +611,11 @@ class RandomResizedCropToSequence(torch.nn.Module):
             if orig_aspect < min_aspect_ratio:
                 # Original is narrower than target min, clamp width
                 crop_w = width
-                crop_h = min(int(round(crop_w / min_aspect_ratio)), height)
+                crop_h = min(round(crop_w / min_aspect_ratio), height)
             elif orig_aspect > max_aspect_ratio:
                 # Original is wider than target max, clamp height
                 crop_h = height
-                crop_w = min(int(round(crop_h * max_aspect_ratio)), width)
+                crop_w = min(round(crop_h * max_aspect_ratio), width)
             else:
                 # Aspect ratio is within range, take the largest possible crop (full image)
                 crop_w = width
@@ -651,7 +631,7 @@ class RandomResizedCropToSequence(torch.nn.Module):
         # Determine max feasible size for scaling of the *cropped* region
         feasible_ratio, feasible_size = get_image_size_for_seq(
             (crop_h, crop_w),
-            patch_size=(patch_h, patch_w), # Pass as tuple
+            patch_size=(patch_h, patch_w),  # Pass as tuple
             max_seq_len=max_seq_len,
             divisible_by_patch=divisible_by_patch,
             max_ratio=max_ratio,
@@ -662,7 +642,7 @@ class RandomResizedCropToSequence(torch.nn.Module):
         if final_scale_range is not None:
             min_sc, max_sc = final_scale_range
             scale_factor = random.uniform(min_sc, max_sc)
-            scale_factor = min(max(scale_factor, 0.0), 1.0) # Clamp factor just in case
+            scale_factor = min(max(scale_factor, 0.0), 1.0)  # Clamp factor just in case
 
             # Calculate raw scaled size
             # Note: feasible_ratio already accounts for max_ratio clamp if any
@@ -675,22 +655,24 @@ class RandomResizedCropToSequence(torch.nn.Module):
                 target_h = patch_h * math.ceil(raw_h / patch_h)
                 target_w = patch_w * math.ceil(raw_w / patch_w)
             else:
-                target_h = int(round(raw_h))
-                target_w = int(round(raw_w))
+                target_h = round(raw_h)
+                target_w = round(raw_w)
 
             # Ensure final size is at least one patch dimension
             target_h = max(target_h, patch_h)
             target_w = max(target_w, patch_w)
             final_size = (target_h, target_w)
 
-             # Final check: Ensure this randomized size still fits max_seq_len
-             # (It should, as we scaled down, but rounding might theoretically push it over)
+            # Final check: Ensure this randomized size still fits max_seq_len
+            # (It should, as we scaled down, but rounding might theoretically push it over)
             num_patches_h = final_size[0] // patch_h
             num_patches_w = final_size[1] // patch_w
             if (num_patches_h * num_patches_w) > max_seq_len:
-                 # If it exceeds, revert to the original feasible_size (safest)
-                 final_size = feasible_size
-                 warnings.warn(f"Final scale randomization ({scale_factor:.2f}) resulted in size {final_size} exceeding max_seq_len={max_seq_len} after rounding. Reverting to feasible size {feasible_size}.")
+                # If it exceeds, revert to the original feasible_size (safest)
+                final_size = feasible_size
+                warnings.warn(
+                    f"Final scale randomization ({scale_factor:.2f}) resulted in size {final_size} exceeding max_seq_len={max_seq_len} after rounding. Reverting to feasible size {feasible_size}."
+                )
 
         # Select interpolation mode
         if isinstance(interpolation, (tuple, list)):
@@ -731,10 +713,10 @@ class RandomResizedCropToSequence(torch.nn.Module):
 
     def __repr__(self) -> str:
         if isinstance(self.interpolation, (tuple, list)):
-            interpolate_str = ', '.join(str(m).split('.')[-1] for m in self.interpolation)
+            interpolate_str = ", ".join(str(m).split(".")[-1] for m in self.interpolation)
         else:
             interpolate_str = str(self.interpolation)
-        format_string = self.__class__.__name__ + '('
+        format_string = self.__class__.__name__ + "("
         format_string += f"patch_size=({self.patch_h}, {self.patch_w})"
         format_string += f", max_seq_len={self.max_seq_len}"
         format_string += f", scale={self.scale}"
@@ -744,17 +726,17 @@ class RandomResizedCropToSequence(torch.nn.Module):
         format_string += f", max_ratio={self.max_ratio}"
         format_string += f", final_scale_range={self.final_scale_range}"
         format_string += f", attempts={self.attempts}"
-        format_string += ')'
+        format_string += ")"
         return format_string
 
 
 def patchify_image(
-        img: torch.Tensor,
-        patch_size: Tuple[int, int],
-        pad: bool = True,
-        include_info: bool = True,
-        flatten_patches: bool = True,
-) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    img: torch.Tensor,
+    patch_size: tuple[int, int],
+    pad: bool = True,
+    include_info: bool = True,
+    flatten_patches: bool = True,
+) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     c, h, w = img.shape
     ph, pw = patch_size
 
@@ -774,7 +756,7 @@ def patchify_image(
 
     if include_info:
         # Create coordinate indices
-        y_idx, x_idx = torch.meshgrid(torch.arange(nh), torch.arange(nw), indexing='ij')
+        y_idx, x_idx = torch.meshgrid(torch.arange(nh), torch.arange(nw), indexing="ij")
         # Stack into a single coords tensor [N, 2] with (y, x) order
         coord = torch.stack([y_idx.reshape(-1), x_idx.reshape(-1)], dim=1)
         # Create type indicators (all 1s for regular patches)
@@ -787,11 +769,7 @@ def patchify_image(
 class Patchify(torch.nn.Module):
     """Transform an image into patches with corresponding coordinates and type indicators."""
 
-    def __init__(
-            self,
-            patch_size: Union[int, Tuple[int, int]],
-            flatten_patches: bool = True
-    ):
+    def __init__(self, patch_size: int | tuple[int, int], flatten_patches: bool = True):
         super().__init__()
         self.patch_size = patch_size if isinstance(patch_size, tuple) else (patch_size, patch_size)
         self.flatten_patches = flatten_patches
@@ -799,7 +777,7 @@ class Patchify(torch.nn.Module):
     def forward(self, img):
         """
         Args:
-            img: A PIL Image or tensor of shape [C, H, W]
+            img: A PIL Image or tensor of shape [C, H, W].
 
         Returns:
             A dictionary containing:
@@ -815,7 +793,7 @@ class Patchify(torch.nn.Module):
         patches, coord, valid = patchify_image(img, self.patch_size, flatten_patches=self.flatten_patches)
 
         return {
-            'patches': patches,
-            'patch_coord': coord,
-            'patch_valid': valid,
+            "patches": patches,
+            "patch_coord": coord,
+            "patch_valid": valid,
         }
