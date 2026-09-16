@@ -1,8 +1,8 @@
 """Dual-style DySample upsampling with learnable feature fusion."""
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 def normal_init(module, mean=0.0, std=1.0, bias=0.0):

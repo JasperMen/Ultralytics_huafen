@@ -1,37 +1,36 @@
 """
- pnasnet5large implementation grabbed from Cadene's pretrained models
- Additional credit to https://github.com/creafz
+pnasnet5large implementation grabbed from Cadene's pretrained models
+Additional credit to https://github.com/creafz.
 
- https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/pnasnet.py
+https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/pnasnet.py
 
 """
+
 from collections import OrderedDict
 from functools import partial
-from typing import Type
 
 import torch
-import torch.nn as nn
+from timm.layers import ConvNormAct, create_classifier, create_conv2d, create_pool2d
+from torch import nn
 
-from timm.layers import ConvNormAct, create_conv2d, create_pool2d, create_classifier
 from ._builder import build_model_with_cfg
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['PNASNet5Large']
+__all__ = ["PNASNet5Large"]
 
 
 class SeparableConv2d(nn.Module):
-
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: int,
-            stride: int,
-            padding: str = '',
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int,
+        padding: str = "",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.depthwise_conv2d = create_conv2d(
             in_channels,
@@ -57,19 +56,18 @@ class SeparableConv2d(nn.Module):
 
 
 class BranchSeparables(nn.Module):
-
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: int,
-            stride: int = 1,
-            stem_cell: bool = False,
-            padding: str = '',
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int = 1,
+        stem_cell: bool = False,
+        padding: str = "",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         middle_channels = out_channels if stem_cell else in_channels
         self.act_1 = nn.ReLU()
@@ -104,18 +102,17 @@ class BranchSeparables(nn.Module):
 
 
 class ActConvBn(nn.Module):
-
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: int,
-            stride: int = 1,
-            padding: str = '',
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int = 1,
+        padding: str = "",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.act = nn.ReLU()
         self.conv = create_conv2d(
@@ -136,27 +133,34 @@ class ActConvBn(nn.Module):
 
 
 class FactorizedReduction(nn.Module):
-
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            padding: str = '',
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        padding: str = "",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.act = nn.ReLU()
-        self.path_1 = nn.Sequential(OrderedDict([
-            ('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False)),
-            ('conv', create_conv2d(in_channels, out_channels // 2, kernel_size=1, padding=padding, **dd)),
-        ]))
-        self.path_2 = nn.Sequential(OrderedDict([
-            ('pad', nn.ZeroPad2d((-1, 1, -1, 1))),  # shift
-            ('avgpool', nn.AvgPool2d(1, stride=2, count_include_pad=False)),
-            ('conv', create_conv2d(in_channels, out_channels // 2, kernel_size=1, padding=padding, **dd)),
-        ]))
+        self.path_1 = nn.Sequential(
+            OrderedDict(
+                [
+                    ("avgpool", nn.AvgPool2d(1, stride=2, count_include_pad=False)),
+                    ("conv", create_conv2d(in_channels, out_channels // 2, kernel_size=1, padding=padding, **dd)),
+                ]
+            )
+        )
+        self.path_2 = nn.Sequential(
+            OrderedDict(
+                [
+                    ("pad", nn.ZeroPad2d((-1, 1, -1, 1))),  # shift
+                    ("avgpool", nn.AvgPool2d(1, stride=2, count_include_pad=False)),
+                    ("conv", create_conv2d(in_channels, out_channels // 2, kernel_size=1, padding=padding, **dd)),
+                ]
+            )
+        )
         self.final_path_bn = nn.BatchNorm2d(out_channels, eps=0.001, **dd)
 
     def forward(self, x):
@@ -168,7 +172,6 @@ class FactorizedReduction(nn.Module):
 
 
 class CellBase(nn.Module):
-
     def cell_forward(self, x_left, x_right):
         x_comb_iter_0_left = self.comb_iter_0_left(x_left)
         x_comb_iter_0_right = self.comb_iter_0_right(x_left)
@@ -198,46 +201,54 @@ class CellBase(nn.Module):
 
 
 class CellStem0(CellBase):
-
     def __init__(
-            self,
-            in_chs_left: int,
-            out_chs_left: int,
-            in_chs_right: int,
-            out_chs_right: int,
-            pad_type: str = '',
-            device=None,
-            dtype=None,
+        self,
+        in_chs_left: int,
+        out_chs_left: int,
+        in_chs_right: int,
+        out_chs_right: int,
+        pad_type: str = "",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, kernel_size=1, padding=pad_type, **dd)
 
         self.comb_iter_0_left = BranchSeparables(
-            in_chs_left, out_chs_left, kernel_size=5, stride=2, stem_cell=True, padding=pad_type, **dd)
-        self.comb_iter_0_right = nn.Sequential(OrderedDict([
-            ('max_pool', create_pool2d('max', 3, stride=2, padding=pad_type)),
-            ('conv', create_conv2d(in_chs_left, out_chs_left, kernel_size=1, padding=pad_type, **dd)),
-            ('bn', nn.BatchNorm2d(out_chs_left, eps=0.001, **dd)),
-        ]))
+            in_chs_left, out_chs_left, kernel_size=5, stride=2, stem_cell=True, padding=pad_type, **dd
+        )
+        self.comb_iter_0_right = nn.Sequential(
+            OrderedDict(
+                [
+                    ("max_pool", create_pool2d("max", 3, stride=2, padding=pad_type)),
+                    ("conv", create_conv2d(in_chs_left, out_chs_left, kernel_size=1, padding=pad_type, **dd)),
+                    ("bn", nn.BatchNorm2d(out_chs_left, eps=0.001, **dd)),
+                ]
+            )
+        )
 
         self.comb_iter_1_left = BranchSeparables(
-            out_chs_right, out_chs_right, kernel_size=7, stride=2, padding=pad_type, **dd)
-        self.comb_iter_1_right = create_pool2d('max', 3, stride=2, padding=pad_type)
+            out_chs_right, out_chs_right, kernel_size=7, stride=2, padding=pad_type, **dd
+        )
+        self.comb_iter_1_right = create_pool2d("max", 3, stride=2, padding=pad_type)
 
         self.comb_iter_2_left = BranchSeparables(
-            out_chs_right, out_chs_right, kernel_size=5, stride=2, padding=pad_type, **dd)
+            out_chs_right, out_chs_right, kernel_size=5, stride=2, padding=pad_type, **dd
+        )
         self.comb_iter_2_right = BranchSeparables(
-            out_chs_right, out_chs_right, kernel_size=3, stride=2, padding=pad_type, **dd)
+            out_chs_right, out_chs_right, kernel_size=3, stride=2, padding=pad_type, **dd
+        )
 
-        self.comb_iter_3_left = BranchSeparables(
-            out_chs_right, out_chs_right, kernel_size=3, padding=pad_type, **dd)
-        self.comb_iter_3_right = create_pool2d('max', 3, stride=2, padding=pad_type)
+        self.comb_iter_3_left = BranchSeparables(out_chs_right, out_chs_right, kernel_size=3, padding=pad_type, **dd)
+        self.comb_iter_3_right = create_pool2d("max", 3, stride=2, padding=pad_type)
 
         self.comb_iter_4_left = BranchSeparables(
-            in_chs_right, out_chs_right, kernel_size=3, stride=2, stem_cell=True, padding=pad_type, **dd)
+            in_chs_right, out_chs_right, kernel_size=3, stride=2, stem_cell=True, padding=pad_type, **dd
+        )
         self.comb_iter_4_right = ActConvBn(
-            out_chs_right, out_chs_right, kernel_size=1, stride=2, padding=pad_type, **dd)
+            out_chs_right, out_chs_right, kernel_size=1, stride=2, padding=pad_type, **dd
+        )
 
     def forward(self, x_left):
         x_right = self.conv_1x1(x_left)
@@ -246,20 +257,19 @@ class CellStem0(CellBase):
 
 
 class Cell(CellBase):
-
     def __init__(
-            self,
-            in_chs_left: int,
-            out_chs_left: int,
-            in_chs_right: int,
-            out_chs_right: int,
-            pad_type: str = '',
-            is_reduction: bool = False,
-            match_prev_layer_dims: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_chs_left: int,
+        out_chs_left: int,
+        in_chs_right: int,
+        out_chs_right: int,
+        pad_type: str = "",
+        is_reduction: bool = False,
+        match_prev_layer_dims: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         # If `is_reduction` is set to `True` stride 2 is used for
         # convolution and pooling layers to reduce the spatial size of
@@ -277,26 +287,32 @@ class Cell(CellBase):
         self.conv_1x1 = ActConvBn(in_chs_right, out_chs_right, kernel_size=1, padding=pad_type, **dd)
 
         self.comb_iter_0_left = BranchSeparables(
-            out_chs_left, out_chs_left, kernel_size=5, stride=stride, padding=pad_type, **dd)
-        self.comb_iter_0_right = create_pool2d('max', 3, stride=stride, padding=pad_type)
+            out_chs_left, out_chs_left, kernel_size=5, stride=stride, padding=pad_type, **dd
+        )
+        self.comb_iter_0_right = create_pool2d("max", 3, stride=stride, padding=pad_type)
 
         self.comb_iter_1_left = BranchSeparables(
-            out_chs_right, out_chs_right, kernel_size=7, stride=stride, padding=pad_type, **dd)
-        self.comb_iter_1_right = create_pool2d('max', 3, stride=stride, padding=pad_type)
+            out_chs_right, out_chs_right, kernel_size=7, stride=stride, padding=pad_type, **dd
+        )
+        self.comb_iter_1_right = create_pool2d("max", 3, stride=stride, padding=pad_type)
 
         self.comb_iter_2_left = BranchSeparables(
-            out_chs_right, out_chs_right, kernel_size=5, stride=stride, padding=pad_type, **dd)
+            out_chs_right, out_chs_right, kernel_size=5, stride=stride, padding=pad_type, **dd
+        )
         self.comb_iter_2_right = BranchSeparables(
-            out_chs_right, out_chs_right, kernel_size=3, stride=stride, padding=pad_type, **dd)
+            out_chs_right, out_chs_right, kernel_size=3, stride=stride, padding=pad_type, **dd
+        )
 
         self.comb_iter_3_left = BranchSeparables(out_chs_right, out_chs_right, kernel_size=3, **dd)
-        self.comb_iter_3_right = create_pool2d('max', 3, stride=stride, padding=pad_type)
+        self.comb_iter_3_right = create_pool2d("max", 3, stride=stride, padding=pad_type)
 
         self.comb_iter_4_left = BranchSeparables(
-            out_chs_left, out_chs_left, kernel_size=3, stride=stride, padding=pad_type, **dd)
+            out_chs_left, out_chs_left, kernel_size=3, stride=stride, padding=pad_type, **dd
+        )
         if is_reduction:
             self.comb_iter_4_right = ActConvBn(
-                out_chs_right, out_chs_right, kernel_size=1, stride=stride, padding=pad_type, **dd)
+                out_chs_right, out_chs_right, kernel_size=1, stride=stride, padding=pad_type, **dd
+            )
         else:
             self.comb_iter_4_right = None
 
@@ -309,93 +325,147 @@ class Cell(CellBase):
 
 class PNASNet5Large(nn.Module):
     def __init__(
-            self,
-            num_classes: int = 1000,
-            in_chans: int = 3,
-            output_stride: int = 32,
-            drop_rate: float = 0.,
-            global_pool: str = 'avg',
-            pad_type: str = '',
-            device=None,
-            dtype=None,
+        self,
+        num_classes: int = 1000,
+        in_chans: int = 3,
+        output_stride: int = 32,
+        drop_rate: float = 0.0,
+        global_pool: str = "avg",
+        pad_type: str = "",
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.num_features = self.head_hidden_size = 4320
         assert output_stride == 32
 
         self.conv_0 = ConvNormAct(
-            in_chans, 96, kernel_size=3, stride=2, padding=0,
-            norm_layer=partial(nn.BatchNorm2d, eps=0.001, momentum=0.1), apply_act=False, **dd)
+            in_chans,
+            96,
+            kernel_size=3,
+            stride=2,
+            padding=0,
+            norm_layer=partial(nn.BatchNorm2d, eps=0.001, momentum=0.1),
+            apply_act=False,
+            **dd,
+        )
 
         self.cell_stem_0 = CellStem0(
-            in_chs_left=96, out_chs_left=54, in_chs_right=96, out_chs_right=54, pad_type=pad_type, **dd)
+            in_chs_left=96, out_chs_left=54, in_chs_right=96, out_chs_right=54, pad_type=pad_type, **dd
+        )
 
         self.cell_stem_1 = Cell(
-            in_chs_left=96, out_chs_left=108, in_chs_right=270, out_chs_right=108, pad_type=pad_type,
-            match_prev_layer_dims=True, is_reduction=True, **dd)
+            in_chs_left=96,
+            out_chs_left=108,
+            in_chs_right=270,
+            out_chs_right=108,
+            pad_type=pad_type,
+            match_prev_layer_dims=True,
+            is_reduction=True,
+            **dd,
+        )
         self.cell_0 = Cell(
-            in_chs_left=270, out_chs_left=216, in_chs_right=540, out_chs_right=216, pad_type=pad_type,
-            match_prev_layer_dims=True, **dd)
+            in_chs_left=270,
+            out_chs_left=216,
+            in_chs_right=540,
+            out_chs_right=216,
+            pad_type=pad_type,
+            match_prev_layer_dims=True,
+            **dd,
+        )
         self.cell_1 = Cell(
-            in_chs_left=540, out_chs_left=216, in_chs_right=1080, out_chs_right=216, pad_type=pad_type, **dd)
+            in_chs_left=540, out_chs_left=216, in_chs_right=1080, out_chs_right=216, pad_type=pad_type, **dd
+        )
         self.cell_2 = Cell(
-            in_chs_left=1080, out_chs_left=216, in_chs_right=1080, out_chs_right=216, pad_type=pad_type, **dd)
+            in_chs_left=1080, out_chs_left=216, in_chs_right=1080, out_chs_right=216, pad_type=pad_type, **dd
+        )
         self.cell_3 = Cell(
-            in_chs_left=1080, out_chs_left=216, in_chs_right=1080, out_chs_right=216, pad_type=pad_type, **dd)
+            in_chs_left=1080, out_chs_left=216, in_chs_right=1080, out_chs_right=216, pad_type=pad_type, **dd
+        )
 
         self.cell_4 = Cell(
-            in_chs_left=1080, out_chs_left=432, in_chs_right=1080, out_chs_right=432, pad_type=pad_type,
-            is_reduction=True, **dd)
+            in_chs_left=1080,
+            out_chs_left=432,
+            in_chs_right=1080,
+            out_chs_right=432,
+            pad_type=pad_type,
+            is_reduction=True,
+            **dd,
+        )
         self.cell_5 = Cell(
-            in_chs_left=1080, out_chs_left=432, in_chs_right=2160, out_chs_right=432, pad_type=pad_type,
-            match_prev_layer_dims=True, **dd)
+            in_chs_left=1080,
+            out_chs_left=432,
+            in_chs_right=2160,
+            out_chs_right=432,
+            pad_type=pad_type,
+            match_prev_layer_dims=True,
+            **dd,
+        )
         self.cell_6 = Cell(
-            in_chs_left=2160, out_chs_left=432, in_chs_right=2160, out_chs_right=432, pad_type=pad_type, **dd)
+            in_chs_left=2160, out_chs_left=432, in_chs_right=2160, out_chs_right=432, pad_type=pad_type, **dd
+        )
         self.cell_7 = Cell(
-            in_chs_left=2160, out_chs_left=432, in_chs_right=2160, out_chs_right=432, pad_type=pad_type, **dd)
+            in_chs_left=2160, out_chs_left=432, in_chs_right=2160, out_chs_right=432, pad_type=pad_type, **dd
+        )
 
         self.cell_8 = Cell(
-            in_chs_left=2160, out_chs_left=864, in_chs_right=2160, out_chs_right=864, pad_type=pad_type,
-            is_reduction=True, **dd)
+            in_chs_left=2160,
+            out_chs_left=864,
+            in_chs_right=2160,
+            out_chs_right=864,
+            pad_type=pad_type,
+            is_reduction=True,
+            **dd,
+        )
         self.cell_9 = Cell(
-            in_chs_left=2160, out_chs_left=864, in_chs_right=4320, out_chs_right=864, pad_type=pad_type,
-            match_prev_layer_dims=True, **dd)
+            in_chs_left=2160,
+            out_chs_left=864,
+            in_chs_right=4320,
+            out_chs_right=864,
+            pad_type=pad_type,
+            match_prev_layer_dims=True,
+            **dd,
+        )
         self.cell_10 = Cell(
-            in_chs_left=4320, out_chs_left=864, in_chs_right=4320, out_chs_right=864, pad_type=pad_type, **dd)
+            in_chs_left=4320, out_chs_left=864, in_chs_right=4320, out_chs_right=864, pad_type=pad_type, **dd
+        )
         self.cell_11 = Cell(
-            in_chs_left=4320, out_chs_left=864, in_chs_right=4320, out_chs_right=864, pad_type=pad_type, **dd)
+            in_chs_left=4320, out_chs_left=864, in_chs_right=4320, out_chs_right=864, pad_type=pad_type, **dd
+        )
         self.act = nn.ReLU()
         self.feature_info = [
-            dict(num_chs=96, reduction=2, module='conv_0'),
-            dict(num_chs=270, reduction=4, module='cell_stem_1.conv_1x1.act'),
-            dict(num_chs=1080, reduction=8, module='cell_4.conv_1x1.act'),
-            dict(num_chs=2160, reduction=16, module='cell_8.conv_1x1.act'),
-            dict(num_chs=4320, reduction=32, module='act'),
+            {"num_chs": 96, "reduction": 2, "module": "conv_0"},
+            {"num_chs": 270, "reduction": 4, "module": "cell_stem_1.conv_1x1.act"},
+            {"num_chs": 1080, "reduction": 8, "module": "cell_4.conv_1x1.act"},
+            {"num_chs": 2160, "reduction": 16, "module": "cell_8.conv_1x1.act"},
+            {"num_chs": 4320, "reduction": 32, "module": "act"},
         ]
 
         self.global_pool, self.head_drop, self.last_linear = create_classifier(
-            self.num_features, self.num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd)
+            self.num_features, self.num_classes, pool_type=global_pool, drop_rate=drop_rate, **dd
+        )
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(stem=r'^conv_0|cell_stem_[01]', blocks=r'^cell_(\d+)')
+        return {"stem": r"^conv_0|cell_stem_[01]", "blocks": r"^cell_(\d+)"}
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
-        assert not enable, 'gradient checkpointing not supported'
+        assert not enable, "gradient checkpointing not supported"
 
     @torch.jit.ignore
     def get_classifier(self) -> nn.Module:
         return self.last_linear
 
-    def reset_classifier(self, num_classes: int, global_pool: str = 'avg', device=None, dtype=None):
-        dd = {'device': device, 'dtype': dtype}
+    def reset_classifier(self, num_classes: int, global_pool: str = "avg", device=None, dtype=None):
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.global_pool, self.last_linear = create_classifier(
-            self.num_features, self.num_classes, pool_type=global_pool, **dd)
+            self.num_features, self.num_classes, pool_type=global_pool, **dd
+        )
 
     def forward_features(self, x):
         x_conv_0 = self.conv_0(x)
@@ -432,33 +502,34 @@ def _create_pnasnet(variant, pretrained=False, **kwargs):
         PNASNet5Large,
         variant,
         pretrained,
-        feature_cfg=dict(feature_cls='hook', no_rewrite=True),  # not possible to re-write this model
+        feature_cfg={"feature_cls": "hook", "no_rewrite": True},  # not possible to re-write this model
         **kwargs,
     )
 
 
-default_cfgs = generate_default_cfgs({
-    'pnasnet5large.tf_in1k': {
-        'hf_hub_id': 'timm/',
-        'input_size': (3, 331, 331),
-        'pool_size': (11, 11),
-        'crop_pct': 0.911,
-        'interpolation': 'bicubic',
-        'mean': (0.5, 0.5, 0.5),
-        'std': (0.5, 0.5, 0.5),
-        'num_classes': 1000,
-        'first_conv': 'conv_0.conv',
-        'classifier': 'last_linear',
-        'license': 'apache-2.0',
-    },
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "pnasnet5large.tf_in1k": {
+            "hf_hub_id": "timm/",
+            "input_size": (3, 331, 331),
+            "pool_size": (11, 11),
+            "crop_pct": 0.911,
+            "interpolation": "bicubic",
+            "mean": (0.5, 0.5, 0.5),
+            "std": (0.5, 0.5, 0.5),
+            "num_classes": 1000,
+            "first_conv": "conv_0.conv",
+            "classifier": "last_linear",
+            "license": "apache-2.0",
+        },
+    }
+)
 
 
 @register_model
 def pnasnet5large(pretrained=False, **kwargs) -> PNASNet5Large:
-    r"""PNASNet-5 model architecture from the
-    `"Progressive Neural Architecture Search"
+    r"""PNASNet-5 model architecture from the `"Progressive Neural Architecture Search"
     <https://arxiv.org/abs/1712.00559>`_ paper.
     """
-    model_kwargs = dict(pad_type='same', **kwargs)
-    return _create_pnasnet('pnasnet5large', pretrained, **model_kwargs)
+    model_kwargs = dict(pad_type="same", **kwargs)
+    return _create_pnasnet("pnasnet5large", pretrained, **model_kwargs)

@@ -1,4 +1,4 @@
-"""Differential Attention
+"""Differential Attention.
 
 Paper: 'Differential Transformer' - https://arxiv.org/abs/2410.05258
 
@@ -6,12 +6,14 @@ Reference impl: https://github.com/microsoft/unilm/tree/master/Diff-Transformer
 
 Hacked together by / Copyright 2024, Ross Wightman
 """
+
+from __future__ import annotations
+
 import math
-from typing import Optional, Type
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from .attention import maybe_add_mask
 from .config import use_fused_attn
@@ -21,10 +23,9 @@ from .norm import RmsNorm
 class DiffAttention(nn.Module):
     """Differential Attention module.
 
-    Computes attention as the difference between two softmax attention maps, which helps
-    cancel out noise and promotes sparse attention patterns. The module splits Q and K
-    into two groups, computes separate attention maps, and subtracts one from the other
-    scaled by a learnable lambda parameter.
+    Computes attention as the difference between two softmax attention maps, which helps cancel out noise and promotes
+    sparse attention patterns. The module splits Q and K into two groups, computes separate attention maps, and
+    subtracts one from the other scaled by a learnable lambda parameter.
 
     The attention output is computed as:
         Attn = softmax(Q1 @ K1^T) - lambda * softmax(Q2 @ K2^T)
@@ -32,23 +33,24 @@ class DiffAttention(nn.Module):
 
     Supports both fused (scaled_dot_product_attention) and manual implementations.
     """
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            qkv_bias: bool = False,
-            qk_norm: bool = False,
-            scale_norm: bool = False,
-            proj_bias: bool = True,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            depth: int = 0,
-            dual_lambda: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        qk_norm: bool = False,
+        scale_norm: bool = False,
+        proj_bias: bool = True,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        norm_layer: type[nn.Module] | None = None,
+        depth: int = 0,
+        dual_lambda: bool = False,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize the DiffAttention module.
 
@@ -63,18 +65,17 @@ class DiffAttention(nn.Module):
             proj_drop: Dropout rate applied after the output projection.
             norm_layer: Normalization layer constructor (defaults to RmsNorm).
             depth: Block depth index, used to compute depth-dependent lambda_init.
-            dual_lambda: If True, use simplified dual scalar lambda parameterization
-                (2 params). If False, use the paper's original formulation with
-                lambda_q/k vectors (4 * head_dim params).
+            dual_lambda: If True, use simplified dual scalar lambda parameterization (2 params). If False, use the
+                paper's original formulation with lambda_q/k vectors (4 * head_dim params).
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        dd = {"device": device, "dtype": dtype}
+        assert dim % num_heads == 0, "dim should be divisible by num_heads"
         if norm_layer is None:
             norm_layer = RmsNorm
         self.num_heads = num_heads
         self.head_dim = dim // num_heads // 2
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
@@ -127,9 +128,9 @@ class DiffAttention(nn.Module):
         return lambda_1 - lambda_2 + self.lambda_init
 
     def forward(
-            self,
-            x: torch.Tensor,
-            attn_mask: Optional[torch.Tensor] = None,
+        self,
+        x: torch.Tensor,
+        attn_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         B, N, C = x.shape
 
