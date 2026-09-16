@@ -1,13 +1,14 @@
 """Token-based distillation training task for models with distillation heads."""
+
+from __future__ import annotations
+
 import logging
-from typing import Dict, Optional, Union
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
 from timm.models import create_model
 from timm.utils import unwrap_model
+from torch import nn
 
 from .task import TrainingTask
 
@@ -17,8 +18,8 @@ _logger = logging.getLogger(__name__)
 class TokenDistillationTeacher(nn.Module):
     """Wrapper for a teacher model used in token-based distillation.
 
-    Creates and manages a pre-trained teacher model for token distillation,
-    handling model creation and normalization differences between teacher and student.
+    Creates and manages a pre-trained teacher model for token distillation, handling model creation and normalization
+    differences between teacher and student.
 
     Can be created from:
     - A model name string (creates the model internally)
@@ -34,25 +35,25 @@ class TokenDistillationTeacher(nn.Module):
     """
 
     def __init__(
-            self,
-            model_name_or_module: Union[str, nn.Module],
-            num_classes: Optional[int] = None,
-            in_chans: int = 3,
-            pretrained_path: Optional[str] = None,
-            device: Optional[torch.device] = None,
-            dtype: Optional[torch.dtype] = None,
+        self,
+        model_name_or_module: str | nn.Module,
+        num_classes: int | None = None,
+        in_chans: int = 3,
+        pretrained_path: str | None = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ):
         super().__init__()
 
         if isinstance(model_name_or_module, str):
             _logger.info(f"Creating token distillation teacher model: '{model_name_or_module}'")
 
-            pretrained_kwargs = {'pretrained': True}
+            pretrained_kwargs = {"pretrained": True}
             if pretrained_path:
-                pretrained_kwargs['pretrained_cfg_overlay'] = dict(
-                    file=pretrained_path,
-                    num_classes=num_classes,
-                )
+                pretrained_kwargs["pretrained_cfg_overlay"] = {
+                    "file": pretrained_path,
+                    "num_classes": num_classes,
+                }
 
             model = create_model(
                 model_name=model_name_or_module,
@@ -74,17 +75,17 @@ class TokenDistillationTeacher(nn.Module):
 
         # Get normalization values from pretrained_cfg if available
         model_unwrapped = unwrap_model(model)
-        if hasattr(model_unwrapped, 'pretrained_cfg'):
-            mean = model_unwrapped.pretrained_cfg.get('mean', (0.485, 0.456, 0.406))
-            std = model_unwrapped.pretrained_cfg.get('std', (0.229, 0.224, 0.225))
+        if hasattr(model_unwrapped, "pretrained_cfg"):
+            mean = model_unwrapped.pretrained_cfg.get("mean", (0.485, 0.456, 0.406))
+            std = model_unwrapped.pretrained_cfg.get("std", (0.229, 0.224, 0.225))
         else:
             mean = (0.485, 0.456, 0.406)
             std = (0.229, 0.224, 0.225)
 
         mean_kd = torch.tensor(mean, device=device, dtype=dtype).view(1, -1, 1, 1)
         std_kd = torch.tensor(std, device=device, dtype=dtype).view(1, -1, 1, 1)
-        self.register_buffer('mean_kd', mean_kd, persistent=False)
-        self.register_buffer('std_kd', std_kd, persistent=False)
+        self.register_buffer("mean_kd", mean_kd, persistent=False)
+        self.register_buffer("std_kd", std_kd, persistent=False)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward pass through teacher model.
@@ -98,10 +99,10 @@ class TokenDistillationTeacher(nn.Module):
         return self.model(input)
 
     def normalize_input(
-            self,
-            input: torch.Tensor,
-            student_mean: Optional[torch.Tensor] = None,
-            student_std: Optional[torch.Tensor] = None,
+        self,
+        input: torch.Tensor,
+        student_mean: torch.Tensor | None = None,
+        student_std: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Normalize input to match teacher's expected normalization.
 
@@ -123,10 +124,9 @@ class TokenDistillationTeacher(nn.Module):
 class TokenDistillationTask(TrainingTask):
     """Token-based distillation task for models with distillation heads.
 
-    For models like DeiT that have a dedicated distillation token/head that returns
-    a tuple (main_logits, dist_logits) when distilled_training is enabled. The main
-    head is trained against ground truth labels while the distillation head matches
-    teacher outputs.
+    For models like DeiT that have a dedicated distillation token/head that returns a tuple (main_logits, dist_logits)
+    when distilled_training is enabled. The main head is trained against ground truth labels while the distillation head
+    matches teacher outputs.
 
     Supports two distillation modes:
     - 'soft': KL divergence with temperature scaling (default)
@@ -135,7 +135,7 @@ class TokenDistillationTask(TrainingTask):
     Loss weighting supports two modes:
     1. Independent weights: loss = task_loss_weight * task_loss + distill_loss_weight * distill_loss
     2. Complementary mode: loss = task_loss_weight * task_loss + (1 - task_loss_weight) * distill_loss
-       (used when only task_loss_weight is specified)
+    (used when only task_loss_weight is specified)
 
     Args:
         student_model: Student model with set_distilled_training() method
@@ -150,41 +150,46 @@ class TokenDistillationTask(TrainingTask):
         dtype: Dtype for task tensors/buffers
         verbose: Enable info logging
 
-    Example:
+    Examples:
         >>> # With model name string (num_classes/in_chans inferred from student)
         >>> task = TokenDistillationTask(
-        ...     student_model=model, teacher_model='deit_base_patch16_224',
+        ...     student_model=model,
+        ...     teacher_model="deit_base_patch16_224",
         ...     criterion=nn.CrossEntropyLoss(),
-        ...     distill_type='soft', temperature=3.0, task_loss_weight=0.5,
-        ...     device=torch.device('cuda'),
+        ...     distill_type="soft",
+        ...     temperature=3.0,
+        ...     task_loss_weight=0.5,
+        ...     device=torch.device("cuda"),
         ... )
         >>> # With raw model
         >>> task = TokenDistillationTask(
-        ...     student_model=model, teacher_model=my_teacher_model,
+        ...     student_model=model,
+        ...     teacher_model=my_teacher_model,
         ...     criterion=nn.CrossEntropyLoss(),
-        ...     distill_type='hard', task_loss_weight=0.5,
+        ...     distill_type="hard",
+        ...     task_loss_weight=0.5,
         ... )
     """
 
     def __init__(
-            self,
-            student_model: nn.Module,
-            teacher_model: Union[str, nn.Module, TokenDistillationTeacher],
-            criterion: Optional[nn.Module] = None,
-            teacher_pretrained_path: Optional[str] = None,
-            distill_type: str = 'soft',
-            distill_loss_weight: Optional[float] = None,
-            task_loss_weight: Optional[float] = None,
-            temperature: float = 1.0,
-            device: Optional[torch.device] = None,
-            dtype: Optional[torch.dtype] = None,
-            verbose: bool = True,
+        self,
+        student_model: nn.Module,
+        teacher_model: str | nn.Module | TokenDistillationTeacher,
+        criterion: nn.Module | None = None,
+        teacher_pretrained_path: str | None = None,
+        distill_type: str = "soft",
+        distill_loss_weight: float | None = None,
+        task_loss_weight: float | None = None,
+        temperature: float = 1.0,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+        verbose: bool = True,
     ):
         super().__init__(device=device, dtype=dtype, verbose=verbose)
 
         # Validate model has set_distilled_training method
         student_unwrapped = unwrap_model(student_model)
-        if not hasattr(student_unwrapped, 'set_distilled_training'):
+        if not hasattr(student_unwrapped, "set_distilled_training"):
             raise ValueError(
                 f"Model {student_unwrapped.__class__.__name__} does not have 'set_distilled_training' method. "
                 "TokenDistillationTask requires a model with a distillation head (e.g., DeiT distilled variants)."
@@ -196,7 +201,7 @@ class TokenDistillationTask(TrainingTask):
         # Handle different teacher input types
         if isinstance(teacher_model, TokenDistillationTeacher):
             teacher = teacher_model
-        elif isinstance(teacher_model, str) or isinstance(teacher_model, nn.Module):
+        elif isinstance(teacher_model, (str, nn.Module)):
             # Get num_classes and in_chans from student
             num_classes = student_unwrapped.num_classes
             in_chans = student_unwrapped.in_chans
@@ -220,22 +225,22 @@ class TokenDistillationTask(TrainingTask):
         self.distill_type = distill_type
         self.temperature = temperature
 
-        if distill_type not in ('soft', 'hard'):
+        if distill_type not in ("soft", "hard"):
             raise ValueError(f"Unsupported distill_type '{distill_type}'. Must be 'soft' or 'hard'.")
 
         # Register student normalization values as non-persistent buffers
         student_mean = torch.tensor(
-            student_unwrapped.pretrained_cfg['mean'],
+            student_unwrapped.pretrained_cfg["mean"],
             device=self.device,
             dtype=self.dtype,
         ).view(1, -1, 1, 1)
         student_std = torch.tensor(
-            student_unwrapped.pretrained_cfg['std'],
+            student_unwrapped.pretrained_cfg["std"],
             device=self.device,
             dtype=self.dtype,
         ).view(1, -1, 1, 1)
-        self.register_buffer('student_mean', student_mean, persistent=False)
-        self.register_buffer('student_std', student_std, persistent=False)
+        self.register_buffer("student_mean", student_mean, persistent=False)
+        self.register_buffer("student_std", student_std, persistent=False)
 
         # Determine weighting mode
         if distill_loss_weight is not None:
@@ -267,15 +272,9 @@ class TokenDistillationTask(TrainingTask):
                 )
 
         if self.verbose:
-            _logger.info(
-                f"TokenDistillationTask: distill_type={distill_type}, temperature={temperature}"
-            )
+            _logger.info(f"TokenDistillationTask: distill_type={distill_type}, temperature={temperature}")
 
-    def prepare_distributed(
-            self,
-            device_ids: Optional[list] = None,
-            **ddp_kwargs
-    ) -> 'TokenDistillationTask':
+    def prepare_distributed(self, device_ids: list | None = None, **ddp_kwargs) -> TokenDistillationTask:
         """Prepare task for distributed training.
 
         Wraps the student model in DistributedDataParallel (DDP) while leaving
@@ -297,10 +296,10 @@ class TokenDistillationTask(TrainingTask):
         return self
 
     def forward(
-            self,
-            input: torch.Tensor,
-            target: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+        self,
+        input: torch.Tensor,
+        target: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
         """Forward pass with token distillation.
 
         Args:
@@ -327,10 +326,10 @@ class TokenDistillationTask(TrainingTask):
             teacher_logits = self.teacher(input_kd.detach())
 
         # Compute distillation loss on distillation head
-        if self.distill_type == 'soft':
+        if self.distill_type == "soft":
             prob_s = F.log_softmax(dist_logits / self.temperature, dim=-1)
             prob_t = F.log_softmax(teacher_logits / self.temperature, dim=-1)
-            distill_loss = F.kl_div(prob_s, prob_t, reduction='batchmean', log_target=True) * (self.temperature ** 2)
+            distill_loss = F.kl_div(prob_s, prob_t, reduction="batchmean", log_target=True) * (self.temperature**2)
         else:
             teacher_hard = teacher_logits.argmax(dim=-1)
             distill_loss = F.cross_entropy(dist_logits, teacher_hard)
@@ -338,8 +337,8 @@ class TokenDistillationTask(TrainingTask):
         total_loss = self.task_loss_weight * task_loss + self.distill_loss_weight * distill_loss
 
         return {
-            'loss': total_loss,
-            'output': main_logits,
-            'task_loss': task_loss,
-            'distill_loss': distill_loss,
+            "loss": total_loss,
+            "output": main_logits,
+            "task_loss": task_loss,
+            "distill_loss": distill_loss,
         }
