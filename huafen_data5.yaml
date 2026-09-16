@@ -1,0 +1,35 @@
+# 花粉检测数据集配置
+
+# 数据集根目录
+path: /home/user/Men/Huafen_Dataset/YOLO_Dataset_Split5
+
+# 训练、验证、测试图片路径（相对于path）
+train: images/train
+val: images/val
+test: images/test
+
+# 类别数量
+nc: 19
+
+# 类别名称（根据 YOLO_Dataset_Split5 实际标签 + 数据集.md 映射修正）
+# 标签 ID 已统一为 0~18 连续编号
+names:
+  0: azs      # 矮紫杉
+  1: bjys     # 北京云杉
+  2: cmx      # 草木犀
+  3: dzh      # 大籽蒿
+  4: gsh      # 格桑花
+  5: gybc     # 狗尾巴草
+  6: hcm      # 黄刺玫
+  7: jkpgy    # 菊科蒲公英
+  8: jkzhkmc  # 菊科中华苦荬菜
+  9: jyh      # 金银花
+  10: lk      # 藜科
+  11: ls      # 柳树
+  12: not_pollen  # 杂质
+  13: qwkpg   # 蔷薇科苹果
+  14: qxlm    # 球悬铃木
+  15: sb      # 松柏
+  16: syh     # 芍药花
+  17: yb      # 圆柏
+  18: ych     # 油菜花

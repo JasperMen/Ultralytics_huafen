@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>检测统计</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.4.15/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e2e4ea;
+      --muted: #7c7f96;
+      --accent: #00c9a7;
+      --accent2: #7c3aed;
+      --danger: #ff4757;
+      --warn: #ffa502;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+      min-height: 100vh;
+    }
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      height: 56px;
+    }
+    nav .logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    nav .logo span { color: #fff; }
+    .nav-links { display: flex; gap: 0.25rem; }
+    .nav-links a {
+      padding: 0.5rem 1rem;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      background: var(--border);
+      color: var(--text);
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.4rem 1.6rem;
+    }
+    .kpi-card .label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.6rem;
+    }
+    .kpi-card .value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .kpi-card .sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 800px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+    .chart-card h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+    .chart-wrap { position: relative; height: 280px; }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .class-table {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 0.85rem 1.2rem;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      background: #13151f;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    tbody td {
+      padding: 0.8rem 1.2rem;
+      font-size: 0.88rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .bar-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+    .bar-num { color: var(--muted); font-size: 0.82rem; min-width: 50px; text-align: right; }
+
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      height: 200px; color: var(--muted);
+    }
+    .error-msg {
+      background: rgba(255,71,87,0.1);
+      border: 1px solid var(--danger);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      color: var(--danger);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .date-range {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .date-range label { font-size: 0.85rem; color: var(--muted); }
+    .date-range input {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .date-range button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0.45rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="logo">YOLO<span>Hub</span></div>
+  <div class="nav-links">
+    <a href="/">检测</a>
+    <a href="/stats" class="active">统计</a>
+    <a href="/history">历史</a>
+  </div>
+</nav>
+
+<div class="container" id="app">
+  <div v-if="error" class="error-msg">{{ error }}</div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="label">总检测对象</div>
+      <div class="value">{{ fmt(overview.total_all) }}</div>
+      <div class="sub">累计所有检测</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">今日对象</div>
+      <div class="value">{{ fmt(overview.today_all) }}</div>
+      <div class="sub">今日统计</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">总图片数</div>
+      <div class="value">{{ fmt(overview.total_images) }}</div>
+      <div class="sub">张</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">总视频数</div>
+      <div class="value">{{ fmt(overview.total_videos) }}</div>
+      <div class="sub">段</div>
+    </div>
+  </div>
+
+  <!-- 趋势图 + 饼图 -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>近 7 天检测量趋势</h3>
+      <div class="chart-wrap">
+        <canvas ref="trendCanvas"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>图片 vs 视频 占比</h3>
+      <div class="chart-wrap">
+        <canvas ref="pieCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 类别明细 -->
+  <div class="class-table">
+    <table>
+      <thead>
+        <tr>
+          <th>类别</th>
+          <th>总计数</th>
+          <th>出现帧/图数</th>
+          <th>平均置信度</th>
+          <th style="width: 50%">占比</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-if="loading">
+          <td colspan="5" class="loading">加载中…</td>
+        </tr>
+        <tr v-else-if="classes.length === 0">
+          <td colspan="5" class="loading">暂无数据</td>
+        </tr>
+        <tr v-for="c in classes" :key="c.class_name">
+          <td><span class="badge" :style="{background: clsColor(c.class_name)}">{{ c.class_name }}</span></td>
+          <td>{{ fmt(c.total_cnt) }}</td>
+          <td>{{ fmt(c.frames_with_class) }}</td>
+          <td>{{ (c.avg_conf * 100).toFixed(1) }}%</td>
+          <td>
+            <div class="bar-cell">
+              <div class="bar-track">
+                <div class="bar-fill" :style="{width: barW(c.total_cnt) + '%'}"></div>
+              </div>
+              <span class="bar-num">{{ barPct(c.total_cnt) }}%</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted, nextTick } = Vue;
+
+const PALETTE = [
+  '#00c9a7','#7c3aed','#ff6b6b','#feca57','#54a0ff',
+  '#5f27cd','#01a3a4','#ff9f43','#ee5a24','#10ac84',
+];
+
+createApp({
+  setup() {
+    const error        = ref('');
+    const overview     = ref({ total_all: 0, today_all: 0, total_images: 0, total_videos: 0, trend: [] });
+    const classes      = ref([]);
+    const loading      = ref(true);
+    const trendCanvas  = ref(null);
+    const pieCanvas    = ref(null);
+
+    let trendChart = null;
+    let pieChart   = null;
+
+    function fmt(n) { return Number(n || 0).toLocaleString(); }
+
+    function clsColor(name) {
+      const colors = ['#00c9a7','#7c3aed','#ff6b6b','#feca57','#54a0ff','#5f27cd','#01a3a4','#ff9f43'];
+      let h = 0;
+      for (let c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
+      return colors[Math.abs(h) % colors.length] + '33';
+    }
+
+    function barW(cnt) {
+      if (!classes.value.length) return 0;
+      const max = Math.max(...classes.value.map(c => c.total_cnt));
+      return max > 0 ? (cnt / max * 100) : 0;
+    }
+
+    function barPct(cnt) {
+      if (!classes.value.length) return 0;
+      const max = Math.max(...classes.value.map(c => c.total_cnt));
+      return max > 0 ? Math.round(cnt / max * 100) : 0;
+    }
+
+    function initTrend() {
+      if (!trendCanvas.value) return;
+      const labels = overview.value.trend.map(r => r.stat_date.slice(5));
+      const data   = overview.value.trend.map(r => r.total_objects);
+      trendChart = new Chart(trendCanvas.value, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '检测对象数',
+            data,
+            borderColor: '#00c9a7',
+            backgroundColor: 'rgba(0,201,167,0.08)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#00c9a7',
+            pointRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: { color: '#7c7f96', font: { size: 11 } }
+            },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: { color: '#7c7f96', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    function initPie() {
+      if (!pieCanvas.value) return;
+      pieChart = new Chart(pieCanvas.value, {
+        type: 'doughnut',
+        data: {
+          labels: ['图片', '视频'],
+          datasets: [{
+            data: [overview.value.total_images, overview.value.total_videos],
+            backgroundColor: ['#00c9a7', '#7c3aed'],
+            borderWidth: 0,
+            hoverOffset: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#7c7f96', padding: 16, font: { size: 12 } }
+            }
+          }
+        }
+      });
+    }
+
+    onMounted(async () => {
+      try {
+        const [ov, cls] = await Promise.all([
+          axios.get('/api/stats/overview'),
+          axios.get('/api/stats/classes'),
+        ]);
+        overview.value = ov.data;
+        classes.value  = cls.data;
+      } catch (e) {
+        error.value = '加载统计数据失败：' + (e.response?.data?.message || e.message);
+      } finally {
+        loading.value = false;
+        await nextTick();
+        initTrend();
+        initPie();
+      }
+    });
+
+    return { error, overview, classes, loading, fmt, clsColor,
+             barW, barPct, trendCanvas, pieCanvas };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
