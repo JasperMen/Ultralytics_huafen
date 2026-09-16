@@ -1,40 +1,41 @@
-""" Depthwise Separable Conv Modules
+"""Depthwise Separable Conv Modules.
 
 Basic DWS convs. Other variations of DWS exist with batch norm or activations between the
 DW and PW convs such as the Depthwise modules in MobileNetV2 / EfficientNet and Xception.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-from typing import Optional, Type, Union
 
-from torch import nn as nn
+from __future__ import annotations
+
+from torch import nn
 
 from .create_conv2d import create_conv2d
 from .create_norm_act import get_norm_act_layer
 
 
 class SeparableConvNormAct(nn.Module):
-    """ Separable Conv w/ trailing Norm and Activation
-    """
+    """Separable Conv w/ trailing Norm and Activation."""
+
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: int = 3,
-            stride: int = 1,
-            dilation: int = 1,
-            padding: str = '',
-            bias: bool = False,
-            channel_multiplier: float = 1.0,
-            pw_kernel_size: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            apply_act: bool = True,
-            drop_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        padding: str = "",
+        bias: bool = False,
+        channel_multiplier: float = 1.0,
+        pw_kernel_size: int = 1,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        apply_act: bool = True,
+        drop_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.conv_dw = create_conv2d(
@@ -58,7 +59,7 @@ class SeparableConvNormAct(nn.Module):
         )
 
         norm_act_layer = get_norm_act_layer(norm_layer, act_layer)
-        norm_kwargs = dict(drop_layer=drop_layer) if drop_layer is not None else {}
+        norm_kwargs = {"drop_layer": drop_layer} if drop_layer is not None else {}
         self.bn = norm_act_layer(out_channels, apply_act=apply_act, **norm_kwargs, **dd)
 
     @property
@@ -80,23 +81,23 @@ SeparableConvBnAct = SeparableConvNormAct
 
 
 class SeparableConv2d(nn.Module):
-    """ Separable Conv
-    """
+    """Separable Conv."""
+
     def __init__(
-            self,
-            in_channels,
-            out_channels,
-            kernel_size=3,
-            stride=1,
-            dilation=1,
-            padding='',
-            bias=False,
-            channel_multiplier=1.0,
-            pw_kernel_size=1,
-            device=None,
-            dtype=None,
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        stride=1,
+        dilation=1,
+        padding="",
+        bias=False,
+        channel_multiplier=1.0,
+        pw_kernel_size=1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.conv_dw = create_conv2d(
