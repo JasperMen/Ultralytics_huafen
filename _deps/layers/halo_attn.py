@@ -1,4 +1,4 @@
-""" Halo Self Attention
+"""Halo Self Attention.
 
 Paper: `Scaling Local Self-Attention for Parameter Efficient Visual Backbones`
     - https://arxiv.org/abs/2103.12731
@@ -16,33 +16,34 @@ The attention mechanism works but it's slow as implemented.
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import List, Optional, Tuple, Union
+
+from __future__ import annotations
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from .helpers import make_divisible
-from .weight_init import trunc_normal_
 from .trace_utils import _assert
+from .weight_init import trunc_normal_
 
 
-def rel_logits_1d(q, rel_k, permute_mask: List[int]):
-    """ Compute relative logits along one dimension
+def rel_logits_1d(q, rel_k, permute_mask: list[int]):
+    """Compute relative logits along one dimension.
 
-    As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2
-    Originally from: `Attention Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925
+    As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2 Originally from: `Attention
+    Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925
 
     Args:
         q: (batch, height, width, dim)
         rel_k: (2 * window - 1, dim)
         permute_mask: permute output dim according to this
     """
-    B, H, W, dim = q.shape
+    B, H, W, _dim = q.shape
     rel_size = rel_k.shape[0]
     win_size = (rel_size + 1) // 2
 
-    x = (q @ rel_k.transpose(-1, -2))
+    x = q @ rel_k.transpose(-1, -2)
     x = x.reshape(-1, W, rel_size)
 
     # pad to shift from relative to absolute indexing
@@ -51,7 +52,7 @@ def rel_logits_1d(q, rel_k, permute_mask: List[int]):
 
     # reshape and slice out the padded elements
     x_pad = x_pad.reshape(-1, W + 1, rel_size)
-    x = x_pad[:, :W, win_size - 1:]
+    x = x_pad[:, :W, win_size - 1 :]
 
     # reshape and tile
     x = x.reshape(B, H, 1, W, win_size).expand(-1, -1, win_size, -1, -1)
@@ -59,28 +60,27 @@ def rel_logits_1d(q, rel_k, permute_mask: List[int]):
 
 
 class PosEmbedRel(nn.Module):
-    """ Relative Position Embedding
-    As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2
-    Originally from: `Attention Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925
-
+    """Relative Position Embedding As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2
+    Originally from: `Attention Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925.
     """
+
     def __init__(
-            self,
-            block_size: int,
-            win_size: int,
-            dim_head: int,
-            scale: float,
-            device=None,
-            dtype=None,
+        self,
+        block_size: int,
+        win_size: int,
+        dim_head: int,
+        scale: float,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
             block_size: block size
             win_size: neighbourhood window size
             dim_head: attention head dim
-            scale: scale factor (for init)
+            scale: scale factor (for init).
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.block_size = block_size
         self.dim_head = dim_head
@@ -112,18 +112,18 @@ class PosEmbedRel(nn.Module):
 
 
 class HaloAttn(nn.Module):
-    """ Halo Attention
+    """Halo Attention.
 
     Paper: `Scaling Local Self-Attention for Parameter Efficient Visual Backbones`
         - https://arxiv.org/abs/2103.12731
 
     The internal dimensions of the attention module are controlled by the interaction of several arguments.
-      * the output dimension of the module is specified by dim_out, which falls back to input dim if not set
-      * the value (v) dimension is set to dim_out // num_heads, the v projection determines the output dim
-      * the query and key (qk) dimensions are determined by
+    * the output dimension of the module is specified by dim_out, which falls back to input dim if not set
+    * the value (v) dimension is set to dim_out // num_heads, the v projection determines the output dim
+    * the query and key (qk) dimensions are determined by
         * num_heads * dim_head if dim_head is not None
         * num_heads * (dim_out * attn_ratio // num_heads) if dim_head is None
-      * as seen above, attn_ratio determines the ratio of q and k relative to the output if dim_head not used
+    * as seen above, attn_ratio determines the ratio of q and k relative to the output if dim_head not used
 
     Args:
         dim (int): input dimension to the module
@@ -135,28 +135,29 @@ class HaloAttn(nn.Module):
         block_size (int): size of blocks. (default: 8)
         halo_size (int): size of halo overlap. (default: 3)
         qk_ratio (float): ratio of q and k dimensions to output dimension when dim_head not set. (default: 1.0)
-        qkv_bias (bool) : add bias to q, k, and v projections
+        qkv_bias (bool): add bias to q, k, and v projections
         avg_down (bool): use average pool downsample instead of strided query blocks
         scale_pos_embed (bool): scale the position embedding as well as Q @ K
     """
+
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            feat_size: Optional[Tuple[int, int]] = None,
-            stride: int = 1,
-            num_heads: int = 8,
-            dim_head: Optional[int] = None,
-            block_size: int = 8,
-            halo_size: int = 3,
-            qk_ratio: float = 1.0,
-            qkv_bias: bool = False,
-            avg_down: bool = False,
-            scale_pos_embed: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        feat_size: tuple[int, int] | None = None,
+        stride: int = 1,
+        num_heads: int = 8,
+        dim_head: int | None = None,
+        block_size: int = 8,
+        halo_size: int = 3,
+        qk_ratio: float = 1.0,
+        qkv_bias: bool = False,
+        avg_down: bool = False,
+        scale_pos_embed: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         dim_out = dim_out or dim
         assert dim_out % num_heads == 0
@@ -166,7 +167,7 @@ class HaloAttn(nn.Module):
         self.dim_head_v = dim_out // self.num_heads
         self.dim_out_qk = num_heads * self.dim_head_qk
         self.dim_out_v = num_heads * self.dim_head_v
-        self.scale = self.dim_head_qk ** -0.5
+        self.scale = self.dim_head_qk**-0.5
         self.scale_pos_embed = scale_pos_embed
         self.block_size = self.block_size_ds = block_size
         self.halo_size = halo_size
@@ -178,7 +179,7 @@ class HaloAttn(nn.Module):
             self.block_stride = 1 if use_avg_pool else stride
             self.block_size_ds = self.block_size // self.block_stride
 
-        # FIXME not clear if this stride behaviour is what the paper intended
+        # FIXME not clear if this stride behavior is what the paper intended
         # Also, the paper mentions using a 3D conv for dealing with the blocking/gather, and leaving
         # data in unfolded block form. I haven't wrapped my head around how that'd look.
         self.q = nn.Conv2d(dim, self.dim_out_qk, 1, stride=self.block_stride, bias=qkv_bias, **dd)
@@ -204,18 +205,18 @@ class HaloAttn(nn.Module):
         trunc_normal_(self.pos_embed.width_rel, std=self.scale)
 
     def forward(self, x):
-        B, C, H, W = x.shape
-        _assert(H % self.block_size == 0, '')
-        _assert(W % self.block_size == 0, '')
+        B, _C, H, W = x.shape
+        _assert(H % self.block_size == 0, "")
+        _assert(W % self.block_size == 0, "")
         num_h_blocks = H // self.block_size
         num_w_blocks = W // self.block_size
         num_blocks = num_h_blocks * num_w_blocks
 
         q = self.q(x)
         # unfold
-        q = q.reshape(
-            -1, self.dim_head_qk,
-            num_h_blocks, self.block_size_ds, num_w_blocks, self.block_size_ds).permute(0, 1, 3, 5, 2, 4)
+        q = q.reshape(-1, self.dim_head_qk, num_h_blocks, self.block_size_ds, num_w_blocks, self.block_size_ds).permute(
+            0, 1, 3, 5, 2, 4
+        )
         # B, num_heads * dim_head * block_size ** 2, num_blocks
         q = q.reshape(B * self.num_heads, self.dim_head_qk, -1, num_blocks).transpose(1, 3)
         # B * num_heads, num_blocks, block_size ** 2, dim_head
@@ -225,8 +226,12 @@ class HaloAttn(nn.Module):
         # lowered for PyTorch XLA so it will be very slow. See code at bottom of file for XLA friendly approach.
         # FIXME figure out how to switch impl between this and conv2d if XLA being used.
         kv = F.pad(kv, [self.halo_size, self.halo_size, self.halo_size, self.halo_size])
-        kv = kv.unfold(2, self.win_size, self.block_size).unfold(3, self.win_size, self.block_size).reshape(
-            B * self.num_heads, self.dim_head_qk + self.dim_head_v, num_blocks, -1).permute(0, 2, 3, 1)
+        kv = (
+            kv.unfold(2, self.win_size, self.block_size)
+            .unfold(3, self.win_size, self.block_size)
+            .reshape(B * self.num_heads, self.dim_head_qk + self.dim_head_v, num_blocks, -1)
+            .permute(0, 2, 3, 1)
+        )
         k, v = torch.split(kv, [self.dim_head_qk, self.dim_head_v], dim=-1)
         # B * num_heads, num_blocks, win_size ** 2, dim_head_qk or dim_head_v
 
@@ -240,8 +245,11 @@ class HaloAttn(nn.Module):
         out = (attn @ v).transpose(1, 3)  # B * num_heads, dim_head_v, block_size ** 2, num_blocks
         # fold
         out = out.reshape(-1, self.block_size_ds, self.block_size_ds, num_h_blocks, num_w_blocks)
-        out = out.permute(0, 3, 1, 4, 2).contiguous().view(
-            B, self.dim_out_v, H // self.block_stride, W // self.block_stride)
+        out = (
+            out.permute(0, 3, 1, 4, 2)
+            .contiguous()
+            .view(B, self.dim_out_v, H // self.block_stride, W // self.block_stride)
+        )
         # B, dim_out, H // block_stride, W // block_stride
         out = self.pool(out)
         return out

@@ -3,38 +3,47 @@ MambaOut models for image classification.
 Some implementations are modified from:
 timm (https://github.com/rwightman/pytorch-image-models),
 MetaFormer (https://github.com/sail-sg/metaformer),
-InceptionNeXt (https://github.com/sail-sg/inceptionnext)
+InceptionNeXt (https://github.com/sail-sg/inceptionnext).
 """
+
+from __future__ import annotations
+
 from collections import OrderedDict
-from typing import List, Optional, Tuple, Type, Union
 
 import torch
+from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+from timm.layers import (
+    ClNormMlpClassifierHead,
+    DropPath,
+    LayerNorm,
+    LayerScale,
+    calculate_drop_path_rates,
+    get_act_layer,
+    trunc_normal_,
+)
 from torch import nn
 
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import trunc_normal_, DropPath, calculate_drop_path_rates, LayerNorm, LayerScale, ClNormMlpClassifierHead, get_act_layer
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._manipulate import checkpoint_seq
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 
 
 class Stem(nn.Module):
-    r""" Code modified from InternImage:
-        https://github.com/OpenGVLab/InternImage
+    r"""Code modified from InternImage: https://github.com/OpenGVLab/InternImage.
     """
 
     def __init__(
-            self,
-            in_chs: int = 3,
-            out_chs: int = 96,
-            mid_norm: bool = True,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int = 3,
+        out_chs: int = 96,
+        mid_norm: bool = True,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = LayerNorm,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv1 = nn.Conv2d(
             in_chs,
@@ -70,16 +79,15 @@ class Stem(nn.Module):
 
 
 class DownsampleNormFirst(nn.Module):
-
     def __init__(
-            self,
-            in_chs: int = 96,
-            out_chs: int = 198,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int = 96,
+        out_chs: int = 198,
+        norm_layer: type[nn.Module] = LayerNorm,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.norm = norm_layer(in_chs, **dd)
         self.conv = nn.Conv2d(
@@ -100,16 +108,15 @@ class DownsampleNormFirst(nn.Module):
 
 
 class Downsample(nn.Module):
-
     def __init__(
-            self,
-            in_chs: int = 96,
-            out_chs: int = 198,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int = 96,
+        out_chs: int = 198,
+        norm_layer: type[nn.Module] = LayerNorm,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv = nn.Conv2d(
             in_chs,
@@ -130,23 +137,22 @@ class Downsample(nn.Module):
 
 
 class MlpHead(nn.Module):
-    """ MLP classification head
-    """
+    """MLP classification head."""
 
     def __init__(
-            self,
-            in_features: int,
-            num_classes: int = 1000,
-            pool_type: str = 'avg',
-            act_layer: Type[nn.Module] = nn.GELU,
-            mlp_ratio: Optional[int] = 4,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            drop_rate: float = 0.,
-            bias: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        num_classes: int = 1000,
+        pool_type: str = "avg",
+        act_layer: type[nn.Module] = nn.GELU,
+        mlp_ratio: int | None = 4,
+        norm_layer: type[nn.Module] = LayerNorm,
+        drop_rate: float = 0.0,
+        bias: bool = True,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if mlp_ratio is not None:
             hidden_size = int(mlp_ratio * in_features)
@@ -158,11 +164,15 @@ class MlpHead(nn.Module):
 
         self.norm = norm_layer(in_features, **dd)
         if hidden_size:
-            self.pre_logits = nn.Sequential(OrderedDict([
-                ('fc', nn.Linear(in_features, hidden_size, **dd)),
-                ('act', act_layer()),
-                ('norm', norm_layer(hidden_size, **dd))
-            ]))
+            self.pre_logits = nn.Sequential(
+                OrderedDict(
+                    [
+                        ("fc", nn.Linear(in_features, hidden_size, **dd)),
+                        ("act", act_layer()),
+                        ("norm", norm_layer(hidden_size, **dd)),
+                    ]
+                )
+            )
             self.num_features = hidden_size
         else:
             self.num_features = in_features
@@ -171,7 +181,7 @@ class MlpHead(nn.Module):
         self.fc = nn.Linear(self.num_features, num_classes, bias=bias, **dd) if num_classes > 0 else nn.Identity()
         self.head_dropout = nn.Dropout(drop_rate)
 
-    def reset(self, num_classes: int, pool_type: Optional[str] = None, reset_other: bool = False):
+    def reset(self, num_classes: int, pool_type: str | None = None, reset_other: bool = False):
         if pool_type is not None:
             self.pool_type = pool_type
         if reset_other:
@@ -181,7 +191,7 @@ class MlpHead(nn.Module):
         self.fc = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
 
     def forward(self, x, pre_logits: bool = False):
-        if self.pool_type == 'avg':
+        if self.pool_type == "avg":
             x = x.mean((1, 2))
         x = self.norm(x)
         x = self.pre_logits(x)
@@ -193,29 +203,30 @@ class MlpHead(nn.Module):
 
 
 class GatedConvBlock(nn.Module):
-    r""" Our implementation of Gated CNN Block: https://arxiv.org/pdf/1612.08083
+    r"""Our implementation of Gated CNN Block: https://arxiv.org/pdf/1612.08083.
+
     Args:
-        conv_ratio: control the number of channels to conduct depthwise convolution.
-            Conduct convolution on partial channels can improve paraitcal efficiency.
-            The idea of partial channels is from ShuffleNet V2 (https://arxiv.org/abs/1807.11164) and
-            also used by InceptionNeXt (https://arxiv.org/abs/2303.16900) and FasterNet (https://arxiv.org/abs/2303.03667)
+        conv_ratio: control the number of channels to conduct depthwise convolution. Conduct convolution on partial
+            channels can improve paraitcal efficiency.
+        The idea of partial channels is from ShuffleNet V2 (https: //arxiv.org/abs/1807.11164) and
+        also used by InceptionNeXt (https: //arxiv.org/abs/2303.16900) and FasterNet (https://arxiv.org/abs/2303.03667).
     """
 
     def __init__(
-            self,
-            dim: int,
-            expansion_ratio: float = 8 / 3,
-            kernel_size: int = 7,
-            conv_ratio: float = 1.0,
-            ls_init_value: Optional[float] = None,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
-            **kwargs
+        self,
+        dim: int,
+        expansion_ratio: float = 8 / 3,
+        kernel_size: int = 7,
+        conv_ratio: float = 1.0,
+        ls_init_value: float | None = None,
+        norm_layer: type[nn.Module] = LayerNorm,
+        act_layer: type[nn.Module] = nn.GELU,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
+        **kwargs,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.norm = norm_layer(dim, **dd)
         hidden = int(expansion_ratio * dim)
@@ -233,7 +244,7 @@ class GatedConvBlock(nn.Module):
         )
         self.fc2 = nn.Linear(hidden, dim, **dd)
         self.ls = LayerScale(dim, **dd) if ls_init_value is not None else nn.Identity()
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         shortcut = x  # [B, H, W, C]
@@ -250,50 +261,51 @@ class GatedConvBlock(nn.Module):
 
 
 class MambaOutStage(nn.Module):
-
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            depth: int = 4,
-            expansion_ratio: float = 8 / 3,
-            kernel_size: int = 7,
-            conv_ratio: float = 1.0,
-            downsample: str = '',
-            ls_init_value: Optional[float] = None,
-            norm_layer: Type[nn.Module] = LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        depth: int = 4,
+        expansion_ratio: float = 8 / 3,
+        kernel_size: int = 7,
+        conv_ratio: float = 1.0,
+        downsample: str = "",
+        ls_init_value: float | None = None,
+        norm_layer: type[nn.Module] = LayerNorm,
+        act_layer: type[nn.Module] = nn.GELU,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         dim_out = dim_out or dim
         self.grad_checkpointing = False
 
-        if downsample == 'conv':
+        if downsample == "conv":
             self.downsample = Downsample(dim, dim_out, norm_layer=norm_layer, **dd)
-        elif downsample == 'conv_nf':
+        elif downsample == "conv_nf":
             self.downsample = DownsampleNormFirst(dim, dim_out, norm_layer=norm_layer, **dd)
         else:
             assert dim == dim_out
             self.downsample = nn.Identity()
 
-        self.blocks = nn.Sequential(*[
-            GatedConvBlock(
-                dim=dim_out,
-                expansion_ratio=expansion_ratio,
-                kernel_size=kernel_size,
-                conv_ratio=conv_ratio,
-                ls_init_value=ls_init_value,
-                norm_layer=norm_layer,
-                act_layer=act_layer,
-                drop_path=drop_path[j] if isinstance(drop_path, (list, tuple)) else drop_path,
-                **dd,
-            )
-            for j in range(depth)
-        ])
+        self.blocks = nn.Sequential(
+            *[
+                GatedConvBlock(
+                    dim=dim_out,
+                    expansion_ratio=expansion_ratio,
+                    kernel_size=kernel_size,
+                    conv_ratio=conv_ratio,
+                    ls_init_value=ls_init_value,
+                    norm_layer=norm_layer,
+                    act_layer=act_layer,
+                    drop_path=drop_path[j] if isinstance(drop_path, (list, tuple)) else drop_path,
+                    **dd,
+                )
+                for j in range(depth)
+            ]
+        )
 
     def forward(self, x):
         x = self.downsample(x)
@@ -305,9 +317,7 @@ class MambaOutStage(nn.Module):
 
 
 class MambaOut(nn.Module):
-    r""" MetaFormer
-        A PyTorch impl of : `MetaFormer Baselines for Vision`  -
-          https://arxiv.org/abs/2210.13452
+    r"""MetaFormer A PyTorch impl of : `MetaFormer Baselines for Vision` - https://arxiv.org/abs/2210.13452.
 
     Args:
         in_chans (int): Number of input image channels. Default: 3.
@@ -322,32 +332,32 @@ class MambaOut(nn.Module):
     """
 
     def __init__(
-            self,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            depths: Tuple[int, ...] = (3, 3, 9, 3),
-            dims: Tuple[int, ...] = (96, 192, 384, 576),
-            norm_layer: Type[nn.Module] = LayerNorm,
-            act_layer: Type[nn.Module] = nn.GELU,
-            conv_ratio: float = 1.0,
-            expansion_ratio: float = 8/3,
-            kernel_size: int = 7,
-            stem_mid_norm: bool = True,
-            ls_init_value: Optional[float] = None,
-            downsample: str = 'conv',
-            drop_path_rate: float = 0.,
-            drop_rate: float = 0.,
-            head_fn: str = 'default',
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        depths: tuple[int, ...] = (3, 3, 9, 3),
+        dims: tuple[int, ...] = (96, 192, 384, 576),
+        norm_layer: type[nn.Module] = LayerNorm,
+        act_layer: type[nn.Module] = nn.GELU,
+        conv_ratio: float = 1.0,
+        expansion_ratio: float = 8 / 3,
+        kernel_size: int = 7,
+        stem_mid_norm: bool = True,
+        ls_init_value: float | None = None,
+        downsample: str = "conv",
+        drop_path_rate: float = 0.0,
+        drop_rate: float = 0.0,
+        head_fn: str = "default",
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.drop_rate = drop_rate
-        self.output_fmt = 'NHWC'
+        self.output_fmt = "NHWC"
         if not isinstance(depths, (list, tuple)):
             depths = [depths]  # it means the model has only one stage
         if not isinstance(dims, (list, tuple)):
@@ -382,7 +392,7 @@ class MambaOut(nn.Module):
                 kernel_size=kernel_size,
                 conv_ratio=conv_ratio,
                 expansion_ratio=expansion_ratio,
-                downsample=downsample if i > 0 else '',
+                downsample=downsample if i > 0 else "",
                 ls_init_value=ls_init_value,
                 norm_layer=norm_layer,
                 act_layer=act_layer,
@@ -392,10 +402,10 @@ class MambaOut(nn.Module):
             self.stages.append(stage)
             prev_dim = dim
             # NOTE feature_info use currently assumes stage 0 == stride 1, rest are stride 2
-            self.feature_info += [dict(num_chs=prev_dim, reduction=curr_stride, module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": prev_dim, "reduction": curr_stride, "module": f"stages.{i}"}]
             cur += depths[i]
 
-        if head_fn == 'default':
+        if head_fn == "default":
             # specific to this model, unusual norm -> pool -> fc -> act -> norm -> fc combo
             self.head = MlpHead(
                 prev_dim,
@@ -423,19 +433,21 @@ class MambaOut(nn.Module):
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Conv2d, nn.Linear)):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^stem',
-            blocks=r'^stages\.(\d+)' if coarse else [
-                (r'^stages\.(\d+)\.downsample', (0,)),  # blocks
-                (r'^stages\.(\d+)\.blocks\.(\d+)', None),
-            ]
-        )
+        return {
+            "stem": r"^stem",
+            "blocks": r"^stages\.(\d+)"
+            if coarse
+            else [
+                (r"^stages\.(\d+)\.downsample", (0,)),  # blocks
+                (r"^stages\.(\d+)\.blocks\.(\d+)", None),
+            ],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -446,20 +458,20 @@ class MambaOut(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         self.head.reset(num_classes, global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -468,11 +480,9 @@ class MambaOut(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW', 'NHWC'), 'Output format must be one of NCHW or NHWC.'
-        channel_first = output_fmt == 'NCHW'
+        assert output_fmt in ("NCHW", "NHWC"), "Output format must be one of NCHW or NHWC."
+        channel_first = output_fmt == "NCHW"
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
 
@@ -481,7 +491,7 @@ class MambaOut(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x = stage(x)
@@ -498,17 +508,16 @@ class MambaOut(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -527,91 +536,102 @@ class MambaOut(nn.Module):
 
 
 def checkpoint_filter_fn(state_dict, model):
-    if 'model' in state_dict:
-        state_dict = state_dict['model']
-    if 'stem.conv1.weight' in state_dict:
+    if "model" in state_dict:
+        state_dict = state_dict["model"]
+    if "stem.conv1.weight" in state_dict:
         return state_dict
 
     import re
+
     out_dict = {}
     for k, v in state_dict.items():
-        k = k.replace('downsample_layers.0.', 'stem.')
-        k = re.sub(r'stages.([0-9]+).([0-9]+)', r'stages.\1.blocks.\2', k)
-        k = re.sub(r'downsample_layers.([0-9]+)', r'stages.\1.downsample', k)
+        k = k.replace("downsample_layers.0.", "stem.")
+        k = re.sub(r"stages.([0-9]+).([0-9]+)", r"stages.\1.blocks.\2", k)
+        k = re.sub(r"downsample_layers.([0-9]+)", r"stages.\1.downsample", k)
         # remap head names
-        if k.startswith('norm.'):
+        if k.startswith("norm."):
             # this is moving to head since it's after the pooling
-            k = k.replace('norm.', 'head.norm.')
-        elif k.startswith('head.'):
-            k = k.replace('head.fc1.', 'head.pre_logits.fc.')
-            k = k.replace('head.norm.', 'head.pre_logits.norm.')
-            k = k.replace('head.fc2.', 'head.fc.')
+            k = k.replace("norm.", "head.norm.")
+        elif k.startswith("head."):
+            k = k.replace("head.fc1.", "head.pre_logits.fc.")
+            k = k.replace("head.norm.", "head.pre_logits.norm.")
+            k = k.replace("head.fc2.", "head.fc.")
         out_dict[k] = v
 
     return out_dict
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'test_input_size': (3, 288, 288),
-        'pool_size': (7, 7), 'crop_pct': 1.0, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.conv1', 'classifier': 'head.fc',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "test_input_size": (3, 288, 288),
+        "pool_size": (7, 7),
+        "crop_pct": 1.0,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.conv1",
+        "classifier": "head.fc",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    # original weights
-    'mambaout_femto.in1k': _cfg(
-        hf_hub_id='timm/'),
-    'mambaout_kobe.in1k': _cfg(
-        hf_hub_id='timm/'),
-    'mambaout_tiny.in1k': _cfg(
-        hf_hub_id='timm/'),
-    'mambaout_small.in1k': _cfg(
-        hf_hub_id='timm/'),
-    'mambaout_base.in1k': _cfg(
-        hf_hub_id='timm/'),
-
-    # timm experiments below
-    'mambaout_small_rw.sw_e450_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'mambaout_base_short_rw.sw_e500_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_crop_pct=1.0,
-    ),
-    'mambaout_base_tall_rw.sw_e500_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_crop_pct=1.0,
-    ),
-    'mambaout_base_wide_rw.sw_e500_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_crop_pct=1.0,
-    ),
-    'mambaout_base_plus_rw.sw_e150_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'mambaout_base_plus_rw.sw_e150_r384_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), test_input_size=(3, 384, 384), crop_mode='squash', pool_size=(12, 12),
-    ),
-    'mambaout_base_plus_rw.sw_e150_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821,
-    ),
-    'test_mambaout': _cfg(input_size=(3, 160, 160), test_input_size=(3, 192, 192), pool_size=(5, 5)),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        # original weights
+        "mambaout_femto.in1k": _cfg(hf_hub_id="timm/"),
+        "mambaout_kobe.in1k": _cfg(hf_hub_id="timm/"),
+        "mambaout_tiny.in1k": _cfg(hf_hub_id="timm/"),
+        "mambaout_small.in1k": _cfg(hf_hub_id="timm/"),
+        "mambaout_base.in1k": _cfg(hf_hub_id="timm/"),
+        # timm experiments below
+        "mambaout_small_rw.sw_e450_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "mambaout_base_short_rw.sw_e500_in1k": _cfg(
+            hf_hub_id="timm/",
+            crop_pct=0.95,
+            test_crop_pct=1.0,
+        ),
+        "mambaout_base_tall_rw.sw_e500_in1k": _cfg(
+            hf_hub_id="timm/",
+            crop_pct=0.95,
+            test_crop_pct=1.0,
+        ),
+        "mambaout_base_wide_rw.sw_e500_in1k": _cfg(
+            hf_hub_id="timm/",
+            crop_pct=0.95,
+            test_crop_pct=1.0,
+        ),
+        "mambaout_base_plus_rw.sw_e150_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "mambaout_base_plus_rw.sw_e150_r384_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 384, 384),
+            test_input_size=(3, 384, 384),
+            crop_mode="squash",
+            pool_size=(12, 12),
+        ),
+        "mambaout_base_plus_rw.sw_e150_in12k": _cfg(
+            hf_hub_id="timm/",
+            num_classes=11821,
+        ),
+        "test_mambaout": _cfg(input_size=(3, 160, 160), test_input_size=(3, 192, 192), pool_size=(5, 5)),
+    }
+)
 
 
 def _create_mambaout(variant, pretrained=False, **kwargs):
     model = build_model_with_cfg(
-        MambaOut, variant, pretrained,
+        MambaOut,
+        variant,
+        pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
+        feature_cfg={"out_indices": (0, 1, 2, 3), "flatten_sequential": True},
         **kwargs,
     )
     return model
@@ -620,118 +640,120 @@ def _create_mambaout(variant, pretrained=False, **kwargs):
 # a series of MambaOut models
 @register_model
 def mambaout_femto(pretrained=False, **kwargs):
-    model_args = dict(depths=(3, 3, 9, 3), dims=(48, 96, 192, 288))
-    return _create_mambaout('mambaout_femto', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": (3, 3, 9, 3), "dims": (48, 96, 192, 288)}
+    return _create_mambaout("mambaout_femto", pretrained=pretrained, **dict(model_args, **kwargs))
+
 
 # Kobe Memorial Version with 24 Gated CNN blocks
 @register_model
 def mambaout_kobe(pretrained=False, **kwargs):
-    model_args = dict(depths=[3, 3, 15, 3], dims=[48, 96, 192, 288])
-    return _create_mambaout('mambaout_kobe', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": [3, 3, 15, 3], "dims": [48, 96, 192, 288]}
+    return _create_mambaout("mambaout_kobe", pretrained=pretrained, **dict(model_args, **kwargs))
+
 
 @register_model
 def mambaout_tiny(pretrained=False, **kwargs):
-    model_args = dict(depths=[3, 3, 9, 3], dims=[96, 192, 384, 576])
-    return _create_mambaout('mambaout_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": [3, 3, 9, 3], "dims": [96, 192, 384, 576]}
+    return _create_mambaout("mambaout_tiny", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def mambaout_small(pretrained=False, **kwargs):
-    model_args = dict(depths=[3, 4, 27, 3], dims=[96, 192, 384, 576])
-    return _create_mambaout('mambaout_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": [3, 4, 27, 3], "dims": [96, 192, 384, 576]}
+    return _create_mambaout("mambaout_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def mambaout_base(pretrained=False, **kwargs):
-    model_args = dict(depths=[3, 4, 27, 3], dims=[128, 256, 512, 768])
-    return _create_mambaout('mambaout_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": [3, 4, 27, 3], "dims": [128, 256, 512, 768]}
+    return _create_mambaout("mambaout_base", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def mambaout_small_rw(pretrained=False, **kwargs):
-    model_args = dict(
-        depths=[3, 4, 27, 3],
-        dims=[96, 192, 384, 576],
-        stem_mid_norm=False,
-        downsample='conv_nf',
-        ls_init_value=1e-6,
-        head_fn='norm_mlp',
-    )
-    return _create_mambaout('mambaout_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": [3, 4, 27, 3],
+        "dims": [96, 192, 384, 576],
+        "stem_mid_norm": False,
+        "downsample": "conv_nf",
+        "ls_init_value": 1e-6,
+        "head_fn": "norm_mlp",
+    }
+    return _create_mambaout("mambaout_small_rw", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def mambaout_base_short_rw(pretrained=False, **kwargs):
-    model_args = dict(
-        depths=(3, 3, 25, 3),
-        dims=(128, 256, 512, 768),
-        expansion_ratio=3.0,
-        conv_ratio=1.25,
-        stem_mid_norm=False,
-        downsample='conv_nf',
-        ls_init_value=1e-6,
-        head_fn='norm_mlp',
-    )
-    return _create_mambaout('mambaout_base_short_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": (3, 3, 25, 3),
+        "dims": (128, 256, 512, 768),
+        "expansion_ratio": 3.0,
+        "conv_ratio": 1.25,
+        "stem_mid_norm": False,
+        "downsample": "conv_nf",
+        "ls_init_value": 1e-6,
+        "head_fn": "norm_mlp",
+    }
+    return _create_mambaout("mambaout_base_short_rw", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def mambaout_base_tall_rw(pretrained=False, **kwargs):
-    model_args = dict(
-        depths=(3, 4, 30, 3),
-        dims=(128, 256, 512, 768),
-        expansion_ratio=2.5,
-        conv_ratio=1.25,
-        stem_mid_norm=False,
-        downsample='conv_nf',
-        ls_init_value=1e-6,
-        head_fn='norm_mlp',
-    )
-    return _create_mambaout('mambaout_base_tall_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": (3, 4, 30, 3),
+        "dims": (128, 256, 512, 768),
+        "expansion_ratio": 2.5,
+        "conv_ratio": 1.25,
+        "stem_mid_norm": False,
+        "downsample": "conv_nf",
+        "ls_init_value": 1e-6,
+        "head_fn": "norm_mlp",
+    }
+    return _create_mambaout("mambaout_base_tall_rw", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def mambaout_base_wide_rw(pretrained=False, **kwargs):
-    model_args = dict(
-        depths=(3, 4, 27, 3),
-        dims=(128, 256, 512, 768),
-        expansion_ratio=3.0,
-        conv_ratio=1.5,
-        stem_mid_norm=False,
-        downsample='conv_nf',
-        ls_init_value=1e-6,
-        act_layer='silu',
-        head_fn='norm_mlp',
-    )
-    return _create_mambaout('mambaout_base_wide_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": (3, 4, 27, 3),
+        "dims": (128, 256, 512, 768),
+        "expansion_ratio": 3.0,
+        "conv_ratio": 1.5,
+        "stem_mid_norm": False,
+        "downsample": "conv_nf",
+        "ls_init_value": 1e-6,
+        "act_layer": "silu",
+        "head_fn": "norm_mlp",
+    }
+    return _create_mambaout("mambaout_base_wide_rw", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def mambaout_base_plus_rw(pretrained=False, **kwargs):
-    model_args = dict(
-        depths=(3, 4, 30, 3),
-        dims=(128, 256, 512, 768),
-        expansion_ratio=3.0,
-        conv_ratio=1.5,
-        stem_mid_norm=False,
-        downsample='conv_nf',
-        ls_init_value=1e-6,
-        act_layer='silu',
-        head_fn='norm_mlp',
-    )
-    return _create_mambaout('mambaout_base_plus_rw', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": (3, 4, 30, 3),
+        "dims": (128, 256, 512, 768),
+        "expansion_ratio": 3.0,
+        "conv_ratio": 1.5,
+        "stem_mid_norm": False,
+        "downsample": "conv_nf",
+        "ls_init_value": 1e-6,
+        "act_layer": "silu",
+        "head_fn": "norm_mlp",
+    }
+    return _create_mambaout("mambaout_base_plus_rw", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def test_mambaout(pretrained=False, **kwargs):
-    model_args = dict(
-        depths=(1, 1, 3, 1),
-        dims=(16, 32, 48, 64),
-        expansion_ratio=3,
-        stem_mid_norm=False,
-        downsample='conv_nf',
-        ls_init_value=1e-4,
-        act_layer='silu',
-        head_fn='norm_mlp',
-    )
-    return _create_mambaout('test_mambaout', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": (1, 1, 3, 1),
+        "dims": (16, 32, 48, 64),
+        "expansion_ratio": 3,
+        "stem_mid_norm": False,
+        "downsample": "conv_nf",
+        "ls_init_value": 1e-4,
+        "act_layer": "silu",
+        "head_fn": "norm_mlp",
+    }
+    return _create_mambaout("test_mambaout", pretrained=pretrained, **dict(model_args, **kwargs))

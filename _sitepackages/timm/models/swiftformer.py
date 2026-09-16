@@ -1,7 +1,7 @@
 """SwiftFormer
 SwiftFormer: Efficient Additive Attention for Transformer-based Real-time Mobile Vision Applications
 Code: https://github.com/Amshaker/SwiftFormer
-Paper: https://arxiv.org/pdf/2303.15446
+Paper: https://arxiv.org/pdf/2303.15446.
 
 @InProceedings{Shaker_2023_ICCV,
     author    = {Shaker, Abdelrahman and Maaz, Muhammad and Rasheed, Hanoona and Khan, Salman and Yang, Ming-Hsuan and Khan, Fahad Shahbaz},
@@ -10,53 +10,55 @@ Paper: https://arxiv.org/pdf/2303.15446
     year      = {2023},
 }
 """
+
+from __future__ import annotations
+
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import Any
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import DropPath, Linear, LayerType, to_2tuple, trunc_normal_
+from timm.layers import DropPath, Linear, to_2tuple, trunc_normal_
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._manipulate import checkpoint_seq
 from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['SwiftFormer']
+__all__ = ["SwiftFormer"]
 
 
 class LayerScale2d(nn.Module):
     def __init__(self, dim: int, init_values: float = 1e-5, inplace: bool = False, device=None, dtype=None):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.inplace = inplace
-        self.gamma = nn.Parameter(
-            init_values * torch.ones(dim, 1, 1, **dd), requires_grad=True)
+        self.gamma = nn.Parameter(init_values * torch.ones(dim, 1, 1, **dd), requires_grad=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x.mul_(self.gamma) if self.inplace else x * self.gamma
 
 
 class Embedding(nn.Module):
+    """Patch Embedding that is implemented by a layer of conv. Input: tensor in shape [B, C, H, W] Output: tensor in
+    shape [B, C, H/stride, W/stride].
     """
-    Patch Embedding that is implemented by a layer of conv.
-    Input: tensor in shape [B, C, H, W]
-    Output: tensor in shape [B, C, H/stride, W/stride]
-    """
+
     def __init__(
-            self,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            patch_size: int = 16,
-            stride: int = 16,
-            padding: int = 0,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        patch_size: int = 16,
+        stride: int = 16,
+        padding: int = 0,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         patch_size = to_2tuple(patch_size)
         stride = to_2tuple(stride)
@@ -71,31 +73,30 @@ class Embedding(nn.Module):
 
 
 class ConvEncoder(nn.Module):
+    """Implementation of ConvEncoder with 3*3 and 1*1 convolutions. Input: tensor with shape [B, C, H, W] Output: tensor
+    with shape [B, C, H, W].
     """
-    Implementation of ConvEncoder with 3*3 and 1*1 convolutions.
-    Input: tensor with shape [B, C, H, W]
-    Output: tensor with shape [B, C, H, W]
-    """
+
     def __init__(
-            self,
-            dim: int,
-            hidden_dim: int = 64,
-            kernel_size: int = 3,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            use_layer_scale: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        hidden_dim: int = 64,
+        kernel_size: int = 3,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        use_layer_scale: bool = True,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dwconv = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size // 2, groups=dim, **dd)
         self.norm = norm_layer(dim, **dd)
         self.pwconv1 = nn.Conv2d(dim, hidden_dim, 1, **dd)
         self.act = act_layer()
         self.pwconv2 = nn.Conv2d(hidden_dim, dim, 1, **dd)
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.layer_scale = LayerScale2d(dim, 1, **dd) if use_layer_scale else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -111,23 +112,22 @@ class ConvEncoder(nn.Module):
 
 
 class Mlp(nn.Module):
+    """Implementation of MLP layer with 1*1 convolutions. Input: tensor with shape [B, C, H, W] Output: tensor with
+    shape [B, C, H, W].
     """
-    Implementation of MLP layer with 1*1 convolutions.
-    Input: tensor with shape [B, C, H, W]
-    Output: tensor with shape [B, C, H, W]
-    """
+
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -148,22 +148,21 @@ class Mlp(nn.Module):
 
 
 class EfficientAdditiveAttention(nn.Module):
+    """Efficient Additive Attention module for SwiftFormer. Input: tensor in shape [B, C, H, W] Output: tensor in shape
+    [B, C, H, W].
     """
-    Efficient Additive Attention module for SwiftFormer.
-    Input: tensor in shape [B, C, H, W]
-    Output: tensor in shape [B, C, H, W]
-    """
+
     def __init__(
-            self,
-            in_dims: int = 512,
-            token_dim: int = 256,
-            num_heads: int = 1,
-            device=None,
-            dtype=None,
+        self,
+        in_dims: int = 512,
+        token_dim: int = 256,
+        num_heads: int = 1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        self.scale_factor = token_dim ** -0.5
+        self.scale_factor = token_dim**-0.5
         self.to_query = nn.Linear(in_dims, token_dim * num_heads, **dd)
         self.to_key = nn.Linear(in_dims, token_dim * num_heads, **dd)
 
@@ -188,30 +187,29 @@ class EfficientAdditiveAttention(nn.Module):
 
 
 class LocalRepresentation(nn.Module):
+    """Local Representation module for SwiftFormer that is implemented by 3*3 depth-wise and point-wise convolutions.
+    Input: tensor in shape [B, C, H, W] Output: tensor in shape [B, C, H, W].
     """
-    Local Representation module for SwiftFormer that is implemented by 3*3 depth-wise and point-wise convolutions.
-    Input: tensor in shape [B, C, H, W]
-    Output: tensor in shape [B, C, H, W]
-    """
+
     def __init__(
-            self,
-            dim: int,
-            kernel_size: int = 3,
-            drop_path: float = 0.,
-            use_layer_scale: bool = True,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        kernel_size: int = 3,
+        drop_path: float = 0.0,
+        use_layer_scale: bool = True,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dwconv = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size // 2, groups=dim, **dd)
         self.norm = norm_layer(dim, **dd)
         self.pwconv1 = nn.Conv2d(dim, dim, kernel_size=1, **dd)
         self.act = act_layer()
         self.pwconv2 = nn.Conv2d(dim, dim, kernel_size=1, **dd)
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.layer_scale = LayerScale2d(dim, 1, **dd) if use_layer_scale else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -227,26 +225,25 @@ class LocalRepresentation(nn.Module):
 
 
 class Block(nn.Module):
+    """SwiftFormer Encoder Block for SwiftFormer. It consists of : (1) Local representation module, (2)
+    EfficientAdditiveAttention, and (3) MLP block. Input: tensor in shape [B, C, H, W] Output: tensor in shape [B,
+    C, H, W].
     """
-    SwiftFormer Encoder Block for SwiftFormer. It consists of :
-    (1) Local representation module, (2) EfficientAdditiveAttention, and (3) MLP block.
-    Input: tensor in shape [B, C, H, W]
-    Output: tensor in shape [B, C, H, W]
-    """
+
     def __init__(
-            self,
-            dim: int,
-            mlp_ratio: float = 4.,
-            drop_rate: float = 0.,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            use_layer_scale: bool = True,
-            layer_scale_init_value: float = 1e-5,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        mlp_ratio: float = 4.0,
+        drop_rate: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        use_layer_scale: bool = True,
+        layer_scale_init_value: float = 1e-5,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.local_representation = LocalRepresentation(
             dim=dim,
@@ -264,11 +261,9 @@ class Block(nn.Module):
             drop=drop_rate,
             **dd,
         )
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-        self.layer_scale_1 = LayerScale2d(dim, layer_scale_init_value, **dd) \
-            if use_layer_scale else nn.Identity()
-        self.layer_scale_2 = LayerScale2d(dim, layer_scale_init_value, **dd) \
-            if use_layer_scale else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.layer_scale_1 = LayerScale2d(dim, layer_scale_init_value, **dd) if use_layer_scale else nn.Identity()
+        self.layer_scale_2 = LayerScale2d(dim, layer_scale_init_value, **dd) if use_layer_scale else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.local_representation(x)
@@ -278,28 +273,28 @@ class Block(nn.Module):
 
 
 class Stage(nn.Module):
+    """Implementation of each SwiftFormer stages. Here, SwiftFormerEncoder used as the last block in all stages, while
+    ConvEncoder used in the rest of the blocks. Input: tensor in shape [B, C, H, W] Output: tensor in shape [B, C,
+    H, W].
     """
-    Implementation of each SwiftFormer stages. Here, SwiftFormerEncoder used as the last block in all stages, while ConvEncoder used in the rest of the blocks.
-    Input: tensor in shape [B, C, H, W]
-    Output: tensor in shape [B, C, H, W]
-    """
+
     def __init__(
-            self,
-            dim: int,
-            index: int,
-            layers: List[int],
-            mlp_ratio: float = 4.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            use_layer_scale: bool = True,
-            layer_scale_init_value: float = 1e-5,
-            downsample: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        index: int,
+        layers: list[int],
+        mlp_ratio: float = 4.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        use_layer_scale: bool = True,
+        layer_scale_init_value: float = 1e-5,
+        downsample: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.grad_checkpointing = False
         self.downsample = downsample if downsample is not None else nn.Identity()
@@ -308,28 +303,32 @@ class Stage(nn.Module):
         for block_idx in range(layers[index]):
             block_dpr = drop_path_rate * (block_idx + sum(layers[:index])) / (sum(layers) - 1)
             if layers[index] - block_idx <= 1:
-                blocks.append(Block(
-                    dim,
-                    mlp_ratio=mlp_ratio,
-                    drop_rate=drop_rate,
-                    drop_path=block_dpr,
-                    act_layer=act_layer,
-                    norm_layer=norm_layer,
-                    use_layer_scale=use_layer_scale,
-                    layer_scale_init_value=layer_scale_init_value,
-                    **dd,
-                ))
+                blocks.append(
+                    Block(
+                        dim,
+                        mlp_ratio=mlp_ratio,
+                        drop_rate=drop_rate,
+                        drop_path=block_dpr,
+                        act_layer=act_layer,
+                        norm_layer=norm_layer,
+                        use_layer_scale=use_layer_scale,
+                        layer_scale_init_value=layer_scale_init_value,
+                        **dd,
+                    )
+                )
             else:
-                blocks.append(ConvEncoder(
-                    dim=dim,
-                    hidden_dim=int(mlp_ratio * dim),
-                    kernel_size=3,
-                    drop_path=block_dpr,
-                    act_layer=act_layer,
-                    norm_layer=norm_layer,
-                    use_layer_scale=use_layer_scale,
-                    **dd,
-                ))
+                blocks.append(
+                    ConvEncoder(
+                        dim=dim,
+                        hidden_dim=int(mlp_ratio * dim),
+                        kernel_size=3,
+                        drop_path=block_dpr,
+                        act_layer=act_layer,
+                        norm_layer=norm_layer,
+                        use_layer_scale=use_layer_scale,
+                        **dd,
+                    )
+                )
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -343,29 +342,35 @@ class Stage(nn.Module):
 
 class SwiftFormer(nn.Module):
     def __init__(
-            self,
-            layers: List[int] = [3, 3, 6, 4],
-            embed_dims: List[int] = [48, 56, 112, 220],
-            mlp_ratios: int = 4,
-            downsamples: List[bool] = [False, True, True, True],
-            act_layer: Type[nn.Module] = nn.GELU,
-            down_patch_size: int = 3,
-            down_stride: int = 2,
-            down_pad: int = 1,
-            num_classes: int = 1000,
-            drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            use_layer_scale: bool = True,
-            layer_scale_init_value: float = 1e-5,
-            global_pool: str = 'avg',
-            output_stride: int = 32,
-            in_chans: int = 3,
-            device=None,
-            dtype=None,
-            **kwargs,
+        self,
+        layers: list[int] | None = None,
+        embed_dims: list[int] | None = None,
+        mlp_ratios: int = 4,
+        downsamples: list[bool] | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        down_patch_size: int = 3,
+        down_stride: int = 2,
+        down_pad: int = 1,
+        num_classes: int = 1000,
+        drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        use_layer_scale: bool = True,
+        layer_scale_init_value: float = 1e-5,
+        global_pool: str = "avg",
+        output_stride: int = 32,
+        in_chans: int = 3,
+        device=None,
+        dtype=None,
+        **kwargs,
     ):
+        if downsamples is None:
+            downsamples = [False, True, True, True]
+        if embed_dims is None:
+            embed_dims = [48, 56, 112, 220]
+        if layers is None:
+            layers = [3, 3, 6, 4]
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         assert output_stride == 32
         self.num_classes = num_classes
         self.in_chans = in_chans
@@ -384,14 +389,18 @@ class SwiftFormer(nn.Module):
 
         stages = []
         for i in range(len(layers)):
-            downsample = Embedding(
-                in_chans=prev_dim,
-                embed_dim=embed_dims[i],
-                patch_size=down_patch_size,
-                stride=down_stride,
-                padding=down_pad,
-                **dd,
-            ) if downsamples[i] else nn.Identity()
+            downsample = (
+                Embedding(
+                    in_chans=prev_dim,
+                    embed_dim=embed_dims[i],
+                    patch_size=down_patch_size,
+                    stride=down_stride,
+                    padding=down_pad,
+                    **dd,
+                )
+                if downsamples[i]
+                else nn.Identity()
+            )
             stage = Stage(
                 dim=embed_dims[i],
                 index=i,
@@ -407,11 +416,11 @@ class SwiftFormer(nn.Module):
             )
             prev_dim = embed_dims[i]
             stages.append(stage)
-            self.feature_info += [dict(num_chs=embed_dims[i], reduction=2**(i+2), module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": embed_dims[i], "reduction": 2 ** (i + 2), "module": f"stages.{i}"}]
         self.stages = nn.Sequential(*stages)
 
         # Classifier head
-        self.num_features  = self.head_hidden_size = out_chs = embed_dims[-1]
+        self.num_features = self.head_hidden_size = out_chs = embed_dims[-1]
         self.norm = nn.BatchNorm2d(out_chs, **dd)
         self.head_drop = nn.Dropout(drop_rate)
         self.head = Linear(out_chs, num_classes, **dd) if num_classes > 0 else nn.Identity()
@@ -422,29 +431,27 @@ class SwiftFormer(nn.Module):
 
     def _initialize_weights(self):
         for name, m in self.named_modules():
-            if isinstance(m, nn.Linear):
-                trunc_normal_(m.weight, std=.02)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Conv2d):
-                trunc_normal_(m.weight, std=.02)
+            if isinstance(m, (nn.Linear, nn.Conv2d)):
+                trunc_normal_(m.weight, std=0.02)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
     @torch.jit.ignore
-    def no_weight_decay(self) -> Set:
+    def no_weight_decay(self) -> set:
         return set()
 
     @torch.jit.ignore
-    def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
-        matcher = dict(
-            stem=r'^stem',  # stem and embed
-            blocks=r'^stages\.(\d+)' if coarse else [
-                (r'^stages\.(\d+).downsample', (0,)),
-                (r'^stages\.(\d+)\.blocks\.(\d+)', None),
-                (r'^norm', (99999,)),
-            ]
-        )
+    def group_matcher(self, coarse: bool = False) -> dict[str, Any]:
+        matcher = {
+            "stem": r"^stem",  # stem and embed
+            "blocks": r"^stages\.(\d+)"
+            if coarse
+            else [
+                (r"^stages\.(\d+).downsample", (0,)),
+                (r"^stages\.(\d+)\.blocks\.(\d+)", None),
+                (r"^norm", (99999,)),
+            ],
+        }
         return matcher
 
     @torch.jit.ignore
@@ -453,31 +460,38 @@ class SwiftFormer(nn.Module):
             s.grad_checkpointing = enable
 
     @torch.jit.ignore
-    def get_classifier(self) -> Tuple[nn.Module, nn.Module]:
+    def get_classifier(self) -> tuple[nn.Module, nn.Module]:
         return self.head, self.head_dist
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
             self.global_pool = global_pool
-        device, dtype = self.head.weight.device, self.head.weight.dtype if hasattr(self.head, 'weight') else (None, None)
-        self.head = Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
-        self.head_dist = Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        device, dtype = (
+            self.head.weight.device,
+            self.head.weight.dtype if hasattr(self.head, "weight") else (None, None),
+        )
+        self.head = (
+            Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        )
+        self.head_dist = (
+            Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        )
 
     @torch.jit.ignore
     def set_distilled_training(self, enable: bool = True):
         self.distilled_training = enable
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -486,10 +500,8 @@ class SwiftFormer(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
         last_idx = len(self.stages) - 1
@@ -499,7 +511,7 @@ class SwiftFormer(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x = stage(x)
@@ -519,19 +531,18 @@ class SwiftFormer(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -541,7 +552,7 @@ class SwiftFormer(nn.Module):
         return x
 
     def forward_head(self, x: torch.Tensor, pre_logits: bool = False):
-        if self.global_pool == 'avg':
+        if self.global_pool == "avg":
             x = x.mean(dim=(2, 3))
         x = self.head_drop(x)
         if pre_logits:
@@ -560,68 +571,72 @@ class SwiftFormer(nn.Module):
         return x
 
 
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
-    state_dict = state_dict.get('model', state_dict)
-    if 'stem.0.weight' in state_dict:
+def checkpoint_filter_fn(state_dict: dict[str, torch.Tensor], model: nn.Module) -> dict[str, torch.Tensor]:
+    state_dict = state_dict.get("model", state_dict)
+    if "stem.0.weight" in state_dict:
         return state_dict
 
     out_dict = {}
     for k, v in state_dict.items():
-        k = k.replace('patch_embed.', 'stem.')
-        k = k.replace('dist_head.', 'head_dist.')
-        k = k.replace('attn.Proj.', 'attn.proj.')
-        k = k.replace('.layer_scale_1', '.layer_scale_1.gamma')
-        k = k.replace('.layer_scale_2', '.layer_scale_2.gamma')
-        k = re.sub(r'\.layer_scale(?=$|\.)', '.layer_scale.gamma', k)
-        m = re.match(r'^network\.(\d+)\.(.*)', k)
+        k = k.replace("patch_embed.", "stem.")
+        k = k.replace("dist_head.", "head_dist.")
+        k = k.replace("attn.Proj.", "attn.proj.")
+        k = k.replace(".layer_scale_1", ".layer_scale_1.gamma")
+        k = k.replace(".layer_scale_2", ".layer_scale_2.gamma")
+        k = re.sub(r"\.layer_scale(?=$|\.)", ".layer_scale.gamma", k)
+        m = re.match(r"^network\.(\d+)\.(.*)", k)
         if m:
             n_idx, rest = int(m.group(1)), m.group(2)
             stage_idx = n_idx // 2
             if n_idx % 2 == 0:
-                k = f'stages.{stage_idx}.blocks.{rest}'
+                k = f"stages.{stage_idx}.blocks.{rest}"
             else:
-                k = f'stages.{stage_idx+1}.downsample.{rest}'
+                k = f"stages.{stage_idx + 1}.downsample.{rest}"
 
         out_dict[k] = v
     return out_dict
 
 
-def _cfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
+def _cfg(url: str = "", **kwargs: Any) -> dict[str, Any]:
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None, 'fixed_input_size': True,
-        'crop_pct': .95, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.0', 'classifier': ('head', 'head_dist'),
-        'license': 'apache-2.0',
-        'paper_ids': 'arXiv:2303.15446',
-        'paper_name': 'SwiftFormer: Efficient Additive Attention for Transformer-based Real-time Mobile Vision Applications',
-        'origin_url': 'https://github.com/Amshaker/SwiftFormer',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "fixed_input_size": True,
+        "crop_pct": 0.95,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.0",
+        "classifier": ("head", "head_dist"),
+        "license": "apache-2.0",
+        "paper_ids": "arXiv:2303.15446",
+        "paper_name": "SwiftFormer: Efficient Additive Attention for Transformer-based Real-time Mobile Vision Applications",
+        "origin_url": "https://github.com/Amshaker/SwiftFormer",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'swiftformer_xs.dist_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'swiftformer_s.dist_in1k': _cfg(
-        hf_hub_id='timm/'
-    ),
-    'swiftformer_l1.dist_in1k': _cfg(
-        hf_hub_id='timm/'
-    ),
-    'swiftformer_l3.dist_in1k': _cfg(
-        hf_hub_id='timm/'
-    ),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "swiftformer_xs.dist_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "swiftformer_s.dist_in1k": _cfg(hf_hub_id="timm/"),
+        "swiftformer_l1.dist_in1k": _cfg(hf_hub_id="timm/"),
+        "swiftformer_l3.dist_in1k": _cfg(hf_hub_id="timm/"),
+    }
+)
 
 
 def _create_swiftformer(variant: str, pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
     model = build_model_with_cfg(
-        SwiftFormer, variant, pretrained,
+        SwiftFormer,
+        variant,
+        pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
+        feature_cfg={"out_indices": (0, 1, 2, 3), "flatten_sequential": True},
         **kwargs,
     )
     return model
@@ -629,22 +644,23 @@ def _create_swiftformer(variant: str, pretrained: bool = False, **kwargs: Any) -
 
 @register_model
 def swiftformer_xs(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
-    model_args = dict(layers=[3, 3, 6, 4], embed_dims=[48, 56, 112, 220])
-    return _create_swiftformer('swiftformer_xs', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"layers": [3, 3, 6, 4], "embed_dims": [48, 56, 112, 220]}
+    return _create_swiftformer("swiftformer_xs", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def swiftformer_s(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
-    model_args = dict(layers=[3, 3, 9, 6], embed_dims=[48, 64, 168, 224])
-    return _create_swiftformer('swiftformer_s', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"layers": [3, 3, 9, 6], "embed_dims": [48, 64, 168, 224]}
+    return _create_swiftformer("swiftformer_s", pretrained=pretrained, **dict(model_args, **kwargs))
+
 
 @register_model
 def swiftformer_l1(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
-    model_args = dict(layers=[4, 3, 10, 5], embed_dims=[48, 96, 192, 384])
-    return _create_swiftformer('swiftformer_l1', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"layers": [4, 3, 10, 5], "embed_dims": [48, 96, 192, 384]}
+    return _create_swiftformer("swiftformer_l1", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def swiftformer_l3(pretrained: bool = False, **kwargs: Any) -> SwiftFormer:
-    model_args = dict(layers=[4, 4, 12, 6], embed_dims=[64, 128, 320, 512])
-    return _create_swiftformer('swiftformer_l3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"layers": [4, 4, 12, 6], "embed_dims": [64, 128, 320, 512]}
+    return _create_swiftformer("swiftformer_l3", pretrained=pretrained, **dict(model_args, **kwargs))

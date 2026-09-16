@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Union
 
 
 class DatasetInfo(ABC):
-
     def __init__(self):
         pass
 
@@ -16,7 +16,7 @@ class DatasetInfo(ABC):
         pass
 
     @abstractmethod
-    def label_descriptions(self, detailed: bool = False, as_dict: bool = False) -> Union[List[str], Dict[str, str]]:
+    def label_descriptions(self, detailed: bool = False, as_dict: bool = False) -> list[str] | dict[str, str]:
         pass
 
     @abstractmethod
@@ -33,13 +33,9 @@ class DatasetInfo(ABC):
 
 
 class CustomDatasetInfo(DatasetInfo):
-    """ DatasetInfo that wraps passed values for custom datasets."""
+    """DatasetInfo that wraps passed values for custom datasets."""
 
-    def __init__(
-            self,
-            label_names: Union[List[str], Dict[int, str]],
-            label_descriptions: Optional[Dict[str, str]] = None
-    ):
+    def __init__(self, label_names: list[str] | dict[int, str], label_descriptions: dict[str, str] | None = None):
         super().__init__()
         assert len(label_names) > 0
         self._label_names = label_names  # label index => label name mapping
@@ -56,7 +52,7 @@ class CustomDatasetInfo(DatasetInfo):
     def label_names(self):
         return self._label_names
 
-    def label_descriptions(self, detailed: bool = False, as_dict: bool = False) -> Union[List[str], Dict[str, str]]:
+    def label_descriptions(self, detailed: bool = False, as_dict: bool = False) -> list[str] | dict[str, str]:
         return self._label_descriptions
 
     def label_name_to_description(self, label: str, detailed: bool = False) -> str:

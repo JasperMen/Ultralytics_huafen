@@ -1,4 +1,4 @@
-""" Non-Local Attention Pooling Layers
+"""Non-Local Attention Pooling Layers.
 
 A collection of global pooling layers that go beyond simple avg/max pooling.
 
@@ -12,11 +12,12 @@ Based on implementations from:
 
 Hacked together by / Copyright 2024 Ross Wightman, original code by Bill Psomas
 """
-from typing import Optional, Type, Union
+
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from .config import use_fused_attn
 
@@ -24,9 +25,8 @@ from .config import use_fused_attn
 class LsePlus2d(nn.Module):
     """LogSumExp (LSE) Pooling for 2D inputs.
 
-    A smooth approximation to max pooling that provides a learnable interpolation between
-    average and max pooling. When r is large, LSE approaches max pooling; when r is small,
-    it approaches average pooling.
+    A smooth approximation to max pooling that provides a learnable interpolation between average and max pooling. When
+    r is large, LSE approaches max pooling; when r is small, it approaches average pooling.
 
     Implements: (1/r) * log((1/n) * sum(exp(r * (x - x_max)))) + x_max
 
@@ -34,12 +34,12 @@ class LsePlus2d(nn.Module):
     """
 
     def __init__(
-            self,
-            r: float = 10.0,
-            r_learnable: bool = True,
-            flatten: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        r: float = 10.0,
+        r_learnable: bool = True,
+        flatten: bool = True,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -51,7 +51,7 @@ class LsePlus2d(nn.Module):
         if r_learnable:
             self.r = nn.Parameter(torch.tensor(r, device=device, dtype=dtype))
         else:
-            self.register_buffer('r', torch.tensor(r, device=device, dtype=dtype))
+            self.register_buffer("r", torch.tensor(r, device=device, dtype=dtype))
         self.flatten = flatten
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -67,17 +67,16 @@ class LsePlus2d(nn.Module):
 class LsePlus1d(nn.Module):
     """LogSumExp (LSE) Pooling for sequence (NLC) inputs.
 
-    A smooth approximation to max pooling that provides a learnable interpolation between
-    average and max pooling. When r is large, LSE approaches max pooling; when r is small,
-    it approaches average pooling.
+    A smooth approximation to max pooling that provides a learnable interpolation between average and max pooling. When
+    r is large, LSE approaches max pooling; when r is small, it approaches average pooling.
     """
 
     def __init__(
-            self,
-            r: float = 10.0,
-            r_learnable: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        r: float = 10.0,
+        r_learnable: bool = True,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -88,7 +87,7 @@ class LsePlus1d(nn.Module):
         if r_learnable:
             self.r = nn.Parameter(torch.tensor(r, device=device, dtype=dtype))
         else:
-            self.register_buffer('r', torch.tensor(r, device=device, dtype=dtype))
+            self.register_buffer("r", torch.tensor(r, device=device, dtype=dtype))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B, N, C)
@@ -105,21 +104,22 @@ class SimPool2d(nn.Module):
     From 'Keep It SimPool: Who Said Supervised Transformers Suffer from Attention Deficit?'
     https://arxiv.org/abs/2309.06891
 
-    Uses GAP as query initialization and applies cross-attention between the GAP query
-    and spatial features to produce a weighted pooled representation.
+    Uses GAP as query initialization and applies cross-attention between the GAP query and spatial features to produce a
+    weighted pooled representation.
     """
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 1,
-            qkv_bias: bool = False,
-            qk_norm: bool = False,
-            gamma: Optional[float] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 1,
+        qkv_bias: bool = False,
+        qk_norm: bool = False,
+        gamma: float | None = None,
+        norm_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -132,11 +132,11 @@ class SimPool2d(nn.Module):
             flatten: If True, flatten output to (B, C).
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        assert dim % num_heads == 0, 'dim must be divisible by num_heads'
+        dd = {"device": device, "dtype": dtype}
+        assert dim % num_heads == 0, "dim must be divisible by num_heads"
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.gamma = gamma
         self.fused_attn = use_fused_attn()
 
@@ -201,21 +201,22 @@ class SimPool1d(nn.Module):
     From 'Keep It SimPool: Who Said Supervised Transformers Suffer from Attention Deficit?'
     https://arxiv.org/abs/2309.06891
 
-    Uses GAP as query initialization and applies cross-attention between the GAP query
-    and sequence tokens to produce a weighted pooled representation.
+    Uses GAP as query initialization and applies cross-attention between the GAP query and sequence tokens to produce a
+    weighted pooled representation.
     """
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 1,
-            qkv_bias: bool = False,
-            qk_norm: bool = False,
-            gamma: Optional[float] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 1,
+        qkv_bias: bool = False,
+        qk_norm: bool = False,
+        gamma: float | None = None,
+        norm_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -227,11 +228,11 @@ class SimPool1d(nn.Module):
             norm_layer: Normalization layer for tokens and optionally qk_norm.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        assert dim % num_heads == 0, 'dim must be divisible by num_heads'
+        dd = {"device": device, "dtype": dtype}
+        assert dim % num_heads == 0, "dim must be divisible by num_heads"
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.gamma = gamma
         self.fused_attn = use_fused_attn()
 

@@ -1,19 +1,19 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from .cross_entropy import LabelSmoothingCrossEntropy
 
 
 class JsdCrossEntropy(nn.Module):
-    """ Jensen-Shannon Divergence + Cross-Entropy Loss
+    """Jensen-Shannon Divergence + Cross-Entropy Loss.
 
-    Based on impl here: https://github.com/google-research/augmix/blob/master/imagenet.py
-    From paper: 'AugMix: A Simple Data Processing Method to Improve Robustness and Uncertainty -
-    https://arxiv.org/abs/1912.02781
+    Based on impl here: https://github.com/google-research/augmix/blob/master/imagenet.py From paper: 'AugMix: A Simple
+    Data Processing Method to Improve Robustness and Uncertainty - https://arxiv.org/abs/1912.02781
 
     Hacked together by / Copyright 2020 Ross Wightman
     """
+
     def __init__(self, num_splits=3, alpha=12, smoothing=0.1):
         super().__init__()
         self.num_splits = num_splits
@@ -34,6 +34,7 @@ class JsdCrossEntropy(nn.Module):
 
         # Clamp mixture distribution to avoid exploding KL divergence
         logp_mixture = torch.clamp(torch.stack(probs).mean(axis=0), 1e-7, 1).log()
-        loss += self.alpha * sum([F.kl_div(
-            logp_mixture, p_split, reduction='batchmean') for p_split in probs]) / len(probs)
+        loss += (
+            self.alpha * sum([F.kl_div(logp_mixture, p_split, reduction="batchmean") for p_split in probs]) / len(probs)
+        )
         return loss
