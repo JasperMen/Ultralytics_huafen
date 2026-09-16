@@ -1,4 +1,4 @@
-""" MLP-Mixer, ResMLP, and gMLP in PyTorch
+"""MLP-Mixer, ResMLP, and gMLP in PyTorch.
 
 This impl originally based on MLP-Mixer paper.
 
@@ -38,22 +38,24 @@ A thank you to paper authors for releasing code and weights.
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
+
+from __future__ import annotations
+
 import math
 from functools import partial
-from typing import Any, Dict, List, Optional, Type, Union, Tuple
+from typing import Any
 
 import torch
-import torch.nn as nn
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import PatchEmbed, Mlp, GluMlp, GatedMlp, DropPath, lecun_normal_, to_2tuple
+from timm.layers import DropPath, GatedMlp, GluMlp, Mlp, PatchEmbed, lecun_normal_, to_2tuple
+from torch import nn
 
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
-from ._manipulate import named_apply, checkpoint, checkpoint_seq
+from ._manipulate import checkpoint, checkpoint_seq, named_apply
 from ._registry import generate_default_cfgs, register_model, register_model_deprecations
 
-__all__ = ['MixerBlock', 'MlpMixer']  # model_registry will add each entrypoint fn to this
+__all__ = ["MixerBlock", "MlpMixer"]  # model_registry will add each entrypoint fn to this
 
 
 class MixerBlock(nn.Module):
@@ -61,18 +63,19 @@ class MixerBlock(nn.Module):
 
     Based on: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
     """
+
     def __init__(
-            self,
-            dim: int,
-            seq_len: int,
-            mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop: float = 0.,
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        seq_len: int,
+        mlp_ratio: float | tuple[float, float] = (0.5, 4.0),
+        mlp_layer: type[nn.Module] = Mlp,
+        norm_layer: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        act_layer: type[nn.Module] = nn.GELU,
+        drop: float = 0.0,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize MixerBlock.
 
@@ -86,12 +89,12 @@ class MixerBlock(nn.Module):
             drop: Dropout rate.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         tokens_dim, channels_dim = [int(x * dim) for x in to_2tuple(mlp_ratio)]
         self.norm1 = norm_layer(dim, **dd)
         self.mlp_tokens = mlp_layer(seq_len, tokens_dim, act_layer=act_layer, drop=drop, **dd)
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim, **dd)
         self.mlp_channels = mlp_layer(dim, channels_dim, act_layer=act_layer, drop=drop, **dd)
 
@@ -111,7 +114,7 @@ class Affine(nn.Module):
         Args:
             dim: Dimension of features.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.alpha = nn.Parameter(torch.ones((1, 1, dim), **dd))
         self.beta = nn.Parameter(torch.zeros((1, 1, dim), **dd))
@@ -126,19 +129,20 @@ class ResBlock(nn.Module):
 
     Based on: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
     """
+
     def __init__(
-            self,
-            dim: int,
-            seq_len: int,
-            mlp_ratio: float = 4,
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = Affine,
-            act_layer: Type[nn.Module] = nn.GELU,
-            init_values: float = 1e-4,
-            drop: float = 0.,
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        seq_len: int,
+        mlp_ratio: float = 4,
+        mlp_layer: type[nn.Module] = Mlp,
+        norm_layer: type[nn.Module] = Affine,
+        act_layer: type[nn.Module] = nn.GELU,
+        init_values: float = 1e-4,
+        drop: float = 0.0,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize ResBlock.
 
@@ -153,12 +157,12 @@ class ResBlock(nn.Module):
             drop: Dropout rate.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         channel_dim = int(dim * mlp_ratio)
         self.norm1 = norm_layer(dim, **dd)
         self.linear_tokens = nn.Linear(seq_len, seq_len, **dd)
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim, **dd)
         self.mlp_channels = mlp_layer(dim, channel_dim, act_layer=act_layer, drop=drop, **dd)
         self.ls1 = nn.Parameter(init_values * torch.ones(dim, **dd))
@@ -176,13 +180,14 @@ class SpatialGatingUnit(nn.Module):
 
     Based on: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
     """
+
     def __init__(
-            self,
-            dim: int,
-            seq_len: int,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        seq_len: int,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize Spatial Gating Unit.
 
@@ -191,7 +196,7 @@ class SpatialGatingUnit(nn.Module):
             seq_len: Sequence length.
             norm_layer: Normalization layer.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         gate_dim = dim // 2
         self.norm = norm_layer(gate_dim, **dd)
@@ -216,18 +221,19 @@ class SpatialGatingBlock(nn.Module):
 
     Based on: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
     """
+
     def __init__(
-            self,
-            dim: int,
-            seq_len: int,
-            mlp_ratio: float = 4,
-            mlp_layer: Type[nn.Module] = GatedMlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop: float = 0.,
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        seq_len: int,
+        mlp_ratio: float = 4,
+        mlp_layer: type[nn.Module] = GatedMlp,
+        norm_layer: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        act_layer: type[nn.Module] = nn.GELU,
+        drop: float = 0.0,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize SpatialGatingBlock.
 
@@ -241,7 +247,7 @@ class SpatialGatingBlock(nn.Module):
             drop: Dropout rate.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         channel_dim = int(dim * mlp_ratio)
         self.norm = norm_layer(dim, **dd)
@@ -254,7 +260,7 @@ class SpatialGatingBlock(nn.Module):
             drop=drop,
             **dd,
         )
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
@@ -269,26 +275,26 @@ class MlpMixer(nn.Module):
     """
 
     def __init__(
-            self,
-            num_classes: int = 1000,
-            img_size: int = 224,
-            in_chans: int = 3,
-            patch_size: int = 16,
-            num_blocks: int = 8,
-            embed_dim: int = 512,
-            mlp_ratio: Union[float, Tuple[float, float]] = (0.5, 4.0),
-            block_layer: Type[nn.Module] = MixerBlock,
-            mlp_layer: Type[nn.Module] = Mlp,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            nlhb: bool = False,
-            stem_norm: bool = False,
-            global_pool: str = 'avg',
-            device=None,
-            dtype=None,
+        self,
+        num_classes: int = 1000,
+        img_size: int = 224,
+        in_chans: int = 3,
+        patch_size: int = 16,
+        num_blocks: int = 8,
+        embed_dim: int = 512,
+        mlp_ratio: float | tuple[float, float] = (0.5, 4.0),
+        block_layer: type[nn.Module] = MixerBlock,
+        mlp_layer: type[nn.Module] = Mlp,
+        norm_layer: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        act_layer: type[nn.Module] = nn.GELU,
+        drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        nlhb: bool = False,
+        stem_norm: bool = False,
+        global_pool: str = "avg",
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize MLP-Mixer.
 
@@ -312,7 +318,7 @@ class MlpMixer(nn.Module):
             global_pool: Global pooling type.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.global_pool = global_pool
@@ -327,23 +333,27 @@ class MlpMixer(nn.Module):
             norm_layer=norm_layer if stem_norm else None,
             **dd,
         )
-        reduction = self.stem.feat_ratio() if hasattr(self.stem, 'feat_ratio') else patch_size
+        reduction = self.stem.feat_ratio() if hasattr(self.stem, "feat_ratio") else patch_size
         # FIXME drop_path (stochastic depth scaling rule or all the same?)
-        self.blocks = nn.Sequential(*[
-            block_layer(
-                embed_dim,
-                self.stem.num_patches,
-                mlp_ratio,
-                mlp_layer=mlp_layer,
-                norm_layer=norm_layer,
-                act_layer=act_layer,
-                drop=proj_drop_rate,
-                drop_path=drop_path_rate,
-                **dd,
-            )
-            for _ in range(num_blocks)])
+        self.blocks = nn.Sequential(
+            *[
+                block_layer(
+                    embed_dim,
+                    self.stem.num_patches,
+                    mlp_ratio,
+                    mlp_layer=mlp_layer,
+                    norm_layer=norm_layer,
+                    act_layer=act_layer,
+                    drop=proj_drop_rate,
+                    drop_path=drop_path_rate,
+                    **dd,
+                )
+                for _ in range(num_blocks)
+            ]
+        )
         self.feature_info = [
-            dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=reduction) for i in range(num_blocks)]
+            {"module": f"blocks.{i}", "num_chs": embed_dim, "reduction": reduction} for i in range(num_blocks)
+        ]
         self.norm = norm_layer(embed_dim, **dd)
         self.head_drop = nn.Dropout(drop_rate)
         self.head = nn.Linear(embed_dim, self.num_classes, **dd) if num_classes > 0 else nn.Identity()
@@ -357,11 +367,11 @@ class MlpMixer(nn.Module):
         Args:
             nlhb: Use negative log bias initialization for head.
         """
-        head_bias = -math.log(self.num_classes) if nlhb else 0.
+        head_bias = -math.log(self.num_classes) if nlhb else 0.0
         named_apply(partial(_init_weights, head_bias=head_bias), module=self)  # depth-first
 
     @torch.jit.ignore
-    def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+    def group_matcher(self, coarse: bool = False) -> dict[str, Any]:
         """Create regex patterns for parameter grouping.
 
         Args:
@@ -370,10 +380,10 @@ class MlpMixer(nn.Module):
         Returns:
             Dictionary mapping group names to regex patterns.
         """
-        return dict(
-            stem=r'^stem',  # stem and embed
-            blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
-        )
+        return {
+            "stem": r"^stem",  # stem and embed
+            "blocks": [(r"^blocks\.(\d+)", None), (r"^norm", (99999,))],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable: bool = True) -> None:
@@ -389,7 +399,7 @@ class MlpMixer(nn.Module):
         """Get the classifier module."""
         return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None) -> None:
         """Reset the classifier head.
 
         Args:
@@ -398,20 +408,25 @@ class MlpMixer(nn.Module):
         """
         self.num_classes = num_classes
         if global_pool is not None:
-            assert global_pool in ('', 'avg')
+            assert global_pool in ("", "avg")
             self.global_pool = global_pool
-        device, dtype = self.head.weight.device, self.head.weight.dtype if hasattr(self.head, 'weight') else (None, None)
-        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        device, dtype = (
+            self.head.weight.device,
+            self.head.weight.dtype if hasattr(self.head, "weight") else (None, None),
+        )
+        self.head = (
+            nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        )
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
         """Forward features that returns intermediates.
 
         Args:
@@ -425,8 +440,8 @@ class MlpMixer(nn.Module):
         Returns:
             List of intermediate features or tuple of (final features, intermediates).
         """
-        assert output_fmt in ('NCHW', 'NLC'), 'Output format must be one of NCHW or NLC.'
-        reshape = output_fmt == 'NCHW'
+        assert output_fmt in ("NCHW", "NLC"), "Output format must be one of NCHW or NLC."
+        reshape = output_fmt == "NCHW"
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
 
@@ -437,7 +452,7 @@ class MlpMixer(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
-            blocks = self.blocks[:max_index + 1]
+            blocks = self.blocks[: max_index + 1]
         for i, blk in enumerate(blocks):
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
@@ -461,11 +476,11 @@ class MlpMixer(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
-    ) -> List[int]:
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
+    ) -> list[int]:
         """Prune layers not required for specified intermediates.
 
         Args:
@@ -477,11 +492,11 @@ class MlpMixer(nn.Module):
             List of indices that were kept.
         """
         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
-        self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+        self.blocks = self.blocks[: max_index + 1]  # truncate blocks
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -504,7 +519,7 @@ class MlpMixer(nn.Module):
         Returns:
             Output tensor.
         """
-        if self.global_pool == 'avg':
+        if self.global_pool == "avg":
             x = x.mean(dim=1)
         x = self.head_drop(x)
         return x if pre_logits else self.head(x)
@@ -516,7 +531,7 @@ class MlpMixer(nn.Module):
         return x
 
 
-def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: bool = False) -> None:
+def _init_weights(module: nn.Module, name: str, head_bias: float = 0.0, flax: bool = False) -> None:
     """Mixer weight initialization (trying to match Flax defaults).
 
     Args:
@@ -526,7 +541,7 @@ def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: boo
         flax: Use Flax-style initialization.
     """
     if isinstance(module, nn.Linear):
-        if name.startswith('head'):
+        if name.startswith("head"):
             nn.init.zeros_(module.weight)
             nn.init.constant_(module.bias, head_bias)
         else:
@@ -539,7 +554,7 @@ def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: boo
                 # like MLP init in vit (my original init)
                 nn.init.xavier_uniform_(module.weight)
                 if module.bias is not None:
-                    if 'mlp' in name:
+                    if "mlp" in name:
                         nn.init.normal_(module.bias, std=1e-6)
                     else:
                         nn.init.zeros_(module.bias)
@@ -550,23 +565,23 @@ def _init_weights(module: nn.Module, name: str, head_bias: float = 0., flax: boo
     elif isinstance(module, (nn.LayerNorm, nn.BatchNorm2d, nn.GroupNorm)):
         nn.init.ones_(module.weight)
         nn.init.zeros_(module.bias)
-    elif hasattr(module, 'init_weights'):
+    elif hasattr(module, "init_weights"):
         # NOTE if a parent module contains init_weights method, it can override the init of the
         # child modules as this will be called in depth-first order.
         module.init_weights()
 
 
 def checkpoint_filter_fn(state_dict, model):
-    """ Remap checkpoints if needed """
-    if 'patch_embed.proj.weight' in state_dict:
+    """Remap checkpoints if needed."""
+    if "patch_embed.proj.weight" in state_dict:
         # Remap FB ResMlp models -> timm
         out_dict = {}
         for k, v in state_dict.items():
-            k = k.replace('patch_embed.', 'stem.')
-            k = k.replace('attn.', 'linear_tokens.')
-            k = k.replace('mlp.', 'mlp_channels.')
-            k = k.replace('gamma_', 'ls')
-            if k.endswith('.alpha') or k.endswith('.beta'):
+            k = k.replace("patch_embed.", "stem.")
+            k = k.replace("attn.", "linear_tokens.")
+            k = k.replace("mlp.", "mlp_channels.")
+            k = k.replace("gamma_", "ls")
+            if k.endswith((".alpha", ".beta")):
                 v = v.reshape(1, 1, -1)
             out_dict[k] = v
         return out_dict
@@ -574,307 +589,366 @@ def checkpoint_filter_fn(state_dict, model):
 
 
 def _create_mixer(variant, pretrained=False, **kwargs) -> MlpMixer:
-    out_indices = kwargs.pop('out_indices', 3)
+    out_indices = kwargs.pop("out_indices", 3)
     model = build_model_with_cfg(
         MlpMixer,
         variant,
         pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+        feature_cfg={"out_indices": out_indices, "feature_cls": "getter"},
         **kwargs,
     )
     return model
 
 
-def _cfg(url='', **kwargs) -> Dict[str, Any]:
+def _cfg(url="", **kwargs) -> dict[str, Any]:
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
-        'crop_pct': 0.875, 'interpolation': 'bicubic', 'fixed_input_size': True,
-        'mean': (0.5, 0.5, 0.5), 'std': (0.5, 0.5, 0.5),
-        'first_conv': 'stem.proj', 'classifier': 'head',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "crop_pct": 0.875,
+        "interpolation": "bicubic",
+        "fixed_input_size": True,
+        "mean": (0.5, 0.5, 0.5),
+        "std": (0.5, 0.5, 0.5),
+        "first_conv": "stem.proj",
+        "classifier": "head",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'mixer_s32_224.untrained': _cfg(),
-    'mixer_s16_224.untrained': _cfg(),
-    'mixer_b32_224.untrained': _cfg(),
-    'mixer_b16_224.goog_in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_b16_224-76587d61.pth',
-    ),
-    'mixer_b16_224.goog_in21k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_b16_224_in21k-617b3de2.pth',
-        num_classes=21843
-    ),
-    'mixer_l32_224.untrained': _cfg(),
-    'mixer_l16_224.goog_in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_l16_224-92f9adc4.pth',
-    ),
-    'mixer_l16_224.goog_in21k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_l16_224_in21k-846aa33c.pth',
-        num_classes=21843
-    ),
-
-    # Mixer ImageNet-21K-P pretraining
-    'mixer_b16_224.miil_in21k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-tresnet/mixer_b16_224_miil_in21k-2a558a71.pth',
-        mean=(0., 0., 0.), std=(1., 1., 1.), crop_pct=0.875, interpolation='bilinear', num_classes=11221,
-    ),
-    'mixer_b16_224.miil_in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-tresnet/mixer_b16_224_miil-9229a591.pth',
-        mean=(0., 0., 0.), std=(1., 1., 1.), crop_pct=0.875, interpolation='bilinear',
-    ),
-
-    'gmixer_12_224.untrained': _cfg(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'gmixer_24_224.ra3_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/gmixer_24_224_raa-7daf7ae6.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-
-    'resmlp_12_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_12_no_dist.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'resmlp_24_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_24_no_dist.pth',
-        #url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/resmlp_24_224_raa-a8256759.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'resmlp_36_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_36_no_dist.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'resmlp_big_24_224.fb_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlpB_24_no_dist.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-
-    'resmlp_12_224.fb_distilled_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_12_dist.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'resmlp_24_224.fb_distilled_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_24_dist.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'resmlp_36_224.fb_distilled_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_36_dist.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'resmlp_big_24_224.fb_distilled_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlpB_24_dist.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-
-    'resmlp_big_24_224.fb_in22k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlpB_24_22k.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-
-    'resmlp_12_224.fb_dino': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_12_dino.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'resmlp_24_224.fb_dino': _cfg(
-        hf_hub_id='timm/',
-        url='https://dl.fbaipublicfiles.com/deit/resmlp_24_dino.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-
-    'gmlp_ti16_224.untrained': _cfg(),
-    'gmlp_s16_224.ra3_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/gmlp_s16_224_raa-10536d42.pth',
-    ),
-    'gmlp_b16_224.untrained': _cfg(),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "mixer_s32_224.untrained": _cfg(),
+        "mixer_s16_224.untrained": _cfg(),
+        "mixer_b32_224.untrained": _cfg(),
+        "mixer_b16_224.goog_in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_b16_224-76587d61.pth",
+        ),
+        "mixer_b16_224.goog_in21k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_b16_224_in21k-617b3de2.pth",
+            num_classes=21843,
+        ),
+        "mixer_l32_224.untrained": _cfg(),
+        "mixer_l16_224.goog_in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_l16_224-92f9adc4.pth",
+        ),
+        "mixer_l16_224.goog_in21k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_mixer_l16_224_in21k-846aa33c.pth",
+            num_classes=21843,
+        ),
+        # Mixer ImageNet-21K-P pretraining
+        "mixer_b16_224.miil_in21k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-tresnet/mixer_b16_224_miil_in21k-2a558a71.pth",
+            mean=(0.0, 0.0, 0.0),
+            std=(1.0, 1.0, 1.0),
+            crop_pct=0.875,
+            interpolation="bilinear",
+            num_classes=11221,
+        ),
+        "mixer_b16_224.miil_in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-tresnet/mixer_b16_224_miil-9229a591.pth",
+            mean=(0.0, 0.0, 0.0),
+            std=(1.0, 1.0, 1.0),
+            crop_pct=0.875,
+            interpolation="bilinear",
+        ),
+        "gmixer_12_224.untrained": _cfg(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+        "gmixer_24_224.ra3_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/gmixer_24_224_raa-7daf7ae6.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_12_224.fb_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_12_no_dist.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_24_224.fb_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_24_no_dist.pth",
+            # url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/resmlp_24_224_raa-a8256759.pth',
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_36_224.fb_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_36_no_dist.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_big_24_224.fb_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlpB_24_no_dist.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_12_224.fb_distilled_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_12_dist.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_24_224.fb_distilled_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_24_dist.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_36_224.fb_distilled_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_36_dist.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_big_24_224.fb_distilled_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlpB_24_dist.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_big_24_224.fb_in22k_ft_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlpB_24_22k.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_12_224.fb_dino": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_12_dino.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "resmlp_24_224.fb_dino": _cfg(
+            hf_hub_id="timm/",
+            url="https://dl.fbaipublicfiles.com/deit/resmlp_24_dino.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+        ),
+        "gmlp_ti16_224.untrained": _cfg(),
+        "gmlp_s16_224.ra3_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights/gmlp_s16_224_raa-10536d42.pth",
+        ),
+        "gmlp_b16_224.untrained": _cfg(),
+    }
+)
 
 
 @register_model
 def mixer_s32_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Mixer-S/32 224x224
-    Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+    """Mixer-S/32 224x224 Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601.
     """
     model_args = dict(patch_size=32, num_blocks=8, embed_dim=512, **kwargs)
-    model = _create_mixer('mixer_s32_224', pretrained=pretrained, **model_args)
+    model = _create_mixer("mixer_s32_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def mixer_s16_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Mixer-S/16 224x224
-    Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+    """Mixer-S/16 224x224 Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601.
     """
     model_args = dict(patch_size=16, num_blocks=8, embed_dim=512, **kwargs)
-    model = _create_mixer('mixer_s16_224', pretrained=pretrained, **model_args)
+    model = _create_mixer("mixer_s16_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def mixer_b32_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Mixer-B/32 224x224
-    Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+    """Mixer-B/32 224x224 Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601.
     """
     model_args = dict(patch_size=32, num_blocks=12, embed_dim=768, **kwargs)
-    model = _create_mixer('mixer_b32_224', pretrained=pretrained, **model_args)
+    model = _create_mixer("mixer_b32_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def mixer_b16_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Mixer-B/16 224x224. ImageNet-1k pretrained weights.
-    Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+    """Mixer-B/16 224x224. ImageNet-1k pretrained weights. Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' -
+    https://arxiv.org/abs/2105.01601.
     """
     model_args = dict(patch_size=16, num_blocks=12, embed_dim=768, **kwargs)
-    model = _create_mixer('mixer_b16_224', pretrained=pretrained, **model_args)
+    model = _create_mixer("mixer_b16_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def mixer_l32_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Mixer-L/32 224x224.
-    Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+    """Mixer-L/32 224x224. Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601.
     """
     model_args = dict(patch_size=32, num_blocks=24, embed_dim=1024, **kwargs)
-    model = _create_mixer('mixer_l32_224', pretrained=pretrained, **model_args)
+    model = _create_mixer("mixer_l32_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def mixer_l16_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Mixer-L/16 224x224. ImageNet-1k pretrained weights.
-    Paper:  'MLP-Mixer: An all-MLP Architecture for Vision' - https://arxiv.org/abs/2105.01601
+    """Mixer-L/16 224x224. ImageNet-1k pretrained weights. Paper: 'MLP-Mixer: An all-MLP Architecture for Vision' -
+    https://arxiv.org/abs/2105.01601.
     """
     model_args = dict(patch_size=16, num_blocks=24, embed_dim=1024, **kwargs)
-    model = _create_mixer('mixer_l16_224', pretrained=pretrained, **model_args)
+    model = _create_mixer("mixer_l16_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def gmixer_12_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Glu-Mixer-12 224x224
-    Experiment by Ross Wightman, adding SwiGLU to MLP-Mixer
+    """Glu-Mixer-12 224x224 Experiment by Ross Wightman, adding SwiGLU to MLP-Mixer.
     """
     model_args = dict(
-        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=(1.0, 4.0),
-        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
-    model = _create_mixer('gmixer_12_224', pretrained=pretrained, **model_args)
+        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=(1.0, 4.0), mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs
+    )
+    model = _create_mixer("gmixer_12_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def gmixer_24_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ Glu-Mixer-24 224x224
-    Experiment by Ross Wightman, adding SwiGLU to MLP-Mixer
+    """Glu-Mixer-24 224x224 Experiment by Ross Wightman, adding SwiGLU to MLP-Mixer.
     """
     model_args = dict(
-        patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=(1.0, 4.0),
-        mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs)
-    model = _create_mixer('gmixer_24_224', pretrained=pretrained, **model_args)
+        patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=(1.0, 4.0), mlp_layer=GluMlp, act_layer=nn.SiLU, **kwargs
+    )
+    model = _create_mixer("gmixer_24_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def resmlp_12_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ ResMLP-12
-    Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+    """ResMLP-12 Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404.
     """
     model_args = dict(
-        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=4, block_layer=ResBlock, norm_layer=Affine, **kwargs)
-    model = _create_mixer('resmlp_12_224', pretrained=pretrained, **model_args)
+        patch_size=16, num_blocks=12, embed_dim=384, mlp_ratio=4, block_layer=ResBlock, norm_layer=Affine, **kwargs
+    )
+    model = _create_mixer("resmlp_12_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def resmlp_24_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ ResMLP-24
-    Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+    """ResMLP-24 Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404.
     """
     model_args = dict(
-        patch_size=16, num_blocks=24, embed_dim=384, mlp_ratio=4,
-        block_layer=partial(ResBlock, init_values=1e-5), norm_layer=Affine, **kwargs)
-    model = _create_mixer('resmlp_24_224', pretrained=pretrained, **model_args)
+        patch_size=16,
+        num_blocks=24,
+        embed_dim=384,
+        mlp_ratio=4,
+        block_layer=partial(ResBlock, init_values=1e-5),
+        norm_layer=Affine,
+        **kwargs,
+    )
+    model = _create_mixer("resmlp_24_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def resmlp_36_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ ResMLP-36
-    Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+    """ResMLP-36 Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404.
     """
     model_args = dict(
-        patch_size=16, num_blocks=36, embed_dim=384, mlp_ratio=4,
-        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
-    model = _create_mixer('resmlp_36_224', pretrained=pretrained, **model_args)
+        patch_size=16,
+        num_blocks=36,
+        embed_dim=384,
+        mlp_ratio=4,
+        block_layer=partial(ResBlock, init_values=1e-6),
+        norm_layer=Affine,
+        **kwargs,
+    )
+    model = _create_mixer("resmlp_36_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def resmlp_big_24_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ ResMLP-B-24
-    Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404
+    """ResMLP-B-24 Paper: `ResMLP: Feedforward networks for image classification...` - https://arxiv.org/abs/2105.03404.
     """
     model_args = dict(
-        patch_size=8, num_blocks=24, embed_dim=768, mlp_ratio=4,
-        block_layer=partial(ResBlock, init_values=1e-6), norm_layer=Affine, **kwargs)
-    model = _create_mixer('resmlp_big_24_224', pretrained=pretrained, **model_args)
+        patch_size=8,
+        num_blocks=24,
+        embed_dim=768,
+        mlp_ratio=4,
+        block_layer=partial(ResBlock, init_values=1e-6),
+        norm_layer=Affine,
+        **kwargs,
+    )
+    model = _create_mixer("resmlp_big_24_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def gmlp_ti16_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ gMLP-Tiny
-    Paper: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
+    """gMLP-Tiny Paper: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050.
     """
     model_args = dict(
-        patch_size=16, num_blocks=30, embed_dim=128, mlp_ratio=6, block_layer=SpatialGatingBlock,
-        mlp_layer=GatedMlp, **kwargs)
-    model = _create_mixer('gmlp_ti16_224', pretrained=pretrained, **model_args)
+        patch_size=16,
+        num_blocks=30,
+        embed_dim=128,
+        mlp_ratio=6,
+        block_layer=SpatialGatingBlock,
+        mlp_layer=GatedMlp,
+        **kwargs,
+    )
+    model = _create_mixer("gmlp_ti16_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def gmlp_s16_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ gMLP-Small
-    Paper: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
+    """gMLP-Small Paper: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050.
     """
     model_args = dict(
-        patch_size=16, num_blocks=30, embed_dim=256, mlp_ratio=6, block_layer=SpatialGatingBlock,
-        mlp_layer=GatedMlp, **kwargs)
-    model = _create_mixer('gmlp_s16_224', pretrained=pretrained, **model_args)
+        patch_size=16,
+        num_blocks=30,
+        embed_dim=256,
+        mlp_ratio=6,
+        block_layer=SpatialGatingBlock,
+        mlp_layer=GatedMlp,
+        **kwargs,
+    )
+    model = _create_mixer("gmlp_s16_224", pretrained=pretrained, **model_args)
     return model
 
 
 @register_model
 def gmlp_b16_224(pretrained=False, **kwargs) -> MlpMixer:
-    """ gMLP-Base
-    Paper: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050
+    """gMLP-Base Paper: `Pay Attention to MLPs` - https://arxiv.org/abs/2105.08050.
     """
     model_args = dict(
-        patch_size=16, num_blocks=30, embed_dim=512, mlp_ratio=6, block_layer=SpatialGatingBlock,
-        mlp_layer=GatedMlp, **kwargs)
-    model = _create_mixer('gmlp_b16_224', pretrained=pretrained, **model_args)
+        patch_size=16,
+        num_blocks=30,
+        embed_dim=512,
+        mlp_ratio=6,
+        block_layer=SpatialGatingBlock,
+        mlp_layer=GatedMlp,
+        **kwargs,
+    )
+    model = _create_mixer("gmlp_b16_224", pretrained=pretrained, **model_args)
     return model
 
 
-register_model_deprecations(__name__, {
-    'mixer_b16_224_in21k': 'mixer_b16_224.goog_in21k_ft_in1k',
-    'mixer_l16_224_in21k': 'mixer_l16_224.goog_in21k_ft_in1k',
-    'mixer_b16_224_miil': 'mixer_b16_224.miil_in21k_ft_in1k',
-    'mixer_b16_224_miil_in21k': 'mixer_b16_224.miil_in21k',
-    'resmlp_12_distilled_224': 'resmlp_12_224.fb_distilled_in1k',
-    'resmlp_24_distilled_224': 'resmlp_24_224.fb_distilled_in1k',
-    'resmlp_36_distilled_224': 'resmlp_36_224.fb_distilled_in1k',
-    'resmlp_big_24_distilled_224': 'resmlp_big_24_224.fb_distilled_in1k',
-    'resmlp_big_24_224_in22ft1k': 'resmlp_big_24_224.fb_in22k_ft_in1k',
-    'resmlp_12_224_dino': 'resmlp_12_224',
-    'resmlp_24_224_dino': 'resmlp_24_224',
-})
+register_model_deprecations(
+    __name__,
+    {
+        "mixer_b16_224_in21k": "mixer_b16_224.goog_in21k_ft_in1k",
+        "mixer_l16_224_in21k": "mixer_l16_224.goog_in21k_ft_in1k",
+        "mixer_b16_224_miil": "mixer_b16_224.miil_in21k_ft_in1k",
+        "mixer_b16_224_miil_in21k": "mixer_b16_224.miil_in21k",
+        "resmlp_12_distilled_224": "resmlp_12_224.fb_distilled_in1k",
+        "resmlp_24_distilled_224": "resmlp_24_224.fb_distilled_in1k",
+        "resmlp_36_distilled_224": "resmlp_36_224.fb_distilled_in1k",
+        "resmlp_big_24_distilled_224": "resmlp_big_24_224.fb_distilled_in1k",
+        "resmlp_big_24_224_in22ft1k": "resmlp_big_24_224.fb_in22k_ft_in1k",
+        "resmlp_12_224_dino": "resmlp_12_224",
+        "resmlp_24_224_dino": "resmlp_24_224",
+    },
+)

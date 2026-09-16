@@ -1,4 +1,4 @@
-""" Adan Optimizer
+"""Adan Optimizer.
 
 Adan: Adaptive Nesterov Momentum Algorithm for Faster Optimizing Deep Models[J]. arXiv preprint arXiv:2208.06677, 2022.
     https://arxiv.org/abs/2208.06677
@@ -19,15 +19,16 @@ Implementation adapted from https://github.com/sail-sg/Adan
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
-from typing import List, Optional, Tuple
 
 import torch
 from torch import Tensor
 from torch.optim.optimizer import Optimizer
 
 
-class MultiTensorApply(object):
+class MultiTensorApply:
     available = False
     warned = False
 
@@ -44,12 +45,12 @@ class MultiTensorApply(object):
 
 
 class Adan(Optimizer):
-    """ Implements a pytorch variant of Adan.
+    """Implements a pytorch variant of Adan.
 
     Adan was proposed in Adan: Adaptive Nesterov Momentum Algorithm for Faster Optimizing Deep Models
     https://arxiv.org/abs/2208.06677
 
-    Arguments:
+    Args:
         params: Iterable of parameters to optimize or dicts defining parameter groups.
         lr: Learning rate.
         betas: Coefficients used for first- and second-order moments.
@@ -60,59 +61,60 @@ class Adan(Optimizer):
         foreach: If True would use torch._foreach implementation. Faster but uses slightly more memory.
     """
 
-    def __init__(self,
-            params,
-            lr: float = 1e-3,
-            betas: Tuple[float, float, float] = (0.98, 0.92, 0.99),
-            eps: float = 1e-8,
-            weight_decay: float = 0.0,
-            no_prox: bool = False,
-            caution: bool = False,
-            foreach: Optional[bool] = None,
+    def __init__(
+        self,
+        params,
+        lr: float = 1e-3,
+        betas: tuple[float, float, float] = (0.98, 0.92, 0.99),
+        eps: float = 1e-8,
+        weight_decay: float = 0.0,
+        no_prox: bool = False,
+        caution: bool = False,
+        foreach: bool | None = None,
     ):
         if not 0.0 <= lr:
-            raise ValueError('Invalid learning rate: {}'.format(lr))
+            raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= eps:
-            raise ValueError('Invalid epsilon value: {}'.format(eps))
+            raise ValueError(f"Invalid epsilon value: {eps}")
         if not 0.0 <= betas[0] < 1.0:
-            raise ValueError('Invalid beta parameter at index 0: {}'.format(betas[0]))
+            raise ValueError(f"Invalid beta parameter at index 0: {betas[0]}")
         if not 0.0 <= betas[1] < 1.0:
-            raise ValueError('Invalid beta parameter at index 1: {}'.format(betas[1]))
+            raise ValueError(f"Invalid beta parameter at index 1: {betas[1]}")
         if not 0.0 <= betas[2] < 1.0:
-            raise ValueError('Invalid beta parameter at index 2: {}'.format(betas[2]))
+            raise ValueError(f"Invalid beta parameter at index 2: {betas[2]}")
 
-        defaults = dict(
-            lr=lr,
-            betas=betas,
-            eps=eps,
-            weight_decay=weight_decay,
-            no_prox=no_prox,
-            caution=caution,
-            foreach=foreach,
-        )
+        defaults = {
+            "lr": lr,
+            "betas": betas,
+            "eps": eps,
+            "weight_decay": weight_decay,
+            "no_prox": no_prox,
+            "caution": caution,
+            "foreach": foreach,
+        }
         super().__init__(params, defaults)
 
     def __setstate__(self, state):
-        super(Adan, self).__setstate__(state)
+        super().__setstate__(state)
         for group in self.param_groups:
-            group.setdefault('no_prox', False)
-            group.setdefault('caution', False)
+            group.setdefault("no_prox", False)
+            group.setdefault("caution", False)
 
     @torch.no_grad()
     def restart_opt(self):
         for group in self.param_groups:
-            group['step'] = 0
-            for p in group['params']:
+            group["step"] = 0
+            for p in group["params"]:
                 if p.requires_grad:
                     state = self.state[p]
                     # State initialization
 
                     # Exponential moving average of gradient values
-                    state['exp_avg'] = torch.zeros_like(p)
+                    state["exp_avg"] = torch.zeros_like(p)
                     # Exponential moving average of squared gradient values
-                    state['exp_avg_sq'] = torch.zeros_like(p)
+                    state["exp_avg_sq"] = torch.zeros_like(p)
                     # Exponential moving average of gradient difference
-                    state['exp_avg_diff'] = torch.zeros_like(p)
+                    state["exp_avg_diff"] = torch.zeros_like(p)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -123,7 +125,7 @@ class Adan(Optimizer):
                 loss = closure()
 
         try:
-            has_scalar_maximum = 'Scalar' in torch.ops.aten._foreach_maximum_.overloads()
+            has_scalar_maximum = "Scalar" in torch.ops.aten._foreach_maximum_.overloads()
         except:
             has_scalar_maximum = False
 
@@ -135,19 +137,19 @@ class Adan(Optimizer):
             exp_avg_diffs = []
             neg_pre_grads = []
 
-            beta1, beta2, beta3 = group['betas']
+            beta1, beta2, beta3 = group["betas"]
             # assume same step across group now to simplify things
             # per parameter step can be easily supported by making it a tensor, or pass list into kernel
-            if 'step' in group:
-                group['step'] += 1
+            if "step" in group:
+                group["step"] += 1
             else:
-                group['step'] = 1
+                group["step"] = 1
 
-            bias_correction1 = 1.0 - beta1 ** group['step']
-            bias_correction2 = 1.0 - beta2 ** group['step']
-            bias_correction3 = 1.0 - beta3 ** group['step']
+            bias_correction1 = 1.0 - beta1 ** group["step"]
+            bias_correction2 = 1.0 - beta2 ** group["step"]
+            bias_correction3 = 1.0 - beta3 ** group["step"]
 
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
                 params_with_grad.append(p)
@@ -155,25 +157,25 @@ class Adan(Optimizer):
 
                 state = self.state[p]
                 if len(state) == 0:
-                    state['exp_avg'] = torch.zeros_like(p)
-                    state['exp_avg_sq'] = torch.zeros_like(p)
-                    state['exp_avg_diff'] = torch.zeros_like(p)
+                    state["exp_avg"] = torch.zeros_like(p)
+                    state["exp_avg_sq"] = torch.zeros_like(p)
+                    state["exp_avg_diff"] = torch.zeros_like(p)
 
-                if 'neg_pre_grad' not in state or group['step'] == 1:
-                    state['neg_pre_grad'] = -p.grad.clone()
+                if "neg_pre_grad" not in state or group["step"] == 1:
+                    state["neg_pre_grad"] = -p.grad.clone()
 
-                exp_avgs.append(state['exp_avg'])
-                exp_avg_sqs.append(state['exp_avg_sq'])
-                exp_avg_diffs.append(state['exp_avg_diff'])
-                neg_pre_grads.append(state['neg_pre_grad'])
+                exp_avgs.append(state["exp_avg"])
+                exp_avg_sqs.append(state["exp_avg_sq"])
+                exp_avg_diffs.append(state["exp_avg_diff"])
+                neg_pre_grads.append(state["neg_pre_grad"])
 
             if not params_with_grad:
                 continue
 
-            if group['foreach'] is None:
-                use_foreach = not group['caution'] or has_scalar_maximum
+            if group["foreach"] is None:
+                use_foreach = not group["caution"] or has_scalar_maximum
             else:
-                use_foreach = group['foreach']
+                use_foreach = group["foreach"]
 
             if use_foreach:
                 func = _multi_tensor_adan
@@ -193,35 +195,35 @@ class Adan(Optimizer):
                 bias_correction1=bias_correction1,
                 bias_correction2=bias_correction2,
                 bias_correction3_sqrt=math.sqrt(bias_correction3),
-                lr=group['lr'],
-                weight_decay=group['weight_decay'],
-                eps=group['eps'],
-                no_prox=group['no_prox'],
-                caution=group['caution'],
+                lr=group["lr"],
+                weight_decay=group["weight_decay"],
+                eps=group["eps"],
+                no_prox=group["no_prox"],
+                caution=group["caution"],
             )
 
         return loss
 
 
 def _single_tensor_adan(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        exp_avg_diffs: List[Tensor],
-        neg_pre_grads: List[Tensor],
-        *,
-        beta1: float,
-        beta2: float,
-        beta3: float,
-        bias_correction1: float,
-        bias_correction2: float,
-        bias_correction3_sqrt: float,
-        lr: float,
-        weight_decay: float,
-        eps: float,
-        no_prox: bool,
-        caution: bool,
+    params: list[Tensor],
+    grads: list[Tensor],
+    exp_avgs: list[Tensor],
+    exp_avg_sqs: list[Tensor],
+    exp_avg_diffs: list[Tensor],
+    neg_pre_grads: list[Tensor],
+    *,
+    beta1: float,
+    beta2: float,
+    beta3: float,
+    bias_correction1: float,
+    bias_correction2: float,
+    bias_correction3_sqrt: float,
+    lr: float,
+    weight_decay: float,
+    eps: float,
+    no_prox: bool,
+    caution: bool,
 ):
     for i, param in enumerate(params):
         grad = grads[i]
@@ -262,24 +264,24 @@ def _single_tensor_adan(
 
 
 def _multi_tensor_adan(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        exp_avg_diffs: List[Tensor],
-        neg_pre_grads: List[Tensor],
-        *,
-        beta1: float,
-        beta2: float,
-        beta3: float,
-        bias_correction1: float,
-        bias_correction2: float,
-        bias_correction3_sqrt: float,
-        lr: float,
-        weight_decay: float,
-        eps: float,
-        no_prox: bool,
-        caution: bool,
+    params: list[Tensor],
+    grads: list[Tensor],
+    exp_avgs: list[Tensor],
+    exp_avg_sqs: list[Tensor],
+    exp_avg_diffs: list[Tensor],
+    neg_pre_grads: list[Tensor],
+    *,
+    beta1: float,
+    beta2: float,
+    beta3: float,
+    bias_correction1: float,
+    bias_correction2: float,
+    bias_correction3_sqrt: float,
+    lr: float,
+    weight_decay: float,
+    eps: float,
+    no_prox: bool,
+    caution: bool,
 ):
     if len(params) == 0:
         return
