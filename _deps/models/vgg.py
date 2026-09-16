@@ -1,30 +1,33 @@
-"""VGG
+"""VGG.
 
 Adapted from https://github.com/pytorch/vision 'vgg.py' (BSD-3-Clause) with a few changes for
 timm functionality.
 
 Copyright 2021 Ross Wightman
 """
-from typing import Any, Dict, List, Optional, Type, Union, cast
+
+from __future__ import annotations
+
+from typing import Any, cast
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import ClassifierHead
+from torch import nn
+
 from ._builder import build_model_with_cfg
 from ._features_fx import register_notrace_module
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['VGG']
+__all__ = ["VGG"]
 
 
-cfgs: Dict[str, List[Union[str, int]]] = {
-    'vgg11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
-    'vgg13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
-    'vgg16': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
-    'vgg19': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M'],
+cfgs: dict[str, list[str | int]] = {
+    "vgg11": [64, "M", 128, "M", 256, 256, "M", 512, 512, "M", 512, 512, "M"],
+    "vgg13": [64, 64, "M", 128, 128, "M", 256, 256, "M", 512, 512, "M", 512, 512, "M"],
+    "vgg16": [64, 64, "M", 128, 128, "M", 256, 256, 256, "M", 512, 512, 512, "M", 512, 512, 512, "M"],
+    "vgg19": [64, 64, "M", 128, 128, "M", 256, 256, 256, 256, "M", 512, 512, 512, 512, "M", 512, 512, 512, 512, "M"],
 }
 
 
@@ -36,16 +39,16 @@ class ConvMlp(nn.Module):
     """
 
     def __init__(
-            self,
-            in_features: int = 512,
-            out_features: int = 4096,
-            kernel_size: int = 7,
-            mlp_ratio: float = 1.0,
-            drop_rate: float = 0.2,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            conv_layer: Type[nn.Module] = nn.Conv2d,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int = 512,
+        out_features: int = 4096,
+        kernel_size: int = 7,
+        mlp_ratio: float = 1.0,
+        drop_rate: float = 0.2,
+        act_layer: type[nn.Module] = nn.ReLU,
+        conv_layer: type[nn.Module] = nn.Conv2d,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize ConvMlp.
 
@@ -58,7 +61,7 @@ class ConvMlp(nn.Module):
             act_layer: Activation layer type.
             conv_layer: Convolution layer type.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.input_kernel_size = kernel_size
         mid_features = int(out_features * mlp_ratio)
@@ -97,19 +100,19 @@ class VGG(nn.Module):
     """
 
     def __init__(
-            self,
-            cfg: List[Any],
-            num_classes: int = 1000,
-            in_chans: int = 3,
-            output_stride: int = 32,
-            mlp_ratio: float = 1.0,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            conv_layer: Type[nn.Module] = nn.Conv2d,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            global_pool: str = 'avg',
-            drop_rate: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        cfg: list[Any],
+        num_classes: int = 1000,
+        in_chans: int = 3,
+        output_stride: int = 32,
+        mlp_ratio: float = 1.0,
+        act_layer: type[nn.Module] = nn.ReLU,
+        conv_layer: type[nn.Module] = nn.Conv2d,
+        norm_layer: type[nn.Module] | None = None,
+        global_pool: str = "avg",
+        drop_rate: float = 0.0,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize VGG model.
 
@@ -126,7 +129,7 @@ class VGG(nn.Module):
             drop_rate: Dropout rate.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         assert output_stride == 32
         self.num_classes = num_classes
         self.in_chans = in_chans
@@ -138,11 +141,13 @@ class VGG(nn.Module):
         prev_chs = in_chans
         net_stride = 1
         pool_layer = nn.MaxPool2d
-        layers: List[nn.Module] = []
+        layers: list[nn.Module] = []
         for v in cfg:
             last_idx = len(layers) - 1
-            if v == 'M':
-                self.feature_info.append(dict(num_chs=prev_chs, reduction=net_stride, module=f'features.{last_idx}'))
+            if v == "M":
+                self.feature_info.append(
+                    {"num_chs": prev_chs, "reduction": net_stride, "module": f"features.{last_idx}"}
+                )
                 layers += [pool_layer(kernel_size=2, stride=2)]
                 net_stride *= 2
             else:
@@ -154,7 +159,9 @@ class VGG(nn.Module):
                     layers += [conv2d, act_layer(inplace=True)]
                 prev_chs = v
         self.features = nn.Sequential(*layers)
-        self.feature_info.append(dict(num_chs=prev_chs, reduction=net_stride, module=f'features.{len(layers) - 1}'))
+        self.feature_info.append(
+            {"num_chs": prev_chs, "reduction": net_stride, "module": f"features.{len(layers) - 1}"}
+        )
 
         self.num_features = prev_chs
         self.head_hidden_size = 4096
@@ -179,7 +186,7 @@ class VGG(nn.Module):
         self._initialize_weights()
 
     @torch.jit.ignore
-    def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+    def group_matcher(self, coarse: bool = False) -> dict[str, Any]:
         """Group matcher for parameter groups.
 
         Args:
@@ -189,7 +196,7 @@ class VGG(nn.Module):
             Dictionary of grouped parameters.
         """
         # this treats BN layers as separate groups for bn variants, a lot of effort to fix that
-        return dict(stem=r'^features\.0', blocks=r'^features\.(\d+)')
+        return {"stem": r"^features\.0", "blocks": r"^features\.(\d+)"}
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable: bool = True) -> None:
@@ -198,7 +205,7 @@ class VGG(nn.Module):
         Args:
             enable: Whether to enable gradient checkpointing.
         """
-        assert not enable, 'gradient checkpointing not supported'
+        assert not enable, "gradient checkpointing not supported"
 
     @torch.jit.ignore
     def get_classifier(self) -> nn.Module:
@@ -209,7 +216,7 @@ class VGG(nn.Module):
         """
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None) -> None:
         """Reset the classifier.
 
         Args:
@@ -261,7 +268,7 @@ class VGG(nn.Module):
         """Initialize model weights."""
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
@@ -272,7 +279,7 @@ class VGG(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 
-def _filter_fn(state_dict: dict) -> Dict[str, torch.Tensor]:
+def _filter_fn(state_dict: dict) -> dict[str, torch.Tensor]:
     """Convert patch embedding weight from manual patchify + linear proj to conv.
 
     Args:
@@ -284,12 +291,12 @@ def _filter_fn(state_dict: dict) -> Dict[str, torch.Tensor]:
     out_dict = {}
     for k, v in state_dict.items():
         k_r = k
-        k_r = k_r.replace('classifier.0', 'pre_logits.fc1')
-        k_r = k_r.replace('classifier.3', 'pre_logits.fc2')
-        k_r = k_r.replace('classifier.6', 'head.fc')
-        if 'classifier.0.weight' in k:
+        k_r = k_r.replace("classifier.0", "pre_logits.fc1")
+        k_r = k_r.replace("classifier.3", "pre_logits.fc2")
+        k_r = k_r.replace("classifier.6", "head.fc")
+        if "classifier.0.weight" in k:
             v = v.reshape(-1, 512, 7, 7)
-        if 'classifier.3.weight' in k:
+        if "classifier.3.weight" in k:
             v = v.reshape(-1, 4096, 1, 1)
         out_dict[k_r] = v
     return out_dict
@@ -306,22 +313,22 @@ def _create_vgg(variant: str, pretrained: bool, **kwargs: Any) -> VGG:
     Returns:
         VGG model instance.
     """
-    cfg = variant.split('_')[0]
+    cfg = variant.split("_")[0]
     # NOTE: VGG is one of few models with stride==1 features w/ 6 out_indices [0..5]
-    out_indices = kwargs.pop('out_indices', (0, 1, 2, 3, 4, 5))
+    out_indices = kwargs.pop("out_indices", (0, 1, 2, 3, 4, 5))
     model = build_model_with_cfg(
         VGG,
         variant,
         pretrained,
         model_cfg=cfgs[cfg],
-        feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+        feature_cfg={"flatten_sequential": True, "out_indices": out_indices},
         pretrained_filter_fn=_filter_fn,
         **kwargs,
     )
     return model
 
 
-def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
+def _cfg(url: str = "", **kwargs) -> dict[str, Any]:
     """Create default configuration dictionary.
 
     Args:
@@ -332,95 +339,102 @@ def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
         Configuration dictionary.
     """
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.875, 'interpolation': 'bilinear',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'features.0', 'classifier': 'head.fc',
-        'license': 'bsd-3-clause',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.875,
+        "interpolation": "bilinear",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "features.0",
+        "classifier": "head.fc",
+        "license": "bsd-3-clause",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'vgg11.tv_in1k': _cfg(hf_hub_id='timm/'),
-    'vgg13.tv_in1k': _cfg(hf_hub_id='timm/'),
-    'vgg16.tv_in1k': _cfg(hf_hub_id='timm/'),
-    'vgg19.tv_in1k': _cfg(hf_hub_id='timm/'),
-    'vgg11_bn.tv_in1k': _cfg(hf_hub_id='timm/'),
-    'vgg13_bn.tv_in1k': _cfg(hf_hub_id='timm/'),
-    'vgg16_bn.tv_in1k': _cfg(hf_hub_id='timm/'),
-    'vgg19_bn.tv_in1k': _cfg(hf_hub_id='timm/'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "vgg11.tv_in1k": _cfg(hf_hub_id="timm/"),
+        "vgg13.tv_in1k": _cfg(hf_hub_id="timm/"),
+        "vgg16.tv_in1k": _cfg(hf_hub_id="timm/"),
+        "vgg19.tv_in1k": _cfg(hf_hub_id="timm/"),
+        "vgg11_bn.tv_in1k": _cfg(hf_hub_id="timm/"),
+        "vgg13_bn.tv_in1k": _cfg(hf_hub_id="timm/"),
+        "vgg16_bn.tv_in1k": _cfg(hf_hub_id="timm/"),
+        "vgg19_bn.tv_in1k": _cfg(hf_hub_id="timm/"),
+    }
+)
 
 
 @register_model
 def vgg11(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 11-layer model (configuration "A") from
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 11-layer model (configuration "A") from `"Very Deep Convolutional Networks For Large-Scale Image
+    Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(**kwargs)
-    return _create_vgg('vgg11', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg11", pretrained=pretrained, **model_args)
 
 
 @register_model
 def vgg11_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 11-layer model (configuration "A") with batch normalization
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 11-layer model (configuration "A") with batch normalization `"Very Deep Convolutional Networks For
+    Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg11_bn', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg11_bn", pretrained=pretrained, **model_args)
 
 
 @register_model
 def vgg13(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 13-layer model (configuration "B")
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 13-layer model (configuration "B") `"Very Deep Convolutional Networks For Large-Scale Image Recognition"
+    <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(**kwargs)
-    return _create_vgg('vgg13', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg13", pretrained=pretrained, **model_args)
 
 
 @register_model
 def vgg13_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 13-layer model (configuration "B") with batch normalization
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 13-layer model (configuration "B") with batch normalization `"Very Deep Convolutional Networks For
+    Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg13_bn', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg13_bn", pretrained=pretrained, **model_args)
 
 
 @register_model
 def vgg16(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 16-layer model (configuration "D")
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 16-layer model (configuration "D") `"Very Deep Convolutional Networks For Large-Scale Image Recognition"
+    <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(**kwargs)
-    return _create_vgg('vgg16', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg16", pretrained=pretrained, **model_args)
 
 
 @register_model
 def vgg16_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 16-layer model (configuration "D") with batch normalization
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 16-layer model (configuration "D") with batch normalization `"Very Deep Convolutional Networks For
+    Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg16_bn', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg16_bn", pretrained=pretrained, **model_args)
 
 
 @register_model
 def vgg19(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 19-layer model (configuration "E")
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 19-layer model (configuration "E") `"Very Deep Convolutional Networks For Large-Scale Image Recognition"
+    <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(**kwargs)
-    return _create_vgg('vgg19', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg19", pretrained=pretrained, **model_args)
 
 
 @register_model
 def vgg19_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
-    r"""VGG 19-layer model (configuration 'E') with batch normalization
-    `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._
+    r"""VGG 19-layer model (configuration 'E') with batch normalization `"Very Deep Convolutional Networks For
+    Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`._.
     """
     model_args = dict(norm_layer=nn.BatchNorm2d, **kwargs)
-    return _create_vgg('vgg19_bn', pretrained=pretrained, **model_args)
+    return _create_vgg("vgg19_bn", pretrained=pretrained, **model_args)
