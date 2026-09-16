@@ -1,4 +1,4 @@
-""" MobileViT
+"""MobileViT.
 
 Paper:
 V1: `MobileViT: Light-weight, General-purpose, and Mobile-friendly Vision Transformer` - https://arxiv.org/abs/2110.02178
@@ -9,22 +9,24 @@ License: https://github.com/apple/ml-cvnets/blob/main/LICENSE (Apple open source
 
 Rest of code, ByobNet, and Transformer block hacked together by / Copyright 2022, Ross Wightman
 """
+
 #
 # For licensing see accompanying LICENSE file.
 # Copyright (C) 2020 Apple Inc. All Rights Reserved.
 #
+from __future__ import annotations
+
 import math
-from typing import Callable, Tuple, Optional, Type
 
 import torch
 import torch.nn.functional as F
+from timm.layers import ConvMlp, DropPath, GroupNorm1, is_exportable, make_divisible, to_2tuple
 from torch import nn
 
-from timm.layers import to_2tuple, make_divisible, GroupNorm1, ConvMlp, DropPath, is_exportable
 from ._builder import build_model_with_cfg
 from ._features_fx import register_notrace_module
-from ._registry import register_model, generate_default_cfgs, register_model_deprecations
-from .byobnet import register_block, ByoBlockCfg, ByoModelCfg, ByobNet, LayerFn, num_groups
+from ._registry import generate_default_cfgs, register_model, register_model_deprecations
+from .byobnet import ByoBlockCfg, ByobNet, ByoModelCfg, LayerFn, num_groups, register_block
 from .vision_transformer import Block as TransformerBlock
 
 __all__ = []
@@ -32,9 +34,7 @@ __all__ = []
 
 def _inverted_residual_block(d, c, s, br=4.0):
     # inverted residual is a bottleneck block with bottle_ratio > 1 applied to in_chs, linear output, gs=1 (depthwise)
-    return ByoBlockCfg(
-        type='bottle', d=d, c=c, s=s, gs=1, br=br,
-        block_kwargs=dict(bottle_in=True, linear_out=True))
+    return ByoBlockCfg(type="bottle", d=d, c=c, s=s, gs=1, br=br, block_kwargs={"bottle_in": True, "linear_out": True})
 
 
 def _mobilevit_block(d, c, s, transformer_dim, transformer_depth, patch_size=4, br=4.0):
@@ -42,12 +42,16 @@ def _mobilevit_block(d, c, s, transformer_dim, transformer_depth, patch_size=4, 
     return (
         _inverted_residual_block(d=d, c=c, s=s, br=br),
         ByoBlockCfg(
-            type='mobilevit', d=1, c=c, s=1,
-            block_kwargs=dict(
-                transformer_dim=transformer_dim,
-                transformer_depth=transformer_depth,
-                patch_size=patch_size)
-        )
+            type="mobilevit",
+            d=1,
+            c=c,
+            s=1,
+            block_kwargs={
+                "transformer_dim": transformer_dim,
+                "transformer_depth": transformer_depth,
+                "patch_size": patch_size,
+            },
+        ),
     )
 
 
@@ -56,11 +60,14 @@ def _mobilevitv2_block(d, c, s, transformer_depth, patch_size=2, br=2.0, transfo
     return (
         _inverted_residual_block(d=d, c=c, s=s, br=br),
         ByoBlockCfg(
-            type='mobilevit2', d=1, c=c, s=1, br=transformer_br, gs=1,
-            block_kwargs=dict(
-                transformer_depth=transformer_depth,
-                patch_size=patch_size)
-        )
+            type="mobilevit2",
+            d=1,
+            c=c,
+            s=1,
+            br=transformer_br,
+            gs=1,
+            block_kwargs={"transformer_depth": transformer_depth, "patch_size": patch_size},
+        ),
     )
 
 
@@ -77,16 +84,16 @@ def _mobilevitv2_cfg(multiplier=1.0):
             _mobilevitv2_block(d=1, c=chs[4], s=2, transformer_depth=3),
         ),
         stem_chs=int(32 * multiplier),
-        stem_type='3x3',
-        stem_pool='',
-        downsample='',
-        act_layer='silu',
+        stem_type="3x3",
+        stem_pool="",
+        downsample="",
+        act_layer="silu",
     )
     return cfg
 
 
-model_cfgs = dict(
-    mobilevit_xxs=ByoModelCfg(
+model_cfgs = {
+    "mobilevit_xxs": ByoModelCfg(
         blocks=(
             _inverted_residual_block(d=1, c=16, s=1, br=2.0),
             _inverted_residual_block(d=3, c=24, s=2, br=2.0),
@@ -95,14 +102,13 @@ model_cfgs = dict(
             _mobilevit_block(d=1, c=80, s=2, transformer_dim=96, transformer_depth=3, patch_size=2, br=2.0),
         ),
         stem_chs=16,
-        stem_type='3x3',
-        stem_pool='',
-        downsample='',
-        act_layer='silu',
+        stem_type="3x3",
+        stem_pool="",
+        downsample="",
+        act_layer="silu",
         num_features=320,
     ),
-
-    mobilevit_xs=ByoModelCfg(
+    "mobilevit_xs": ByoModelCfg(
         blocks=(
             _inverted_residual_block(d=1, c=32, s=1),
             _inverted_residual_block(d=3, c=48, s=2),
@@ -111,14 +117,13 @@ model_cfgs = dict(
             _mobilevit_block(d=1, c=96, s=2, transformer_dim=144, transformer_depth=3, patch_size=2),
         ),
         stem_chs=16,
-        stem_type='3x3',
-        stem_pool='',
-        downsample='',
-        act_layer='silu',
+        stem_type="3x3",
+        stem_pool="",
+        downsample="",
+        act_layer="silu",
         num_features=384,
     ),
-
-    mobilevit_s=ByoModelCfg(
+    "mobilevit_s": ByoModelCfg(
         blocks=(
             _inverted_residual_block(d=1, c=32, s=1),
             _inverted_residual_block(d=3, c=64, s=2),
@@ -127,14 +132,13 @@ model_cfgs = dict(
             _mobilevit_block(d=1, c=160, s=2, transformer_dim=240, transformer_depth=3, patch_size=2),
         ),
         stem_chs=16,
-        stem_type='3x3',
-        stem_pool='',
-        downsample='',
-        act_layer='silu',
+        stem_type="3x3",
+        stem_pool="",
+        downsample="",
+        act_layer="silu",
         num_features=640,
     ),
-
-    semobilevit_s=ByoModelCfg(
+    "semobilevit_s": ByoModelCfg(
         blocks=(
             _inverted_residual_block(d=1, c=32, s=1),
             _inverted_residual_block(d=3, c=64, s=2),
@@ -143,54 +147,53 @@ model_cfgs = dict(
             _mobilevit_block(d=1, c=160, s=2, transformer_dim=240, transformer_depth=3, patch_size=2),
         ),
         stem_chs=16,
-        stem_type='3x3',
-        stem_pool='',
-        downsample='',
-        attn_layer='se',
-        attn_kwargs=dict(rd_ratio=1/8),
+        stem_type="3x3",
+        stem_pool="",
+        downsample="",
+        attn_layer="se",
+        attn_kwargs={"rd_ratio": 1 / 8},
         num_features=640,
     ),
-
-    mobilevitv2_050=_mobilevitv2_cfg(.50),
-    mobilevitv2_075=_mobilevitv2_cfg(.75),
-    mobilevitv2_125=_mobilevitv2_cfg(1.25),
-    mobilevitv2_100=_mobilevitv2_cfg(1.0),
-    mobilevitv2_150=_mobilevitv2_cfg(1.5),
-    mobilevitv2_175=_mobilevitv2_cfg(1.75),
-    mobilevitv2_200=_mobilevitv2_cfg(2.0),
-)
+    "mobilevitv2_050": _mobilevitv2_cfg(0.50),
+    "mobilevitv2_075": _mobilevitv2_cfg(0.75),
+    "mobilevitv2_125": _mobilevitv2_cfg(1.25),
+    "mobilevitv2_100": _mobilevitv2_cfg(1.0),
+    "mobilevitv2_150": _mobilevitv2_cfg(1.5),
+    "mobilevitv2_175": _mobilevitv2_cfg(1.75),
+    "mobilevitv2_200": _mobilevitv2_cfg(2.0),
+}
 
 
 @register_notrace_module
 class MobileVitBlock(nn.Module):
-    """ MobileViT block
-        Paper: https://arxiv.org/abs/2110.02178?context=cs.LG
+    """MobileViT block Paper: https://arxiv.org/abs/2110.02178?context=cs.LG.
     """
+
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: Optional[int] = None,
-            kernel_size: int = 3,
-            stride: int = 1,
-            bottle_ratio: float = 1.0,
-            group_size: Optional[int] = None,
-            dilation: Tuple[int, int] = (1, 1),
-            mlp_ratio: float = 2.0,
-            transformer_dim: Optional[int] = None,
-            transformer_depth: int = 2,
-            patch_size: int = 8,
-            num_heads: int = 4,
-            attn_drop: float = 0.,
-            drop: int = 0.,
-            no_fusion: bool = False,
-            drop_path_rate: float = 0.,
-            layers: LayerFn = None,
-            transformer_norm_layer: Type[nn.Module] = nn.LayerNorm,
-            device=None,
-            dtype=None,
-            **kwargs,  # eat unused args
+        self,
+        in_chs: int,
+        out_chs: int | None = None,
+        kernel_size: int = 3,
+        stride: int = 1,
+        bottle_ratio: float = 1.0,
+        group_size: int | None = None,
+        dilation: tuple[int, int] = (1, 1),
+        mlp_ratio: float = 2.0,
+        transformer_dim: int | None = None,
+        transformer_depth: int = 2,
+        patch_size: int = 8,
+        num_heads: int = 4,
+        attn_drop: float = 0.0,
+        drop: int = 0.0,
+        no_fusion: bool = False,
+        drop_path_rate: float = 0.0,
+        layers: LayerFn = None,
+        transformer_norm_layer: type[nn.Module] = nn.LayerNorm,
+        device=None,
+        dtype=None,
+        **kwargs,  # eat unused args
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         layers = layers or LayerFn()
         groups = num_groups(group_size, in_chs)
@@ -208,21 +211,23 @@ class MobileVitBlock(nn.Module):
         )
         self.conv_1x1 = nn.Conv2d(in_chs, transformer_dim, kernel_size=1, bias=False, **dd)
 
-        self.transformer = nn.Sequential(*[
-            TransformerBlock(
-                transformer_dim,
-                mlp_ratio=mlp_ratio,
-                num_heads=num_heads,
-                qkv_bias=True,
-                attn_drop=attn_drop,
-                proj_drop=drop,
-                drop_path=drop_path_rate,
-                act_layer=layers.act,
-                norm_layer=transformer_norm_layer,
-                **dd,
-            )
-            for _ in range(transformer_depth)
-        ])
+        self.transformer = nn.Sequential(
+            *[
+                TransformerBlock(
+                    transformer_dim,
+                    mlp_ratio=mlp_ratio,
+                    num_heads=num_heads,
+                    qkv_bias=True,
+                    attn_drop=attn_drop,
+                    proj_drop=drop,
+                    drop_path=drop_path_rate,
+                    act_layer=layers.act,
+                    norm_layer=transformer_norm_layer,
+                    **dd,
+                )
+                for _ in range(transformer_depth)
+            ]
+        )
         self.norm = transformer_norm_layer(transformer_dim, **dd)
 
         self.conv_proj = layers.conv_norm_act(transformer_dim, out_chs, kernel_size=1, stride=1, **dd)
@@ -279,18 +284,18 @@ class MobileVitBlock(nn.Module):
 
 
 class LinearSelfAttention(nn.Module):
-    """
-    This layer applies a self-attention with linear complexity, as described in `https://arxiv.org/abs/2206.02680`
+    """This layer applies a self-attention with linear complexity, as described in `https://arxiv.org/abs/2206.02680`
     This layer can be used for self- as well as cross-attention.
+
     Args:
         embed_dim (int): :math:`C` from an expected input of size :math:`(N, C, H, W)`
         attn_drop (float): Dropout value for context scores. Default: 0.0
         bias (bool): Use bias in learnable layers. Default: True
-    Shape:
+        Shape:
         - Input: :math:`(N, C, P, N)` where :math:`N` is the batch size, :math:`C` is the input channels,
         :math:`P` is the number of pixels in the patch, and :math:`N` is the number of patches
         - Output: same as the input
-    .. note::
+        .. note::
         For MobileViTv2, we unfold the feature map [B, C, H, W] into [B, C, P, N] where P is the number of pixels
         in a patch and N is the number of patches. Because channel is the first dimension in this unfolded tensor,
         we use point-wise convolution (instead of a linear layer). This avoids a transpose operation (which may be
@@ -299,15 +304,15 @@ class LinearSelfAttention(nn.Module):
     """
 
     def __init__(
-            self,
-            embed_dim: int,
-            attn_drop: float = 0.0,
-            proj_drop: float = 0.0,
-            bias: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        embed_dim: int,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        bias: bool = True,
+        device=None,
+        dtype=None,
     ) -> None:
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.embed_dim = embed_dim
 
@@ -353,22 +358,22 @@ class LinearSelfAttention(nn.Module):
         return out
 
     @torch.jit.ignore()
-    def _forward_cross_attn(self, x: torch.Tensor, x_prev: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def _forward_cross_attn(self, x: torch.Tensor, x_prev: torch.Tensor | None = None) -> torch.Tensor:
         # x --> [B, C, P, N]
         # x_prev = [B, C, P, M]
-        batch_size, in_dim, kv_patch_area, kv_num_patches = x.shape
-        q_patch_area, q_num_patches = x.shape[-2:]
+        _batch_size, _in_dim, kv_patch_area, _kv_num_patches = x.shape
+        q_patch_area, _q_num_patches = x.shape[-2:]
 
-        assert (
-            kv_patch_area == q_patch_area
-        ), "The number of pixels in a patch for query and key_value should be the same"
+        assert kv_patch_area == q_patch_area, (
+            "The number of pixels in a patch for query and key_value should be the same"
+        )
 
         # compute query, key, and value
         # [B, C, P, M] --> [B, 1 + d, P, M]
         qk = F.conv2d(
             x_prev,
-            weight=self.qkv_proj.weight[:self.embed_dim + 1],
-            bias=self.qkv_proj.bias[:self.embed_dim + 1],
+            weight=self.qkv_proj.weight[: self.embed_dim + 1],
+            bias=self.qkv_proj.bias[: self.embed_dim + 1],
         )
 
         # [B, 1 + d, P, M] --> [B, 1, P, M], [B, d, P, M]
@@ -395,7 +400,7 @@ class LinearSelfAttention(nn.Module):
         out = self.out_drop(out)
         return out
 
-    def forward(self, x: torch.Tensor, x_prev: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, x_prev: torch.Tensor | None = None) -> torch.Tensor:
         if x_prev is None:
             return self._forward_self_attn(x)
         else:
@@ -403,8 +408,8 @@ class LinearSelfAttention(nn.Module):
 
 
 class LinearTransformerBlock(nn.Module):
-    """
-    This class defines the pre-norm transformer encoder with linear self-attention in `MobileViTv2 paper <>`_
+    """This class defines the pre-norm transformer encoder with linear self-attention in `MobileViTv2 paper <>`_.
+
     Args:
         embed_dim (int): :math:`C_{in}` from an expected input of size :math:`(B, C_{in}, P, N)`
         mlp_ratio (float): Inner dimension ratio of the FFN relative to embed_dim
@@ -412,25 +417,25 @@ class LinearTransformerBlock(nn.Module):
         attn_drop (float): Dropout rate for attention in multi-head attention. Default: 0.0
         drop_path (float): Stochastic depth rate Default: 0.0
         norm_layer (Callable): Normalization layer. Default: layer_norm_2d
-    Shape:
+        Shape:
         - Input: :math:`(B, C_{in}, P, N)` where :math:`B` is batch size, :math:`C_{in}` is input embedding dim,
             :math:`P` is number of pixels in a patch, and :math:`N` is number of patches,
-        - Output: same shape as the input
+        - Output: same shape as the input.
     """
 
     def __init__(
-            self,
-            embed_dim: int,
-            mlp_ratio: float = 2.0,
-            drop: float = 0.0,
-            attn_drop: float = 0.0,
-            drop_path: float = 0.0,
-            act_layer: Optional[Type[nn.Module]] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        embed_dim: int,
+        mlp_ratio: float = 2.0,
+        drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] | None = None,
+        norm_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ) -> None:
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         act_layer = act_layer or nn.SiLU
         norm_layer = norm_layer or GroupNorm1
@@ -441,14 +446,11 @@ class LinearTransformerBlock(nn.Module):
 
         self.norm2 = norm_layer(embed_dim, **dd)
         self.mlp = ConvMlp(
-            in_features=embed_dim,
-            hidden_features=int(embed_dim * mlp_ratio),
-            act_layer=act_layer,
-            drop=drop,
-            **dd)
+            in_features=embed_dim, hidden_features=int(embed_dim * mlp_ratio), act_layer=act_layer, drop=drop, **dd
+        )
         self.drop_path2 = DropPath(drop_path)
 
-    def forward(self, x: torch.Tensor, x_prev: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, x_prev: torch.Tensor | None = None) -> torch.Tensor:
         if x_prev is None:
             # self-attention
             x = x + self.drop_path1(self.attn(self.norm1(x)))
@@ -466,32 +468,30 @@ class LinearTransformerBlock(nn.Module):
 
 @register_notrace_module
 class MobileVitV2Block(nn.Module):
-    """
-    This class defines the `MobileViTv2 block <>`_
-    """
+    """This class defines the `MobileViTv2 block <>`_."""
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: Optional[int] = None,
-            kernel_size: int = 3,
-            bottle_ratio: float = 1.0,
-            group_size: Optional[int] = 1,
-            dilation: Tuple[int, int] = (1, 1),
-            mlp_ratio: float = 2.0,
-            transformer_dim: Optional[int] = None,
-            transformer_depth: int = 2,
-            patch_size: int = 8,
-            attn_drop: float = 0.,
-            drop: int = 0.,
-            drop_path_rate: float = 0.,
-            layers: LayerFn = None,
-            transformer_norm_layer: Type[nn.Module] = GroupNorm1,
-            device=None,
-            dtype=None,
-            **kwargs,  # eat unused args
+        self,
+        in_chs: int,
+        out_chs: int | None = None,
+        kernel_size: int = 3,
+        bottle_ratio: float = 1.0,
+        group_size: int | None = 1,
+        dilation: tuple[int, int] = (1, 1),
+        mlp_ratio: float = 2.0,
+        transformer_dim: int | None = None,
+        transformer_depth: int = 2,
+        patch_size: int = 8,
+        attn_drop: float = 0.0,
+        drop: int = 0.0,
+        drop_path_rate: float = 0.0,
+        layers: LayerFn = None,
+        transformer_norm_layer: type[nn.Module] = GroupNorm1,
+        device=None,
+        dtype=None,
+        **kwargs,  # eat unused args
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         layers = layers or LayerFn()
         groups = num_groups(group_size, in_chs)
@@ -509,19 +509,21 @@ class MobileVitV2Block(nn.Module):
         )
         self.conv_1x1 = nn.Conv2d(in_chs, transformer_dim, kernel_size=1, bias=False, **dd)
 
-        self.transformer = nn.Sequential(*[
-            LinearTransformerBlock(
-                transformer_dim,
-                mlp_ratio=mlp_ratio,
-                attn_drop=attn_drop,
-                drop=drop,
-                drop_path=drop_path_rate,
-                act_layer=layers.act,
-                norm_layer=transformer_norm_layer,
-                **dd,
-            )
-            for _ in range(transformer_depth)
-        ])
+        self.transformer = nn.Sequential(
+            *[
+                LinearTransformerBlock(
+                    transformer_dim,
+                    mlp_ratio=mlp_ratio,
+                    attn_drop=attn_drop,
+                    drop=drop,
+                    drop_path=drop_path_rate,
+                    act_layer=layers.act,
+                    norm_layer=transformer_norm_layer,
+                    **dd,
+                )
+                for _ in range(transformer_depth)
+            ]
+        )
         self.norm = transformer_norm_layer(transformer_dim, **dd)
 
         self.conv_proj = layers.conv_norm_act(transformer_dim, out_chs, kernel_size=1, stride=1, apply_act=False, **dd)
@@ -568,143 +570,136 @@ class MobileVitV2Block(nn.Module):
         return x
 
 
-register_block('mobilevit', MobileVitBlock)
-register_block('mobilevit2', MobileVitV2Block)
+register_block("mobilevit", MobileVitBlock)
+register_block("mobilevit2", MobileVitV2Block)
 
 
 def _create_mobilevit(variant, cfg_variant=None, pretrained=False, **kwargs):
     return build_model_with_cfg(
-        ByobNet, variant, pretrained,
+        ByobNet,
+        variant,
+        pretrained,
         model_cfg=model_cfgs[variant] if not cfg_variant else model_cfgs[cfg_variant],
-        feature_cfg=dict(flatten_sequential=True),
-        **kwargs)
+        feature_cfg={"flatten_sequential": True},
+        **kwargs,
+    )
 
 
 def _create_mobilevit2(variant, cfg_variant=None, pretrained=False, **kwargs):
     return build_model_with_cfg(
-        ByobNet, variant, pretrained,
+        ByobNet,
+        variant,
+        pretrained,
         model_cfg=model_cfgs[variant] if not cfg_variant else model_cfgs[cfg_variant],
-        feature_cfg=dict(flatten_sequential=True),
-        **kwargs)
+        feature_cfg={"flatten_sequential": True},
+        **kwargs,
+    )
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url, 'num_classes': 1000, 'input_size': (3, 256, 256), 'pool_size': (8, 8),
-        'crop_pct': 0.9, 'interpolation': 'bicubic',
-        'mean': (0., 0., 0.), 'std': (1., 1., 1.),
-        'first_conv': 'stem.conv', 'classifier': 'head.fc',
-        'fixed_input_size': False,
-        'license': 'cvnets-license',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 256, 256),
+        "pool_size": (8, 8),
+        "crop_pct": 0.9,
+        "interpolation": "bicubic",
+        "mean": (0.0, 0.0, 0.0),
+        "std": (1.0, 1.0, 1.0),
+        "first_conv": "stem.conv",
+        "classifier": "head.fc",
+        "fixed_input_size": False,
+        "license": "cvnets-license",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'mobilevit_xxs.cvnets_in1k': _cfg(hf_hub_id='timm/'),
-    'mobilevit_xs.cvnets_in1k': _cfg(hf_hub_id='timm/'),
-    'mobilevit_s.cvnets_in1k': _cfg(hf_hub_id='timm/'),
-
-    'mobilevitv2_050.cvnets_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_075.cvnets_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_100.cvnets_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_125.cvnets_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_150.cvnets_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_175.cvnets_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_200.cvnets_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-
-    'mobilevitv2_150.cvnets_in22k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_175.cvnets_in22k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-    'mobilevitv2_200.cvnets_in22k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.888),
-
-    'mobilevitv2_150.cvnets_in22k_ft_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0),
-    'mobilevitv2_175.cvnets_in22k_ft_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0),
-    'mobilevitv2_200.cvnets_in22k_ft_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "mobilevit_xxs.cvnets_in1k": _cfg(hf_hub_id="timm/"),
+        "mobilevit_xs.cvnets_in1k": _cfg(hf_hub_id="timm/"),
+        "mobilevit_s.cvnets_in1k": _cfg(hf_hub_id="timm/"),
+        "mobilevitv2_050.cvnets_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_075.cvnets_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_100.cvnets_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_125.cvnets_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_150.cvnets_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_175.cvnets_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_200.cvnets_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_150.cvnets_in22k_ft_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_175.cvnets_in22k_ft_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_200.cvnets_in22k_ft_in1k": _cfg(hf_hub_id="timm/", crop_pct=0.888),
+        "mobilevitv2_150.cvnets_in22k_ft_in1k_384": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0
+        ),
+        "mobilevitv2_175.cvnets_in22k_ft_in1k_384": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0
+        ),
+        "mobilevitv2_200.cvnets_in22k_ft_in1k_384": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0
+        ),
+    }
+)
 
 
 @register_model
 def mobilevit_xxs(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevit_xxs', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevit_xxs", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevit_xs(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevit_xs', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevit_xs", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevit_s(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevit_s', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevit_s", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevitv2_050(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_050', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevitv2_050", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevitv2_075(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_075', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevitv2_075", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevitv2_100(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_100', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevitv2_100", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevitv2_125(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_125', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevitv2_125", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevitv2_150(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_150', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevitv2_150", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevitv2_175(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_175', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevitv2_175", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def mobilevitv2_200(pretrained=False, **kwargs) -> ByobNet:
-    return _create_mobilevit('mobilevitv2_200', pretrained=pretrained, **kwargs)
+    return _create_mobilevit("mobilevitv2_200", pretrained=pretrained, **kwargs)
 
 
-register_model_deprecations(__name__, {
-    'mobilevitv2_150_in22ft1k': 'mobilevitv2_150.cvnets_in22k_ft_in1k',
-    'mobilevitv2_175_in22ft1k': 'mobilevitv2_175.cvnets_in22k_ft_in1k',
-    'mobilevitv2_200_in22ft1k': 'mobilevitv2_200.cvnets_in22k_ft_in1k',
-
-    'mobilevitv2_150_384_in22ft1k': 'mobilevitv2_150.cvnets_in22k_ft_in1k_384',
-    'mobilevitv2_175_384_in22ft1k': 'mobilevitv2_175.cvnets_in22k_ft_in1k_384',
-    'mobilevitv2_200_384_in22ft1k': 'mobilevitv2_200.cvnets_in22k_ft_in1k_384',
-})
+register_model_deprecations(
+    __name__,
+    {
+        "mobilevitv2_150_in22ft1k": "mobilevitv2_150.cvnets_in22k_ft_in1k",
+        "mobilevitv2_175_in22ft1k": "mobilevitv2_175.cvnets_in22k_ft_in1k",
+        "mobilevitv2_200_in22ft1k": "mobilevitv2_200.cvnets_in22k_ft_in1k",
+        "mobilevitv2_150_384_in22ft1k": "mobilevitv2_150.cvnets_in22k_ft_in1k_384",
+        "mobilevitv2_175_384_in22ft1k": "mobilevitv2_175.cvnets_in22k_ft_in1k_384",
+        "mobilevitv2_200_384_in22ft1k": "mobilevitv2_200.cvnets_in22k_ft_in1k_384",
+    },
+)

@@ -1,4 +1,4 @@
-""" Attention Pool 2D
+"""Attention Pool 2D.
 
 Implementations of 2D spatial feature pooling using multi-head attention instead of average pool.
 
@@ -7,10 +7,11 @@ https://github.com/openai/CLIP/blob/3b473b0e682c091a9e53623eebc1ca1657385717/cli
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import Optional, Union, Tuple
+
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .config import use_fused_attn
 from .helpers import to_2tuple
@@ -20,37 +21,38 @@ from .weight_init import trunc_normal_
 
 
 class RotAttentionPool2d(nn.Module):
-    """ Attention based 2D feature pooling w/ rotary (relative) pos embedding.
-    This is a multi-head attention based replacement for (spatial) average pooling in NN architectures.
+    """Attention based 2D feature pooling w/ rotary (relative) pos embedding. This is a multi-head attention based
+    replacement for (spatial) average pooling in NN architectures.
 
     Adapted from the AttentionPool2d in CLIP w/ rotary embedding instead of learned embed.
     https://github.com/openai/CLIP/blob/3b473b0e682c091a9e53623eebc1ca1657385717/clip/model.py
 
-    NOTE: While this impl does not require a fixed feature size, performance at differeing resolutions from
-    train varies widely and falls off dramatically. I'm not sure if there is a way around this... -RW
+    NOTE: While this impl does not require a fixed feature size, performance at differeing resolutions from train varies
+    widely and falls off dramatically. I'm not sure if there is a way around this... -RW
     """
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            in_features: int,
-            out_features: Optional[int] = None,
-            ref_feat_size: Union[int, Tuple[int, int]] = 7,
-            embed_dim: Optional[int] = None,
-            head_dim: Optional[int] = 64,
-            num_heads: Optional[int] = None,
-            qkv_bias: bool = True,
-            qkv_separate: bool = False,
-            pool_type: str = 'token',
-            class_token: bool = False,
-            drop_rate: float = 0.,
-            rope_type: str = 'cat',
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        out_features: int | None = None,
+        ref_feat_size: int | tuple[int, int] = 7,
+        embed_dim: int | None = None,
+        head_dim: int | None = 64,
+        num_heads: int | None = None,
+        qkv_bias: bool = True,
+        qkv_separate: bool = False,
+        pool_type: str = "token",
+        class_token: bool = False,
+        drop_rate: float = 0.0,
+        rope_type: str = "cat",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        assert pool_type in ('', 'token')
+        assert pool_type in ("", "token")
         self.embed_dim = embed_dim = embed_dim or in_features
         self.in_features = in_features
         self.out_features = out_features or in_features
@@ -64,7 +66,7 @@ class RotAttentionPool2d(nn.Module):
         self.num_heads = num_heads
         self.head_dim = head_dim
         self.pool_type = pool_type.lower()
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.fused_attn = use_fused_attn()
         self.rope_type = rope_type
 
@@ -96,28 +98,28 @@ class RotAttentionPool2d(nn.Module):
     def init_weights(self, zero_init_last: bool = False):
         if self.qkv is None:
             in_features = self.q.in_features
-            trunc_normal_(self.q.weight, std=in_features ** -0.5)
+            trunc_normal_(self.q.weight, std=in_features**-0.5)
             nn.init.zeros_(self.q.bias)
-            trunc_normal_(self.k.weight, std=in_features ** -0.5)
+            trunc_normal_(self.k.weight, std=in_features**-0.5)
             nn.init.zeros_(self.k.bias)
-            trunc_normal_(self.v.weight, std=in_features ** -0.5)
+            trunc_normal_(self.v.weight, std=in_features**-0.5)
             nn.init.zeros_(self.v.bias)
         else:
             in_features = self.qkv.in_features
-            trunc_normal_(self.qkv.weight, std=in_features ** -0.5)
+            trunc_normal_(self.qkv.weight, std=in_features**-0.5)
             nn.init.zeros_(self.qkv.bias)
 
-    def reset(self, num_classes: Optional[int] = None, pool_type: Optional[str] = None):
+    def reset(self, num_classes: int | None = None, pool_type: str | None = None):
         # NOTE: this module is being used as a head, so need compatible reset()
         if pool_type is not None:
-            assert pool_type in ('', 'token')
+            assert pool_type in ("", "token")
             self.pool_type = pool_type
         if num_classes is not None:
             self.proj = nn.Linear(self.in_features, num_classes) if num_classes > 0 else nn.Identity()
             self.out_features = num_classes if num_classes > 0 else self.embed_dim
 
     def _pool(self, x: torch.Tensor, H: int, W: int) -> torch.Tensor:
-        if self.pool_type == 'token':
+        if self.pool_type == "token":
             x = x[:, 0]
         else:
             # if not pooled, return spatial output without token
@@ -165,35 +167,36 @@ class RotAttentionPool2d(nn.Module):
 
 
 class AttentionPool2d(nn.Module):
-    """ Attention based 2D feature pooling w/ learned (absolute) pos embedding.
-    This is a multi-head attention based replacement for (spatial) average pooling in NN architectures.
+    """Attention based 2D feature pooling w/ learned (absolute) pos embedding. This is a multi-head attention based
+    replacement for (spatial) average pooling in NN architectures.
 
     It was based on impl in CLIP by OpenAI
     https://github.com/openai/CLIP/blob/3b473b0e682c091a9e53623eebc1ca1657385717/clip/model.py
 
     NOTE: This requires feature size upon construction and well prevent adaptive sizing of the network.
     """
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            in_features: int,
-            feat_size: Union[int, Tuple[int, int]] = 7,
-            out_features: Optional[int] = None,
-            embed_dim: Optional[int] = None,
-            head_dim: Optional[int] = 64,
-            num_heads: Optional[int] = None,
-            qkv_bias: bool = True,
-            qkv_separate: bool = False,
-            pool_type: str = 'token',
-            class_token: bool = False,
-            drop_rate: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        feat_size: int | tuple[int, int] = 7,
+        out_features: int | None = None,
+        embed_dim: int | None = None,
+        head_dim: int | None = 64,
+        num_heads: int | None = None,
+        qkv_bias: bool = True,
+        qkv_separate: bool = False,
+        pool_type: str = "token",
+        class_token: bool = False,
+        drop_rate: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        assert pool_type in ('', 'token')
+        assert pool_type in ("", "token")
         self.embed_dim = embed_dim = embed_dim or in_features
         self.in_features = in_features
         self.out_features = out_features or in_features
@@ -208,7 +211,7 @@ class AttentionPool2d(nn.Module):
         self.num_heads = num_heads
         self.head_dim = head_dim
         self.pool_type = pool_type
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         if class_token:
@@ -233,29 +236,29 @@ class AttentionPool2d(nn.Module):
     def init_weights(self, zero_init_last: bool = False):
         if self.qkv is None:
             in_features = self.q.in_features
-            trunc_normal_(self.q.weight, std=in_features ** -0.5)
+            trunc_normal_(self.q.weight, std=in_features**-0.5)
             nn.init.zeros_(self.q.bias)
-            trunc_normal_(self.k.weight, std=in_features ** -0.5)
+            trunc_normal_(self.k.weight, std=in_features**-0.5)
             nn.init.zeros_(self.k.bias)
-            trunc_normal_(self.v.weight, std=in_features ** -0.5)
+            trunc_normal_(self.v.weight, std=in_features**-0.5)
             nn.init.zeros_(self.v.bias)
         else:
             in_features = self.qkv.in_features
-            trunc_normal_(self.qkv.weight, std=in_features ** -0.5)
+            trunc_normal_(self.qkv.weight, std=in_features**-0.5)
             nn.init.zeros_(self.qkv.bias)
-        trunc_normal_(self.pos_embed, std=in_features ** -0.5)
+        trunc_normal_(self.pos_embed, std=in_features**-0.5)
 
-    def reset(self, num_classes: Optional[int] = None, pool_type: Optional[str] = None):
+    def reset(self, num_classes: int | None = None, pool_type: str | None = None):
         # NOTE: this module is being used as a head, so need compatible reset()
         if pool_type is not None:
-            assert pool_type in ('', 'token')
+            assert pool_type in ("", "token")
             self.pool_type = pool_type
         if num_classes is not None:
             self.proj = nn.Linear(self.in_features, num_classes) if num_classes > 0 else nn.Identity()
             self.out_features = num_classes if num_classes > 0 else self.embed_dim
 
     def _pool(self, x: torch.Tensor, H: int, W: int) -> torch.Tensor:
-        if self.pool_type == 'token':
+        if self.pool_type == "token":
             x = x[:, 0]
         else:
             # if not pooled, return spatial output without token

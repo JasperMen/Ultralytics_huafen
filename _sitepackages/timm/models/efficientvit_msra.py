@@ -1,4 +1,4 @@
-""" EfficientViT (by MSRA)
+"""EfficientViT (by MSRA).
 
 Paper: `EfficientViT: Memory Efficient Vision Transformer with Cascaded Group Attention`
     - https://arxiv.org/abs/2305.07027
@@ -6,38 +6,40 @@ Paper: `EfficientViT: Memory Efficient Vision Transformer with Cascaded Group At
 Adapted from official impl at https://github.com/microsoft/Cream/tree/main/EfficientViT
 """
 
-__all__ = ['EfficientVitMsra']
+from __future__ import annotations
+
+__all__ = ["EfficientVitMsra"]
 import itertools
 from collections import OrderedDict
 from functools import partial
-from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import SqueezeExcite, SelectAdaptivePool2d, trunc_normal_, _assert
+from timm.layers import SelectAdaptivePool2d, SqueezeExcite, _assert, trunc_normal_
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._manipulate import checkpoint, checkpoint_seq
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 
 
 class ConvNorm(torch.nn.Sequential):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            ks: int = 1,
-            stride: int = 1,
-            pad: int = 0,
-            dilation: int = 1,
-            groups: int = 1,
-            bn_weight_init: float = 1,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        ks: int = 1,
+        stride: int = 1,
+        pad: int = 0,
+        dilation: int = 1,
+        groups: int = 1,
+        bn_weight_init: float = 1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv = nn.Conv2d(in_chs, out_chs, ks, stride, pad, dilation, groups, bias=False, **dd)
         self.bn = nn.BatchNorm2d(out_chs, **dd)
@@ -46,13 +48,18 @@ class ConvNorm(torch.nn.Sequential):
     @torch.no_grad()
     def fuse(self):
         c, bn = self.conv, self.bn
-        w = bn.weight / (bn.running_var + bn.eps)**0.5
+        w = bn.weight / (bn.running_var + bn.eps) ** 0.5
         w = c.weight * w[:, None, None, None]
-        b = bn.bias - bn.running_mean * bn.weight / \
-            (bn.running_var + bn.eps)**0.5
+        b = bn.bias - bn.running_mean * bn.weight / (bn.running_var + bn.eps) ** 0.5
         m = torch.nn.Conv2d(
-            w.size(1) * self.conv.groups, w.size(0), w.shape[2:],
-            stride=self.conv.stride, padding=self.conv.padding, dilation=self.conv.dilation, groups=self.conv.groups)
+            w.size(1) * self.conv.groups,
+            w.size(0),
+            w.shape[2:],
+            stride=self.conv.stride,
+            padding=self.conv.padding,
+            dilation=self.conv.dilation,
+            groups=self.conv.groups,
+        )
         m.weight.data.copy_(w)
         m.bias.data.copy_(b)
         return m
@@ -60,16 +67,16 @@ class ConvNorm(torch.nn.Sequential):
 
 class NormLinear(torch.nn.Sequential):
     def __init__(
-            self,
-            in_features: int,
-            out_features: int,
-            bias: bool = True,
-            std: float = 0.02,
-            drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = True,
+        std: float = 0.02,
+        drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.bn = nn.BatchNorm1d(in_features, **dd)
         self.drop = nn.Dropout(drop)
@@ -82,9 +89,8 @@ class NormLinear(torch.nn.Sequential):
     @torch.no_grad()
     def fuse(self):
         bn, linear = self.bn, self.linear
-        w = bn.weight / (bn.running_var + bn.eps)**0.5
-        b = bn.bias - self.bn.running_mean * \
-            self.bn.weight / (bn.running_var + bn.eps)**0.5
+        w = bn.weight / (bn.running_var + bn.eps) ** 0.5
+        b = bn.bias - self.bn.running_mean * self.bn.weight / (bn.running_var + bn.eps) ** 0.5
         w = linear.weight * w[None, :]
         if linear.bias is None:
             b = b @ self.linear.weight.T
@@ -98,19 +104,19 @@ class NormLinear(torch.nn.Sequential):
 
 class PatchMerging(torch.nn.Module):
     def __init__(
-            self,
-            dim: int,
-            out_dim: int,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        out_dim: int,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         hid_dim = int(dim * 4)
         self.conv1 = ConvNorm(dim, hid_dim, 1, 1, 0, **dd)
         self.act = torch.nn.ReLU()
         self.conv2 = ConvNorm(hid_dim, hid_dim, 3, 2, 1, groups=hid_dim, **dd)
-        self.se = SqueezeExcite(hid_dim, .25, **dd)
+        self.se = SqueezeExcite(hid_dim, 0.25, **dd)
         self.conv3 = ConvNorm(hid_dim, out_dim, 1, 1, 0, **dd)
 
     def forward(self, x):
@@ -119,15 +125,17 @@ class PatchMerging(torch.nn.Module):
 
 
 class ResidualDrop(torch.nn.Module):
-    def __init__(self, m: nn.Module, drop: float = 0.):
+    def __init__(self, m: nn.Module, drop: float = 0.0):
         super().__init__()
         self.m = m
         self.drop = drop
 
     def forward(self, x):
         if self.training and self.drop > 0:
-            return x + self.m(x) * torch.rand(
-                x.size(0), 1, 1, 1, device=x.device).ge_(self.drop).div(1 - self.drop).detach()
+            return (
+                x
+                + self.m(x) * torch.rand(x.size(0), 1, 1, 1, device=x.device).ge_(self.drop).div(1 - self.drop).detach()
+            )
         else:
             return x + self.m(x)
 
@@ -140,7 +148,7 @@ class ConvMlp(torch.nn.Module):
         device=None,
         dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.pw1 = ConvNorm(ed, h, **dd)
         self.act = torch.nn.ReLU()
@@ -152,7 +160,7 @@ class ConvMlp(torch.nn.Module):
 
 
 class CascadedGroupAttention(torch.nn.Module):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: dict[str, torch.Tensor]
 
     r""" Cascaded Group Attention.
 
@@ -164,21 +172,22 @@ class CascadedGroupAttention(torch.nn.Module):
         resolution (int): Input resolution, correspond to the window size.
         kernels (List[int]): The kernel size of the dw conv on query.
     """
+
     def __init__(
-            self,
-            dim: int,
-            key_dim: int,
-            num_heads: int = 8,
-            attn_ratio: int = 4,
-            resolution: int = 14,
-            kernels: Tuple[int, ...] = (5, 5, 5, 5),
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        key_dim: int,
+        num_heads: int = 8,
+        attn_ratio: int = 4,
+        resolution: int = 14,
+        kernels: tuple[int, ...] = (5, 5, 5, 5),
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_heads = num_heads
-        self.scale = key_dim ** -0.5
+        self.scale = key_dim**-0.5
         self.key_dim = key_dim
         self.val_dim = int(attn_ratio * key_dim)
         self.attn_ratio = attn_ratio
@@ -191,8 +200,7 @@ class CascadedGroupAttention(torch.nn.Module):
         self.qkvs = torch.nn.ModuleList(qkvs)
         self.dws = torch.nn.ModuleList(dws)
         self.proj = torch.nn.Sequential(
-            torch.nn.ReLU(),
-            ConvNorm(self.val_dim * num_heads, dim, bn_weight_init=0, **dd)
+            torch.nn.ReLU(), ConvNorm(self.val_dim * num_heads, dim, bn_weight_init=0, **dd)
         )
 
         self.resolution = resolution
@@ -201,7 +209,7 @@ class CascadedGroupAttention(torch.nn.Module):
         num_offsets = resolution * resolution
         self.attention_biases = torch.nn.Parameter(torch.empty(num_heads, num_offsets, **dd))
         self.register_buffer(
-            'attention_bias_idxs',
+            "attention_bias_idxs",
             torch.empty((N, N), device=device, dtype=torch.long),
             persistent=False,
         )
@@ -248,7 +256,7 @@ class CascadedGroupAttention(torch.nn.Module):
             return self.attention_bias_cache[device_key]
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        B, _C, H, W = x.shape
         feats_in = x.chunk(len(self.qkvs), dim=1)
         feats_out = []
         feat = feats_in[0]
@@ -272,7 +280,7 @@ class CascadedGroupAttention(torch.nn.Module):
 
 
 class LocalWindowAttention(torch.nn.Module):
-    r""" Local Window Attention.
+    r"""Local Window Attention.
 
     Args:
         dim (int): Number of input channels.
@@ -283,28 +291,31 @@ class LocalWindowAttention(torch.nn.Module):
         window_resolution (int): Local window resolution.
         kernels (List[int]): The kernel size of the dw conv on query.
     """
+
     def __init__(
-            self,
-            dim: int,
-            key_dim: int,
-            num_heads: int = 8,
-            attn_ratio: int = 4,
-            resolution: int = 14,
-            window_resolution: int = 7,
-            kernels: Tuple[int, ...] = (5, 5, 5, 5),
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        key_dim: int,
+        num_heads: int = 8,
+        attn_ratio: int = 4,
+        resolution: int = 14,
+        window_resolution: int = 7,
+        kernels: tuple[int, ...] = (5, 5, 5, 5),
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dim = dim
         self.num_heads = num_heads
         self.resolution = resolution
-        assert window_resolution > 0, 'window_size must be greater than 0'
+        assert window_resolution > 0, "window_size must be greater than 0"
         self.window_resolution = window_resolution
         window_resolution = min(window_resolution, resolution)
         self.attn = CascadedGroupAttention(
-            dim, key_dim, num_heads,
+            dim,
+            key_dim,
+            num_heads,
             attn_ratio=attn_ratio,
             resolution=window_resolution,
             kernels=kernels,
@@ -315,8 +326,8 @@ class LocalWindowAttention(torch.nn.Module):
         H = W = self.resolution
         B, C, H_, W_ = x.shape
         # Only check this for classification models
-        _assert(H == H_, f'input feature has wrong size, expect {(H, W)}, got {(H_, W_)}')
-        _assert(W == W_, f'input feature has wrong size, expect {(H, W)}, got {(H_, W_)}')
+        _assert(H == H_, f"input feature has wrong size, expect {(H, W)}, got {(H_, W_)}")
+        _assert(W == W_, f"input feature has wrong size, expect {(H, W)}, got {(H_, W_)}")
         if H <= self.window_resolution and W <= self.window_resolution:
             x = self.attn(x)
         else:
@@ -341,7 +352,7 @@ class LocalWindowAttention(torch.nn.Module):
 
 
 class EfficientVitBlock(torch.nn.Module):
-    """ A basic EfficientVit building block.
+    """A basic EfficientVit building block.
 
     Args:
         dim (int): Number of input channels.
@@ -352,27 +363,32 @@ class EfficientVitBlock(torch.nn.Module):
         window_resolution (int): Local window resolution.
         kernels (List[int]): The kernel size of the dw conv on query.
     """
+
     def __init__(
-            self,
-            dim: int,
-            key_dim: int,
-            num_heads: int = 8,
-            attn_ratio: int = 4,
-            resolution: int = 14,
-            window_resolution: int = 7,
-            kernels: List[int] = [5, 5, 5, 5],
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        key_dim: int,
+        num_heads: int = 8,
+        attn_ratio: int = 4,
+        resolution: int = 14,
+        window_resolution: int = 7,
+        kernels: list[int] | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        if kernels is None:
+            kernels = [5, 5, 5, 5]
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
-        self.dw0 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))
+        self.dw0 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0.0, **dd))
         self.ffn0 = ResidualDrop(ConvMlp(dim, int(dim * 2), **dd))
 
         self.mixer = ResidualDrop(
             LocalWindowAttention(
-                dim, key_dim, num_heads,
+                dim,
+                key_dim,
+                num_heads,
                 attn_ratio=attn_ratio,
                 resolution=resolution,
                 window_resolution=window_resolution,
@@ -381,7 +397,7 @@ class EfficientVitBlock(torch.nn.Module):
             ),
         )
 
-        self.dw1 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0., **dd))
+        self.dw1 = ResidualDrop(ConvNorm(dim, dim, 3, 1, 1, groups=dim, bn_weight_init=0.0, **dd))
         self.ffn1 = ResidualDrop(ConvMlp(dim, int(dim * 2), **dd))
 
     def forward(self, x):
@@ -390,40 +406,46 @@ class EfficientVitBlock(torch.nn.Module):
 
 class EfficientVitStage(torch.nn.Module):
     def __init__(
-            self,
-            in_dim: int,
-            out_dim: int,
-            key_dim: int,
-            downsample: Tuple[str, int] = ('', 1),
-            num_heads: int = 8,
-            attn_ratio: int = 4,
-            resolution: int = 14,
-            window_resolution: int = 7,
-            kernels: List[int] = [5, 5, 5, 5],
-            depth: int = 1,
-            device=None,
-            dtype=None,
+        self,
+        in_dim: int,
+        out_dim: int,
+        key_dim: int,
+        downsample: tuple[str, int] = ("", 1),
+        num_heads: int = 8,
+        attn_ratio: int = 4,
+        resolution: int = 14,
+        window_resolution: int = 7,
+        kernels: list[int] | None = None,
+        depth: int = 1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        if kernels is None:
+            kernels = [5, 5, 5, 5]
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        if downsample[0] == 'subsample':
+        if downsample[0] == "subsample":
             self.resolution = (resolution - 1) // downsample[1] + 1
             down_blocks = []
-            down_blocks.append((
-                'res1',
-                torch.nn.Sequential(
-                    ResidualDrop(ConvNorm(in_dim, in_dim, 3, 1, 1, groups=in_dim, **dd)),
-                    ResidualDrop(ConvMlp(in_dim, int(in_dim * 2), **dd)),
+            down_blocks.append(
+                (
+                    "res1",
+                    torch.nn.Sequential(
+                        ResidualDrop(ConvNorm(in_dim, in_dim, 3, 1, 1, groups=in_dim, **dd)),
+                        ResidualDrop(ConvMlp(in_dim, int(in_dim * 2), **dd)),
+                    ),
                 )
-            ))
-            down_blocks.append(('patchmerge', PatchMerging(in_dim, out_dim, **dd)))
-            down_blocks.append((
-                'res2',
-                torch.nn.Sequential(
-                    ResidualDrop(ConvNorm(out_dim, out_dim, 3, 1, 1, groups=out_dim, **dd)),
-                    ResidualDrop(ConvMlp(out_dim, int(out_dim * 2), **dd)),
+            )
+            down_blocks.append(("patchmerge", PatchMerging(in_dim, out_dim, **dd)))
+            down_blocks.append(
+                (
+                    "res2",
+                    torch.nn.Sequential(
+                        ResidualDrop(ConvNorm(out_dim, out_dim, 3, 1, 1, groups=out_dim, **dd)),
+                        ResidualDrop(ConvMlp(out_dim, int(out_dim * 2), **dd)),
+                    ),
                 )
-            ))
+            )
             self.downsample = nn.Sequential(OrderedDict(down_blocks))
         else:
             assert in_dim == out_dim
@@ -432,16 +454,18 @@ class EfficientVitStage(torch.nn.Module):
 
         blocks = []
         for d in range(depth):
-            blocks.append(EfficientVitBlock(
-                out_dim,
-                key_dim,
-                num_heads,
-                attn_ratio,
-                self.resolution,
-                window_resolution,
-                kernels,
-                **dd,
-            ))
+            blocks.append(
+                EfficientVitBlock(
+                    out_dim,
+                    key_dim,
+                    num_heads,
+                    attn_ratio,
+                    self.resolution,
+                    window_resolution,
+                    kernels,
+                    **dd,
+                )
+            )
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x):
@@ -452,44 +476,44 @@ class EfficientVitStage(torch.nn.Module):
 
 class PatchEmbedding(torch.nn.Sequential):
     def __init__(
-            self,
-            in_chans: int,
-            dim: int,
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int,
+        dim: int,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        self.add_module('conv1', ConvNorm(in_chans, dim // 8, 3, 2, 1, **dd))
-        self.add_module('relu1', torch.nn.ReLU())
-        self.add_module('conv2', ConvNorm(dim // 8, dim // 4, 3, 2, 1, **dd))
-        self.add_module('relu2', torch.nn.ReLU())
-        self.add_module('conv3', ConvNorm(dim // 4, dim // 2, 3, 2, 1, **dd))
-        self.add_module('relu3', torch.nn.ReLU())
-        self.add_module('conv4', ConvNorm(dim // 2, dim, 3, 2, 1, **dd))
+        dd = {"device": device, "dtype": dtype}
+        self.add_module("conv1", ConvNorm(in_chans, dim // 8, 3, 2, 1, **dd))
+        self.add_module("relu1", torch.nn.ReLU())
+        self.add_module("conv2", ConvNorm(dim // 8, dim // 4, 3, 2, 1, **dd))
+        self.add_module("relu2", torch.nn.ReLU())
+        self.add_module("conv3", ConvNorm(dim // 4, dim // 2, 3, 2, 1, **dd))
+        self.add_module("relu3", torch.nn.ReLU())
+        self.add_module("conv4", ConvNorm(dim // 2, dim, 3, 2, 1, **dd))
         self.patch_size = 16
 
 
 class EfficientVitMsra(nn.Module):
     def __init__(
-            self,
-            img_size: int = 224,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            embed_dim: Tuple[int, ...] = (64, 128, 192),
-            key_dim: Tuple[int, ...] = (16, 16, 16),
-            depth: Tuple[int, ...] = (1, 2, 3),
-            num_heads: Tuple[int, ...] = (4, 4, 4),
-            window_size: Tuple[int, ...] = (7, 7, 7),
-            kernels: Tuple[int, ...] = (5, 5, 5, 5),
-            down_ops: Tuple[Tuple[str, int], ...] = (('', 1), ('subsample', 2), ('subsample', 2)),
-            global_pool: str = 'avg',
-            drop_rate: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int = 224,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        embed_dim: tuple[int, ...] = (64, 128, 192),
+        key_dim: tuple[int, ...] = (16, 16, 16),
+        depth: tuple[int, ...] = (1, 2, 3),
+        num_heads: tuple[int, ...] = (4, 4, 4),
+        window_size: tuple[int, ...] = (7, 7, 7),
+        kernels: tuple[int, ...] = (5, 5, 5, 5),
+        down_ops: tuple[tuple[str, int], ...] = (("", 1), ("subsample", 2), ("subsample", 2)),
+        global_pool: str = "avg",
+        drop_rate: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.grad_checkpointing = False
         self.num_classes = num_classes
         self.in_chans = in_chans
@@ -506,7 +530,8 @@ class EfficientVitMsra(nn.Module):
         stages = []
         pre_ed = embed_dim[0]
         for i, (ed, kd, dpth, nh, ar, wd, do) in enumerate(
-                zip(embed_dim, key_dim, depth, num_heads, attn_ratio, window_size, down_ops)):
+            zip(embed_dim, key_dim, depth, num_heads, attn_ratio, window_size, down_ops)
+        ):
             stage = EfficientVitStage(
                 in_dim=pre_ed,
                 out_dim=ed,
@@ -521,21 +546,24 @@ class EfficientVitMsra(nn.Module):
                 **dd,
             )
             pre_ed = ed
-            if do[0] == 'subsample' and i != 0:
+            if do[0] == "subsample" and i != 0:
                 stride *= do[1]
             resolution = stage.resolution
             stages.append(stage)
-            self.feature_info += [dict(num_chs=ed, reduction=stride, module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": ed, "reduction": stride, "module": f"stages.{i}"}]
         self.stages = nn.Sequential(*stages)
 
-        if global_pool == 'avg':
+        if global_pool == "avg":
             self.global_pool = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
         else:
             assert num_classes == 0
             self.global_pool = nn.Identity()
         self.num_features = self.head_hidden_size = embed_dim[-1]
-        self.head = NormLinear(
-            self.num_features, num_classes, drop=self.drop_rate, **dd) if num_classes > 0 else torch.nn.Identity()
+        self.head = (
+            NormLinear(self.num_features, num_classes, drop=self.drop_rate, **dd)
+            if num_classes > 0
+            else torch.nn.Identity()
+        )
 
         # TODO: skip init when on meta device when safe to do so
         self.init_weights(needs_reset=False)
@@ -544,22 +572,24 @@ class EfficientVitMsra(nn.Module):
         self.apply(partial(self._init_weights, needs_reset=needs_reset))
 
     def _init_weights(self, m: nn.Module, needs_reset: bool = True) -> None:
-        if needs_reset and hasattr(m, 'reset_parameters'):
+        if needs_reset and hasattr(m, "reset_parameters"):
             m.reset_parameters()
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {x for x in self.state_dict().keys() if 'attention_biases' in x}
+        return {x for x in self.state_dict() if "attention_biases" in x}
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        matcher = dict(
-            stem=r'^patch_embed',
-            blocks=r'^stages\.(\d+)' if coarse else [
-                (r'^stages\.(\d+).downsample', (0,)),
-                (r'^stages\.(\d+)\.\w+\.(\d+)', None),
-            ]
-        )
+        matcher = {
+            "stem": r"^patch_embed",
+            "blocks": r"^stages\.(\d+)"
+            if coarse
+            else [
+                (r"^stages\.(\d+).downsample", (0,)),
+                (r"^stages\.(\d+)\.\w+\.(\d+)", None),
+            ],
+        }
         return matcher
 
     @torch.jit.ignore
@@ -570,27 +600,28 @@ class EfficientVitMsra(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.linear
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
-            if global_pool == 'avg':
+            if global_pool == "avg":
                 self.global_pool = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
             else:
                 assert num_classes == 0
                 self.global_pool = nn.Identity()
-        self.head = NormLinear(
-            self.num_features, num_classes, drop=self.drop_rate) if num_classes > 0 else torch.nn.Identity()
+        self.head = (
+            NormLinear(self.num_features, num_classes, drop=self.drop_rate) if num_classes > 0 else torch.nn.Identity()
+        )
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -599,10 +630,8 @@ class EfficientVitMsra(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
 
@@ -612,7 +641,7 @@ class EfficientVitMsra(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             if self.grad_checkpointing and not torch.jit.is_scripting():
@@ -628,17 +657,16 @@ class EfficientVitMsra(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -693,134 +721,136 @@ class EfficientVitMsra(nn.Module):
 #     return out_dict
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000,
-        'mean': IMAGENET_DEFAULT_MEAN,
-        'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'patch_embed.conv1.conv',
-        'classifier': 'head.linear',
-        'fixed_input_size': True,
-        'pool_size': (4, 4),
-        'license': 'mit',
+        "url": url,
+        "num_classes": 1000,
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "patch_embed.conv1.conv",
+        "classifier": "head.linear",
+        "fixed_input_size": True,
+        "pool_size": (4, 4),
+        "license": "mit",
         **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'efficientvit_m0.r224_in1k': _cfg(
-        hf_hub_id='timm/',
-        #url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m0.pth'
-    ),
-    'efficientvit_m1.r224_in1k': _cfg(
-        hf_hub_id='timm/',
-        #url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m1.pth'
-    ),
-    'efficientvit_m2.r224_in1k': _cfg(
-        hf_hub_id='timm/',
-        #url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m2.pth'
-    ),
-    'efficientvit_m3.r224_in1k': _cfg(
-        hf_hub_id='timm/',
-        #url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m3.pth'
-    ),
-    'efficientvit_m4.r224_in1k': _cfg(
-        hf_hub_id='timm/',
-        #url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m4.pth'
-    ),
-    'efficientvit_m5.r224_in1k': _cfg(
-        hf_hub_id='timm/',
-        #url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m5.pth'
-    ),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "efficientvit_m0.r224_in1k": _cfg(
+            hf_hub_id="timm/",
+            # url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m0.pth'
+        ),
+        "efficientvit_m1.r224_in1k": _cfg(
+            hf_hub_id="timm/",
+            # url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m1.pth'
+        ),
+        "efficientvit_m2.r224_in1k": _cfg(
+            hf_hub_id="timm/",
+            # url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m2.pth'
+        ),
+        "efficientvit_m3.r224_in1k": _cfg(
+            hf_hub_id="timm/",
+            # url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m3.pth'
+        ),
+        "efficientvit_m4.r224_in1k": _cfg(
+            hf_hub_id="timm/",
+            # url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m4.pth'
+        ),
+        "efficientvit_m5.r224_in1k": _cfg(
+            hf_hub_id="timm/",
+            # url='https://github.com/xinyuliu-jeffrey/EfficientVit_Model_Zoo/releases/download/v1.0/efficientvit_m5.pth'
+        ),
+    }
+)
 
 
 def _create_efficientvit_msra(variant, pretrained=False, **kwargs):
-    out_indices = kwargs.pop('out_indices', (0, 1, 2))
+    out_indices = kwargs.pop("out_indices", (0, 1, 2))
     model = build_model_with_cfg(
         EfficientVitMsra,
         variant,
         pretrained,
-        feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs
+        feature_cfg={"flatten_sequential": True, "out_indices": out_indices},
+        **kwargs,
     )
     return model
 
 
 @register_model
 def efficientvit_m0(pretrained=False, **kwargs):
-    model_args = dict(
-        img_size=224,
-        embed_dim=[64, 128, 192],
-        depth=[1, 2, 3],
-        num_heads=[4, 4, 4],
-        window_size=[7, 7, 7],
-        kernels=[5, 5, 5, 5]
-    )
-    return _create_efficientvit_msra('efficientvit_m0', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_size": 224,
+        "embed_dim": [64, 128, 192],
+        "depth": [1, 2, 3],
+        "num_heads": [4, 4, 4],
+        "window_size": [7, 7, 7],
+        "kernels": [5, 5, 5, 5],
+    }
+    return _create_efficientvit_msra("efficientvit_m0", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientvit_m1(pretrained=False, **kwargs):
-    model_args = dict(
-        img_size=224,
-        embed_dim=[128, 144, 192],
-        depth=[1, 2, 3],
-        num_heads=[2, 3, 3],
-        window_size=[7, 7, 7],
-        kernels=[7, 5, 3, 3]
-    )
-    return _create_efficientvit_msra('efficientvit_m1', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_size": 224,
+        "embed_dim": [128, 144, 192],
+        "depth": [1, 2, 3],
+        "num_heads": [2, 3, 3],
+        "window_size": [7, 7, 7],
+        "kernels": [7, 5, 3, 3],
+    }
+    return _create_efficientvit_msra("efficientvit_m1", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientvit_m2(pretrained=False, **kwargs):
-    model_args = dict(
-        img_size=224,
-        embed_dim=[128, 192, 224],
-        depth=[1, 2, 3],
-        num_heads=[4, 3, 2],
-        window_size=[7, 7, 7],
-        kernels=[7, 5, 3, 3]
-    )
-    return _create_efficientvit_msra('efficientvit_m2', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_size": 224,
+        "embed_dim": [128, 192, 224],
+        "depth": [1, 2, 3],
+        "num_heads": [4, 3, 2],
+        "window_size": [7, 7, 7],
+        "kernels": [7, 5, 3, 3],
+    }
+    return _create_efficientvit_msra("efficientvit_m2", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientvit_m3(pretrained=False, **kwargs):
-    model_args = dict(
-        img_size=224,
-        embed_dim=[128, 240, 320],
-        depth=[1, 2, 3],
-        num_heads=[4, 3, 4],
-        window_size=[7, 7, 7],
-        kernels=[5, 5, 5, 5]
-    )
-    return _create_efficientvit_msra('efficientvit_m3', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_size": 224,
+        "embed_dim": [128, 240, 320],
+        "depth": [1, 2, 3],
+        "num_heads": [4, 3, 4],
+        "window_size": [7, 7, 7],
+        "kernels": [5, 5, 5, 5],
+    }
+    return _create_efficientvit_msra("efficientvit_m3", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientvit_m4(pretrained=False, **kwargs):
-    model_args = dict(
-        img_size=224,
-        embed_dim=[128, 256, 384],
-        depth=[1, 2, 3],
-        num_heads=[4, 4, 4],
-        window_size=[7, 7, 7],
-        kernels=[7, 5, 3, 3]
-    )
-    return _create_efficientvit_msra('efficientvit_m4', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_size": 224,
+        "embed_dim": [128, 256, 384],
+        "depth": [1, 2, 3],
+        "num_heads": [4, 4, 4],
+        "window_size": [7, 7, 7],
+        "kernels": [7, 5, 3, 3],
+    }
+    return _create_efficientvit_msra("efficientvit_m4", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientvit_m5(pretrained=False, **kwargs):
-    model_args = dict(
-        img_size=224,
-        embed_dim=[192, 288, 384],
-        depth=[1, 3, 4],
-        num_heads=[3, 3, 4],
-        window_size=[7, 7, 7],
-        kernels=[7, 5, 3, 3]
-    )
-    return _create_efficientvit_msra('efficientvit_m5', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_size": 224,
+        "embed_dim": [192, 288, 384],
+        "depth": [1, 3, 4],
+        "num_heads": [3, 3, 4],
+        "window_size": [7, 7, 7],
+        "kernels": [7, 5, 3, 3],
+    }
+    return _create_efficientvit_msra("efficientvit_m5", pretrained=pretrained, **dict(model_args, **kwargs))

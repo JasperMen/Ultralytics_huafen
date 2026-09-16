@@ -1,35 +1,38 @@
-""" MLP module w/ dropout and configurable activation layer
+"""MLP module w/ dropout and configurable activation layer.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-from functools import partial
-from typing import Optional, Type, Union, Tuple
 
-from torch import nn as nn
+from __future__ import annotations
+
+from functools import partial
+
+from torch import nn
 
 from .grn import GlobalResponseNorm
 from .helpers import to_2tuple
 
 
 class Mlp(nn.Module):
-    """ MLP as used in Vision Transformer, MLP-Mixer and related networks
+    """MLP as used in Vision Transformer, MLP-Mixer and related networks.
 
     NOTE: When use_conv=True, expects 2D NCHW tensors, otherwise N*C expected.
     """
+
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            bias: Union[bool, Tuple[bool, bool]] = True,
-            drop: Union[float, Tuple[float, float]] = 0.,
-            use_conv: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] | None = None,
+        bias: bool | tuple[bool, bool] = True,
+        drop: float | tuple[float, float] = 0.0,
+        use_conv: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -55,26 +58,26 @@ class Mlp(nn.Module):
 
 
 class GluMlp(nn.Module):
-    """ MLP w/ GLU style gating
-    See: https://arxiv.org/abs/1612.08083, https://arxiv.org/abs/2002.05202
+    """MLP w/ GLU style gating See: https://arxiv.org/abs/1612.08083, https://arxiv.org/abs/2002.05202.
 
     NOTE: When use_conv=True, expects 2D NCHW tensors, otherwise N*C expected.
     """
+
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.Sigmoid,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            bias: Union[bool, Tuple[bool, bool]] = True,
-            drop: Union[float, Tuple[float, float]] = 0.,
-            use_conv: bool = False,
-            gate_last: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.Sigmoid,
+        norm_layer: type[nn.Module] | None = None,
+        bias: bool | tuple[bool, bool] = True,
+        drop: float | tuple[float, float] = 0.0,
+        use_conv: bool = False,
+        gate_last: bool = True,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -95,8 +98,8 @@ class GluMlp(nn.Module):
     def init_weights(self):
         # override init of fc1 w/ gate portion set to weight near zero, bias=1
         if self.fc1.bias is not None:
-            nn.init.ones_(self.fc1.bias[self.fc1.bias.shape[0] // 2:])
-        nn.init.normal_(self.fc1.weight[self.fc1.weight.shape[0] // 2:], std=1e-6)
+            nn.init.ones_(self.fc1.bias[self.fc1.bias.shape[0] // 2 :])
+        nn.init.normal_(self.fc1.weight[self.fc1.weight.shape[0] // 2 :], std=1e-6)
 
     def forward(self, x):
         x = self.fc1(x)
@@ -113,24 +116,24 @@ SwiGLUPacked = partial(GluMlp, act_layer=nn.SiLU, gate_last=False)
 
 
 class SwiGLU(nn.Module):
-    """ SwiGLU
-    NOTE: GluMLP above can implement SwiGLU, but this impl has split fc1 and
-    better matches some other common impl which makes mapping checkpoints simpler.
+    """SwiGLU NOTE: GluMLP above can implement SwiGLU, but this impl has split fc1 and better matches some other common
+    impl which makes mapping checkpoints simpler.
     """
+
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.SiLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            bias: Union[bool, Tuple[bool, bool]] = True,
-            drop: Union[float, Tuple[float, float]] = 0.,
-            align_to: int = 0,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.SiLU,
+        norm_layer: type[nn.Module] | None = None,
+        bias: bool | tuple[bool, bool] = True,
+        drop: float | tuple[float, float] = 0.0,
+        align_to: int = 0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -166,22 +169,22 @@ class SwiGLU(nn.Module):
 
 
 class GatedMlp(nn.Module):
-    """ MLP as used in gMLP
-    """
+    """MLP as used in gMLP."""
+
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            gate_layer: Optional[Type[nn.Module]] = None,
-            bias: Union[bool, Tuple[bool, bool]] = True,
-            drop: Union[float, Tuple[float, float]] = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] | None = None,
+        gate_layer: type[nn.Module] | None = None,
+        bias: bool | tuple[bool, bool] = True,
+        drop: float | tuple[float, float] = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -213,21 +216,21 @@ class GatedMlp(nn.Module):
 
 
 class ConvMlp(nn.Module):
-    """ MLP using 1x1 convs that keeps spatial dims (for 2D NCHW tensors)
-    """
+    """MLP using 1x1 convs that keeps spatial dims (for 2D NCHW tensors)."""
+
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            bias: Union[bool, Tuple[bool, bool]] = True,
-            drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] | None = None,
+        bias: bool | tuple[bool, bool] = True,
+        drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -249,23 +252,24 @@ class ConvMlp(nn.Module):
 
 
 class GlobalResponseNormMlp(nn.Module):
-    """ MLP w/ Global Response Norm (see grn.py), nn.Linear or 1x1 Conv2d
+    """MLP w/ Global Response Norm (see grn.py), nn.Linear or 1x1 Conv2d.
 
     NOTE: Intended for '2D' NCHW (use_conv=True) or NHWC (use_conv=False, channels-last) tensor layouts
     """
+
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            bias: Union[bool, Tuple[bool, bool]] = True,
-            drop: Union[float, Tuple[float, float]] = 0.,
-            use_conv: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        bias: bool | tuple[bool, bool] = True,
+        drop: float | tuple[float, float] = 0.0,
+        use_conv: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features

@@ -1,4 +1,4 @@
-""" CrossViT Model
+"""CrossViT Model.
 
 @inproceedings{
     chen2021crossvit,
@@ -20,37 +20,38 @@ Modified from Timm. https://github.com/rwightman/pytorch-image-models/blob/maste
 # Copyright IBM All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+from __future__ import annotations
+
 from functools import partial
-from typing import List, Optional, Tuple, Type, Union
+from typing import List
 
 import torch
-import torch.nn as nn
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import DropPath, calculate_drop_path_rates, to_2tuple, trunc_normal_, _assert
+from timm.layers import DropPath, _assert, calculate_drop_path_rates, to_2tuple, trunc_normal_
+from torch import nn
+
 from ._builder import build_model_with_cfg
 from ._features_fx import register_notrace_function
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 from .vision_transformer import Block
 
-__all__ = ['CrossVit']  # model_registry will add each entrypoint fn to this
+__all__ = ["CrossVit"]  # model_registry will add each entrypoint fn to this
 
 
 class PatchEmbed(nn.Module):
-    """ Image to Patch Embedding
-    """
+    """Image to Patch Embedding."""
 
     def __init__(
-            self,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            patch_size: int = 16,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            multi_conv: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        multi_conv: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
@@ -79,33 +80,37 @@ class PatchEmbed(nn.Module):
             self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        _B, _C, H, W = x.shape
         # FIXME look at relaxing size constraints
-        _assert(H == self.img_size[0],
-                f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}).")
-        _assert(W == self.img_size[1],
-                f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}).")
+        _assert(
+            H == self.img_size[0],
+            f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}).",
+        )
+        _assert(
+            W == self.img_size[1],
+            f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}).",
+        )
         x = self.proj(x).flatten(2).transpose(1, 2)
         return x
 
 
 class CrossAttention(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            qkv_bias: bool = False,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim // num_heads
         # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
 
         self.wq = nn.Linear(dim, dim, bias=qkv_bias, **dd)
         self.wk = nn.Linear(dim, dim, bias=qkv_bias, **dd)
@@ -134,22 +139,21 @@ class CrossAttention(nn.Module):
 
 
 class CrossAttentionBlock(nn.Module):
-
     def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            mlp_ratio: float = 4.,
-            qkv_bias: bool = False,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = False,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.norm1 = norm_layer(dim, **dd)
         self.attn = CrossAttention(
@@ -161,7 +165,7 @@ class CrossAttentionBlock(nn.Module):
             **dd,
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         x = x[:, 0:1, ...] + self.drop_path(self.attn(self.norm1(x)))
@@ -169,24 +173,23 @@ class CrossAttentionBlock(nn.Module):
 
 
 class MultiScaleBlock(nn.Module):
-
     def __init__(
-            self,
-            dim: Tuple[int, ...],
-            patches: Tuple[int, ...],
-            depth: Tuple[int, ...],
-            num_heads: Tuple[int, ...],
-            mlp_ratio: Tuple[float, ...],
-            qkv_bias: bool = False,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: Union[List[float], float] = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            device=None,
-            dtype=None,
+        self,
+        dim: tuple[int, ...],
+        patches: tuple[int, ...],
+        depth: tuple[int, ...],
+        num_heads: tuple[int, ...],
+        mlp_ratio: tuple[float, ...],
+        qkv_bias: bool = False,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: list[float] | float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         num_branches = len(dim)
         self.num_branches = num_branches
@@ -195,17 +198,19 @@ class MultiScaleBlock(nn.Module):
         for d in range(num_branches):
             tmp = []
             for i in range(depth[d]):
-                tmp.append(Block(
-                    dim=dim[d],
-                    num_heads=num_heads[d],
-                    mlp_ratio=mlp_ratio[d],
-                    qkv_bias=qkv_bias,
-                    proj_drop=proj_drop,
-                    attn_drop=attn_drop,
-                    drop_path=drop_path[i],
-                    norm_layer=norm_layer,
-                    **dd,
-                ))
+                tmp.append(
+                    Block(
+                        dim=dim[d],
+                        num_heads=num_heads[d],
+                        mlp_ratio=mlp_ratio[d],
+                        qkv_bias=qkv_bias,
+                        proj_drop=proj_drop,
+                        attn_drop=attn_drop,
+                        drop_path=drop_path[i],
+                        norm_layer=norm_layer,
+                        **dd,
+                    )
+                )
             if len(tmp) != 0:
                 self.blocks.append(nn.Sequential(*tmp))
 
@@ -236,21 +241,24 @@ class MultiScaleBlock(nn.Module):
                         drop_path=drop_path[-1],
                         norm_layer=norm_layer,
                         **dd,
-                    ))
+                    )
+                )
             else:
                 tmp = []
                 for _ in range(depth[-1]):
-                    tmp.append(CrossAttentionBlock(
-                        dim=dim[d_],
-                        num_heads=nh,
-                        mlp_ratio=mlp_ratio[d],
-                        qkv_bias=qkv_bias,
-                        proj_drop=proj_drop,
-                        attn_drop=attn_drop,
-                        drop_path=drop_path[-1],
-                        norm_layer=norm_layer,
-                        **dd,
-                    ))
+                    tmp.append(
+                        CrossAttentionBlock(
+                            dim=dim[d_],
+                            num_heads=nh,
+                            mlp_ratio=mlp_ratio[d],
+                            qkv_bias=qkv_bias,
+                            proj_drop=proj_drop,
+                            attn_drop=attn_drop,
+                            drop_path=drop_path[-1],
+                            norm_layer=norm_layer,
+                            **dd,
+                        )
+                    )
                 self.fusion.append(nn.Sequential(*tmp))
 
         self.revert_projs = nn.ModuleList()
@@ -258,11 +266,14 @@ class MultiScaleBlock(nn.Module):
             if dim[(d + 1) % num_branches] == dim[d] and False:
                 tmp = [nn.Identity()]
             else:
-                tmp = [norm_layer(dim[(d + 1) % num_branches], **dd), act_layer(),
-                       nn.Linear(dim[(d + 1) % num_branches], dim[d], **dd)]
+                tmp = [
+                    norm_layer(dim[(d + 1) % num_branches], **dd),
+                    act_layer(),
+                    nn.Linear(dim[(d + 1) % num_branches], dim[d], **dd),
+                ]
             self.revert_projs.append(nn.Sequential(*tmp))
 
-    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+    def forward(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
 
         outs_b = []
         for i, block in enumerate(self.blocks):
@@ -289,57 +300,57 @@ def _compute_num_patches(img_size, patches):
 
 
 @register_notrace_function
-def scale_image(x, ss: Tuple[int, int], crop_scale: bool = False):  # annotations for torchscript
-    """
-    Pulled out of CrossViT.forward_features to bury conditional logic in a leaf node for FX tracing.
+def scale_image(x, ss: tuple[int, int], crop_scale: bool = False):  # annotations for torchscript
+    """Pulled out of CrossViT.forward_features to bury conditional logic in a leaf node for FX tracing.
+
     Args:
         x (Tensor): input image
         ss (tuple[int, int]): height and width to scale to
         crop_scale (bool): whether to crop instead of interpolate to achieve the desired scale. Defaults to False
+
     Returns:
-        Tensor: the "scaled" image batch tensor
+        Tensor: the "scaled" image batch tensor.
     """
     H, W = x.shape[-2:]
     if H != ss[0] or W != ss[1]:
         if crop_scale and ss[0] <= H and ss[1] <= W:
-            cu, cl = int(round((H - ss[0]) / 2.)), int(round((W - ss[1]) / 2.))
-            x = x[:, :, cu:cu + ss[0], cl:cl + ss[1]]
+            cu, cl = round((H - ss[0]) / 2.0), round((W - ss[1]) / 2.0)
+            x = x[:, :, cu : cu + ss[0], cl : cl + ss[1]]
         else:
-            x = torch.nn.functional.interpolate(x, size=ss, mode='bicubic', align_corners=False)
+            x = torch.nn.functional.interpolate(x, size=ss, mode="bicubic", align_corners=False)
     return x
 
 
 class CrossVit(nn.Module):
-    """ Vision Transformer with support for patch or hybrid CNN input stage
-    """
+    """Vision Transformer with support for patch or hybrid CNN input stage."""
 
     def __init__(
-            self,
-            img_size: int = 224,
-            img_scale: Tuple[float, ...] = (1.0, 1.0),
-            patch_size: Tuple[int, ...] = (8, 16),
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            embed_dim: Tuple[int, ...] = (192, 384),
-            depth: Tuple[Tuple[int, ...], ...] = ((1, 3, 1), (1, 3, 1), (1, 3, 1)),
-            num_heads: Tuple[int, ...] = (6, 12),
-            mlp_ratio: Tuple[float, ...] = (2., 2., 4.),
-            multi_conv: bool = False,
-            crop_scale: bool = False,
-            qkv_bias: bool = True,
-            drop_rate: float = 0.,
-            pos_drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            attn_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            global_pool: str = 'token',
-            device=None,
-            dtype=None,
+        self,
+        img_size: int = 224,
+        img_scale: tuple[float, ...] = (1.0, 1.0),
+        patch_size: tuple[int, ...] = (8, 16),
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        embed_dim: tuple[int, ...] = (192, 384),
+        depth: tuple[tuple[int, ...], ...] = ((1, 3, 1), (1, 3, 1), (1, 3, 1)),
+        num_heads: tuple[int, ...] = (6, 12),
+        mlp_ratio: tuple[float, ...] = (2.0, 2.0, 4.0),
+        multi_conv: bool = False,
+        crop_scale: bool = False,
+        qkv_bias: bool = True,
+        drop_rate: float = 0.0,
+        pos_drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        norm_layer: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        global_pool: str = "token",
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        assert global_pool in ('token', 'avg')
+        dd = {"device": device, "dtype": dtype}
+        assert global_pool in ("token", "avg")
 
         self.num_classes = num_classes
         self.in_chans = in_chans
@@ -356,8 +367,8 @@ class CrossVit(nn.Module):
 
         # hard-coded for torch jit script
         for i in range(self.num_branches):
-            setattr(self, f'pos_embed_{i}', nn.Parameter(torch.zeros(1, 1 + num_patches[i], embed_dim[i], **dd)))
-            setattr(self, f'cls_token_{i}', nn.Parameter(torch.zeros(1, 1, embed_dim[i], **dd)))
+            setattr(self, f"pos_embed_{i}", nn.Parameter(torch.zeros(1, 1 + num_patches[i], embed_dim[i], **dd)))
+            setattr(self, f"cls_token_{i}", nn.Parameter(torch.zeros(1, 1, embed_dim[i], **dd)))
 
         for im_s, p, d in zip(self.img_size_scaled, patch_size, embed_dim):
             self.patch_embed.append(
@@ -368,7 +379,8 @@ class CrossVit(nn.Module):
                     embed_dim=d,
                     multi_conv=multi_conv,
                     **dd,
-                ))
+                )
+            )
 
         self.pos_drop = nn.Dropout(p=pos_drop_rate)
 
@@ -378,7 +390,7 @@ class CrossVit(nn.Module):
         self.blocks = nn.ModuleList()
         for idx, block_cfg in enumerate(depth):
             curr_depth = max(block_cfg[:-1]) + block_cfg[-1]
-            dpr_ = dpr[dpr_ptr:dpr_ptr + curr_depth]
+            dpr_ = dpr[dpr_ptr : dpr_ptr + curr_depth]
             blk = MultiScaleBlock(
                 embed_dim,
                 num_patches,
@@ -397,19 +409,22 @@ class CrossVit(nn.Module):
 
         self.norm = nn.ModuleList([norm_layer(embed_dim[i], **dd) for i in range(self.num_branches)])
         self.head_drop = nn.Dropout(drop_rate)
-        self.head = nn.ModuleList([
-            nn.Linear(embed_dim[i], num_classes, **dd) if num_classes > 0 else nn.Identity()
-            for i in range(self.num_branches)])
+        self.head = nn.ModuleList(
+            [
+                nn.Linear(embed_dim[i], num_classes, **dd) if num_classes > 0 else nn.Identity()
+                for i in range(self.num_branches)
+            ]
+        )
 
         for i in range(self.num_branches):
-            trunc_normal_(getattr(self, f'pos_embed_{i}'), std=.02)
-            trunc_normal_(getattr(self, f'cls_token_{i}'), std=.02)
+            trunc_normal_(getattr(self, f"pos_embed_{i}"), std=0.02)
+            trunc_normal_(getattr(self, f"cls_token_{i}"), std=0.02)
 
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
@@ -420,41 +435,43 @@ class CrossVit(nn.Module):
     def no_weight_decay(self):
         out = set()
         for i in range(self.num_branches):
-            out.add(f'cls_token_{i}')
-            pe = getattr(self, f'pos_embed_{i}', None)
+            out.add(f"cls_token_{i}")
+            pe = getattr(self, f"pos_embed_{i}", None)
             if pe is not None and pe.requires_grad:
-                out.add(f'pos_embed_{i}')
+                out.add(f"pos_embed_{i}")
         return out
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^cls_token|pos_embed|patch_embed',  # stem and embed
-            blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
-        )
+        return {
+            "stem": r"^cls_token|pos_embed|patch_embed",  # stem and embed
+            "blocks": [(r"^blocks\.(\d+)", None), (r"^norm", (99999,))],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
-        assert not enable, 'gradient checkpointing not supported'
+        assert not enable, "gradient checkpointing not supported"
 
     @torch.jit.ignore
     def get_classifier(self) -> nn.Module:
         return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
-            assert global_pool in ('token', 'avg')
+            assert global_pool in ("token", "avg")
             self.global_pool = global_pool
-        device = self.head[0].weight.device if hasattr(self.head[0], 'weight') else None
-        dtype = self.head[0].weight.dtype if hasattr(self.head[0], 'weight') else None
-        dd = {'device': device, 'dtype': dtype}
-        self.head = nn.ModuleList([
-            nn.Linear(self.embed_dim[i], num_classes, **dd) if num_classes > 0 else nn.Identity()
-            for i in range(self.num_branches)
-        ])
+        device = self.head[0].weight.device if hasattr(self.head[0], "weight") else None
+        dtype = self.head[0].weight.dtype if hasattr(self.head[0], "weight") else None
+        dd = {"device": device, "dtype": dtype}
+        self.head = nn.ModuleList(
+            [
+                nn.Linear(self.embed_dim[i], num_classes, **dd) if num_classes > 0 else nn.Identity()
+                for i in range(self.num_branches)
+            ]
+        )
 
-    def forward_features(self, x) -> List[torch.Tensor]:
+    def forward_features(self, x) -> list[torch.Tensor]:
         B = x.shape[0]
         xs = []
         for i, patch_embed in enumerate(self.patch_embed):
@@ -477,8 +494,8 @@ class CrossVit(nn.Module):
         xs = [norm(xs[i]) for i, norm in enumerate(self.norm)]
         return xs
 
-    def forward_head(self, xs: List[torch.Tensor], pre_logits: bool = False) -> torch.Tensor:
-        xs = [x[:, 1:].mean(dim=1) for x in xs] if self.global_pool == 'avg' else [x[:, 0] for x in xs]
+    def forward_head(self, xs: list[torch.Tensor], pre_logits: bool = False) -> torch.Tensor:
+        xs = [x[:, 1:].mean(dim=1) for x in xs] if self.global_pool == "avg" else [x[:, 0] for x in xs]
         xs = [self.head_drop(x) for x in xs]
         if pre_logits or isinstance(self.head[0], nn.Identity):
             return torch.cat([x for x in xs], dim=1)
@@ -491,13 +508,13 @@ class CrossVit(nn.Module):
 
 
 def _create_crossvit(variant, pretrained=False, **kwargs):
-    if kwargs.get('features_only', None):
-        raise RuntimeError('features_only not implemented for Vision Transformer models.')
+    if kwargs.get("features_only", None):
+        raise RuntimeError("features_only not implemented for Vision Transformer models.")
 
     def pretrained_filter_fn(state_dict):
         new_state_dict = {}
-        for key in state_dict.keys():
-            if 'pos_embed' in key or 'cls_token' in key:
+        for key in state_dict:
+            if "pos_embed" in key or "cls_token" in key:
                 new_key = key.replace(".", "_")
             else:
                 new_key = key
@@ -513,142 +530,214 @@ def _create_crossvit(variant, pretrained=False, **kwargs):
     )
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 240, 240), 'pool_size': None, 'crop_pct': 0.875,
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD, 'fixed_input_size': True,
-        'first_conv': ('patch_embed.0.proj', 'patch_embed.1.proj'),
-        'classifier': ('head.0', 'head.1'),
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 240, 240),
+        "pool_size": None,
+        "crop_pct": 0.875,
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "fixed_input_size": True,
+        "first_conv": ("patch_embed.0.proj", "patch_embed.1.proj"),
+        "classifier": ("head.0", "head.1"),
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'crossvit_15_240.in1k': _cfg(hf_hub_id='timm/'),
-    'crossvit_15_dagger_240.in1k': _cfg(
-        hf_hub_id='timm/',
-        first_conv=('patch_embed.0.proj.0', 'patch_embed.1.proj.0'),
-    ),
-    'crossvit_15_dagger_408.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 408, 408), first_conv=('patch_embed.0.proj.0', 'patch_embed.1.proj.0'), crop_pct=1.0,
-    ),
-    'crossvit_18_240.in1k': _cfg(hf_hub_id='timm/'),
-    'crossvit_18_dagger_240.in1k': _cfg(
-        hf_hub_id='timm/',
-        first_conv=('patch_embed.0.proj.0', 'patch_embed.1.proj.0'),
-    ),
-    'crossvit_18_dagger_408.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 408, 408), first_conv=('patch_embed.0.proj.0', 'patch_embed.1.proj.0'), crop_pct=1.0,
-    ),
-    'crossvit_9_240.in1k': _cfg(hf_hub_id='timm/'),
-    'crossvit_9_dagger_240.in1k': _cfg(
-        hf_hub_id='timm/',
-        first_conv=('patch_embed.0.proj.0', 'patch_embed.1.proj.0'),
-    ),
-    'crossvit_base_240.in1k': _cfg(hf_hub_id='timm/'),
-    'crossvit_small_240.in1k': _cfg(hf_hub_id='timm/'),
-    'crossvit_tiny_240.in1k': _cfg(hf_hub_id='timm/'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "crossvit_15_240.in1k": _cfg(hf_hub_id="timm/"),
+        "crossvit_15_dagger_240.in1k": _cfg(
+            hf_hub_id="timm/",
+            first_conv=("patch_embed.0.proj.0", "patch_embed.1.proj.0"),
+        ),
+        "crossvit_15_dagger_408.in1k": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 408, 408),
+            first_conv=("patch_embed.0.proj.0", "patch_embed.1.proj.0"),
+            crop_pct=1.0,
+        ),
+        "crossvit_18_240.in1k": _cfg(hf_hub_id="timm/"),
+        "crossvit_18_dagger_240.in1k": _cfg(
+            hf_hub_id="timm/",
+            first_conv=("patch_embed.0.proj.0", "patch_embed.1.proj.0"),
+        ),
+        "crossvit_18_dagger_408.in1k": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 408, 408),
+            first_conv=("patch_embed.0.proj.0", "patch_embed.1.proj.0"),
+            crop_pct=1.0,
+        ),
+        "crossvit_9_240.in1k": _cfg(hf_hub_id="timm/"),
+        "crossvit_9_dagger_240.in1k": _cfg(
+            hf_hub_id="timm/",
+            first_conv=("patch_embed.0.proj.0", "patch_embed.1.proj.0"),
+        ),
+        "crossvit_base_240.in1k": _cfg(hf_hub_id="timm/"),
+        "crossvit_small_240.in1k": _cfg(hf_hub_id="timm/"),
+        "crossvit_tiny_240.in1k": _cfg(hf_hub_id="timm/"),
+    }
+)
 
 
 @register_model
 def crossvit_tiny_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[96, 192], depth=[[1, 4, 0], [1, 4, 0], [1, 4, 0]],
-        num_heads=[3, 3], mlp_ratio=[4, 4, 1])
-    model = _create_crossvit(variant='crossvit_tiny_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [96, 192],
+        "depth": [[1, 4, 0], [1, 4, 0], [1, 4, 0]],
+        "num_heads": [3, 3],
+        "mlp_ratio": [4, 4, 1],
+    }
+    model = _create_crossvit(variant="crossvit_tiny_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_small_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 4, 0], [1, 4, 0], [1, 4, 0]],
-        num_heads=[6, 6], mlp_ratio=[4, 4, 1])
-    model = _create_crossvit(variant='crossvit_small_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [192, 384],
+        "depth": [[1, 4, 0], [1, 4, 0], [1, 4, 0]],
+        "num_heads": [6, 6],
+        "mlp_ratio": [4, 4, 1],
+    }
+    model = _create_crossvit(variant="crossvit_small_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_base_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[384, 768], depth=[[1, 4, 0], [1, 4, 0], [1, 4, 0]],
-        num_heads=[12, 12], mlp_ratio=[4, 4, 1])
-    model = _create_crossvit(variant='crossvit_base_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [384, 768],
+        "depth": [[1, 4, 0], [1, 4, 0], [1, 4, 0]],
+        "num_heads": [12, 12],
+        "mlp_ratio": [4, 4, 1],
+    }
+    model = _create_crossvit(variant="crossvit_base_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_9_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[128, 256], depth=[[1, 3, 0], [1, 3, 0], [1, 3, 0]],
-        num_heads=[4, 4], mlp_ratio=[3, 3, 1])
-    model = _create_crossvit(variant='crossvit_9_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [128, 256],
+        "depth": [[1, 3, 0], [1, 3, 0], [1, 3, 0]],
+        "num_heads": [4, 4],
+        "mlp_ratio": [3, 3, 1],
+    }
+    model = _create_crossvit(variant="crossvit_9_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_15_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 5, 0], [1, 5, 0], [1, 5, 0]],
-        num_heads=[6, 6], mlp_ratio=[3, 3, 1])
-    model = _create_crossvit(variant='crossvit_15_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [192, 384],
+        "depth": [[1, 5, 0], [1, 5, 0], [1, 5, 0]],
+        "num_heads": [6, 6],
+        "mlp_ratio": [3, 3, 1],
+    }
+    model = _create_crossvit(variant="crossvit_15_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_18_240(pretrained=False, **kwargs) -> CrossVit:
     model_args = dict(
-        img_scale=(1.0, 224 / 240), patch_size=[12, 16], embed_dim=[224, 448], depth=[[1, 6, 0], [1, 6, 0], [1, 6, 0]],
-        num_heads=[7, 7], mlp_ratio=[3, 3, 1], **kwargs)
-    model = _create_crossvit(variant='crossvit_18_240', pretrained=pretrained, **dict(model_args, **kwargs))
+        img_scale=(1.0, 224 / 240),
+        patch_size=[12, 16],
+        embed_dim=[224, 448],
+        depth=[[1, 6, 0], [1, 6, 0], [1, 6, 0]],
+        num_heads=[7, 7],
+        mlp_ratio=[3, 3, 1],
+        **kwargs,
+    )
+    model = _create_crossvit(variant="crossvit_18_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_9_dagger_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224 / 240), patch_size=[12, 16], embed_dim=[128, 256], depth=[[1, 3, 0], [1, 3, 0], [1, 3, 0]],
-        num_heads=[4, 4], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_9_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [128, 256],
+        "depth": [[1, 3, 0], [1, 3, 0], [1, 3, 0]],
+        "num_heads": [4, 4],
+        "mlp_ratio": [3, 3, 1],
+        "multi_conv": True,
+    }
+    model = _create_crossvit(variant="crossvit_9_dagger_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_15_dagger_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 5, 0], [1, 5, 0], [1, 5, 0]],
-        num_heads=[6, 6], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_15_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [192, 384],
+        "depth": [[1, 5, 0], [1, 5, 0], [1, 5, 0]],
+        "num_heads": [6, 6],
+        "mlp_ratio": [3, 3, 1],
+        "multi_conv": True,
+    }
+    model = _create_crossvit(variant="crossvit_15_dagger_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_15_dagger_408(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 384/408), patch_size=[12, 16], embed_dim=[192, 384], depth=[[1, 5, 0], [1, 5, 0], [1, 5, 0]],
-        num_heads=[6, 6], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_15_dagger_408', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 384 / 408),
+        "patch_size": [12, 16],
+        "embed_dim": [192, 384],
+        "depth": [[1, 5, 0], [1, 5, 0], [1, 5, 0]],
+        "num_heads": [6, 6],
+        "mlp_ratio": [3, 3, 1],
+        "multi_conv": True,
+    }
+    model = _create_crossvit(variant="crossvit_15_dagger_408", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_18_dagger_240(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 224/240), patch_size=[12, 16], embed_dim=[224, 448], depth=[[1, 6, 0], [1, 6, 0], [1, 6, 0]],
-        num_heads=[7, 7], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_18_dagger_240', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 224 / 240),
+        "patch_size": [12, 16],
+        "embed_dim": [224, 448],
+        "depth": [[1, 6, 0], [1, 6, 0], [1, 6, 0]],
+        "num_heads": [7, 7],
+        "mlp_ratio": [3, 3, 1],
+        "multi_conv": True,
+    }
+    model = _create_crossvit(variant="crossvit_18_dagger_240", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def crossvit_18_dagger_408(pretrained=False, **kwargs) -> CrossVit:
-    model_args = dict(
-        img_scale=(1.0, 384/408), patch_size=[12, 16], embed_dim=[224, 448], depth=[[1, 6, 0], [1, 6, 0], [1, 6, 0]],
-        num_heads=[7, 7], mlp_ratio=[3, 3, 1], multi_conv=True)
-    model = _create_crossvit(variant='crossvit_18_dagger_408', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "img_scale": (1.0, 384 / 408),
+        "patch_size": [12, 16],
+        "embed_dim": [224, 448],
+        "depth": [[1, 6, 0], [1, 6, 0], [1, 6, 0]],
+        "num_heads": [7, 7],
+        "mlp_ratio": [3, 3, 1],
+        "multi_conv": True,
+    }
+    model = _create_crossvit(variant="crossvit_18_dagger_408", pretrained=pretrained, **dict(model_args, **kwargs))
     return model

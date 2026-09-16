@@ -1,4 +1,4 @@
-""" Bottleneck Self Attention (Bottleneck Transformers)
+"""Bottleneck Self Attention (Bottleneck Transformers).
 
 Paper: `Bottleneck Transformers for Visual Recognition` - https://arxiv.org/abs/2101.11605
 
@@ -14,31 +14,32 @@ This impl is a WIP but given that it is based on the ref gist likely not too far
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import List, Optional, Tuple
+
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
-from .helpers import to_2tuple, make_divisible
-from .weight_init import trunc_normal_
+from .helpers import make_divisible, to_2tuple
 from .trace_utils import _assert
+from .weight_init import trunc_normal_
 
 
-def rel_logits_1d(q, rel_k, permute_mask: List[int]):
-    """ Compute relative logits along one dimension
+def rel_logits_1d(q, rel_k, permute_mask: list[int]):
+    """Compute relative logits along one dimension.
 
-    As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2
-    Originally from: `Attention Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925
+    As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2 Originally from: `Attention
+    Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925
 
     Args:
         q: (batch, heads, height, width, dim)
         rel_k: (2 * width - 1, dim)
         permute_mask: permute output dim according to this
     """
-    B, H, W, dim = q.shape
-    x = (q @ rel_k.transpose(-1, -2))
-    x = x.reshape(-1, W, 2 * W -1)
+    B, H, W, _dim = q.shape
+    x = q @ rel_k.transpose(-1, -2)
+    x = x.reshape(-1, W, 2 * W - 1)
 
     # pad to shift from relative to absolute indexing
     x_pad = F.pad(x, [0, 1]).flatten(1)
@@ -46,7 +47,7 @@ def rel_logits_1d(q, rel_k, permute_mask: List[int]):
 
     # reshape and slice out the padded elements
     x_pad = x_pad.reshape(-1, W + 1, 2 * W - 1)
-    x = x_pad[:, :W, W - 1:]
+    x = x_pad[:, :W, W - 1 :]
 
     # reshape and tile
     x = x.reshape(B, H, 1, W, W).expand(-1, -1, H, -1, -1)
@@ -54,19 +55,19 @@ def rel_logits_1d(q, rel_k, permute_mask: List[int]):
 
 
 class PosEmbedRel(nn.Module):
-    """ Relative Position Embedding
-    As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2
-    Originally from: `Attention Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925
+    """Relative Position Embedding As per: https://gist.github.com/aravindsrinivas/56359b79f0ce4449bcb04ab4b56a57a2
+    Originally from: `Attention Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925.
     """
+
     def __init__(
-            self,
-            feat_size: Tuple[int, int],
-            dim_head: int,
-            scale: float,
-            device=None,
-            dtype=None,
+        self,
+        feat_size: tuple[int, int],
+        dim_head: int,
+        scale: float,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.height, self.width = to_2tuple(feat_size)
         self.dim_head = dim_head
@@ -98,16 +99,15 @@ class PosEmbedRel(nn.Module):
 
 
 class BottleneckAttn(nn.Module):
-    """ Bottleneck Attention
-    Paper: `Bottleneck Transformers for Visual Recognition` - https://arxiv.org/abs/2101.11605
+    """Bottleneck Attention Paper: `Bottleneck Transformers for Visual Recognition` - https://arxiv.org/abs/2101.11605.
 
     The internal dimensions of the attention module are controlled by the interaction of several arguments.
-      * the output dimension of the module is specified by dim_out, which falls back to input dim if not set
-      * the value (v) dimension is set to dim_out // num_heads, the v projection determines the output dim
-      * the query and key (qk) dimensions are determined by
+    * the output dimension of the module is specified by dim_out, which falls back to input dim if not set
+    * the value (v) dimension is set to dim_out // num_heads, the v projection determines the output dim
+    * the query and key (qk) dimensions are determined by
         * num_heads * dim_head if dim_head is not None
         * num_heads * (dim_out * attn_ratio // num_heads) if dim_head is None
-      * as seen above, attn_ratio determines the ratio of q and k relative to the output if dim_head not used
+    * as seen above, attn_ratio determines the ratio of q and k relative to the output if dim_head not used
 
     Args:
         dim (int): input dimension to the module
@@ -119,23 +119,24 @@ class BottleneckAttn(nn.Module):
         qkv_bias (bool): add bias to q, k, and v projections
         scale_pos_embed (bool): scale the position embedding as well as Q @ K
     """
+
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            feat_size: Optional[Tuple[int, int]] = None,
-            stride: int = 1,
-            num_heads: int = 4,
-            dim_head: Optional[int] = None,
-            qk_ratio: float = 1.0,
-            qkv_bias: bool = False,
-            scale_pos_embed: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        feat_size: tuple[int, int] | None = None,
+        stride: int = 1,
+        num_heads: int = 4,
+        dim_head: int | None = None,
+        qk_ratio: float = 1.0,
+        qkv_bias: bool = False,
+        scale_pos_embed: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        assert feat_size is not None, 'A concrete feature size matching expected input (H, W) is required'
+        assert feat_size is not None, "A concrete feature size matching expected input (H, W) is required"
         dim_out = dim_out or dim
         assert dim_out % num_heads == 0
         self.num_heads = num_heads
@@ -143,7 +144,7 @@ class BottleneckAttn(nn.Module):
         self.dim_head_v = dim_out // self.num_heads
         self.dim_out_qk = num_heads * self.dim_head_qk
         self.dim_out_v = num_heads * self.dim_head_v
-        self.scale = self.dim_head_qk ** -0.5
+        self.scale = self.dim_head_qk**-0.5
         self.scale_pos_embed = scale_pos_embed
 
         self.qkv = nn.Conv2d(dim, self.dim_out_qk * 2 + self.dim_out_v, 1, bias=qkv_bias, **dd)
@@ -161,9 +162,9 @@ class BottleneckAttn(nn.Module):
         trunc_normal_(self.pos_embed.width_rel, std=self.scale)
 
     def forward(self, x):
-        B, C, H, W = x.shape
-        _assert(H == self.pos_embed.height, '')
-        _assert(W == self.pos_embed.width, '')
+        B, _C, H, W = x.shape
+        _assert(H == self.pos_embed.height, "")
+        _assert(W == self.pos_embed.width, "")
 
         x = self.qkv(x)  # B, (2 * dim_head_qk + dim_head_v) * num_heads, H, W
 
