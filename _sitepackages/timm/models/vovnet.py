@@ -1,4 +1,4 @@
-""" VoVNet (V1 & V2)
+"""VoVNet (V1 & V2).
 
 Papers:
 * `An Energy and GPU-Computation Efficient Backbone Network` - https://arxiv.org/abs/1904.09730
@@ -11,27 +11,36 @@ for some reference, rewrote most of the code.
 Hacked together by / Copyright 2020 Ross Wightman
 """
 
-from typing import List, Optional, Tuple, Union, Type
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import ConvNormAct, SeparableConvNormAct, BatchNormAct2d, ClassifierHead, DropPath, \
-    create_attn, create_norm_act_layer, calculate_drop_path_rates
+from timm.layers import (
+    BatchNormAct2d,
+    ClassifierHead,
+    ConvNormAct,
+    DropPath,
+    SeparableConvNormAct,
+    calculate_drop_path_rates,
+    create_attn,
+    create_norm_act_layer,
+)
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._manipulate import checkpoint_seq
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['VovNet']  # model_registry will add each entrypoint fn to this
+__all__ = ["VovNet"]  # model_registry will add each entrypoint fn to this
 
 
 class SequentialAppendList(nn.Sequential):
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
 
-    def forward(self, x: torch.Tensor, concat_list: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, concat_list: list[torch.Tensor]) -> torch.Tensor:
         for i, module in enumerate(self):
             if i == 0:
                 concat_list.append(module(x))
@@ -42,23 +51,22 @@ class SequentialAppendList(nn.Sequential):
 
 
 class OsaBlock(nn.Module):
-
     def __init__(
-            self,
-            in_chs: int,
-            mid_chs: int,
-            out_chs: int,
-            layer_per_block: int,
-            residual: bool = False,
-            depthwise: bool = False,
-            attn: str = '',
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            drop_path: Optional[nn.Module] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        mid_chs: int,
+        out_chs: int,
+        layer_per_block: int,
+        residual: bool = False,
+        depthwise: bool = False,
+        attn: str = "",
+        norm_layer: type[nn.Module] = BatchNormAct2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        drop_path: nn.Module | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.residual = residual
@@ -106,25 +114,24 @@ class OsaBlock(nn.Module):
 
 
 class OsaStage(nn.Module):
-
     def __init__(
-            self,
-            in_chs: int,
-            mid_chs: int,
-            out_chs: int,
-            block_per_stage: int,
-            layer_per_block: int,
-            downsample: bool = True,
-            residual: bool = True,
-            depthwise: bool = False,
-            attn: str = 'ese',
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            drop_path_rates: Optional[List[float]] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        mid_chs: int,
+        out_chs: int,
+        block_per_stage: int,
+        layer_per_block: int,
+        downsample: bool = True,
+        residual: bool = True,
+        depthwise: bool = False,
+        attn: str = "ese",
+        norm_layer: type[nn.Module] = BatchNormAct2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        drop_path_rates: list[float] | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.grad_checkpointing = False
 
@@ -136,23 +143,25 @@ class OsaStage(nn.Module):
         blocks = []
         for i in range(block_per_stage):
             last_block = i == block_per_stage - 1
-            if drop_path_rates is not None and drop_path_rates[i] > 0.:
+            if drop_path_rates is not None and drop_path_rates[i] > 0.0:
                 drop_path = DropPath(drop_path_rates[i])
             else:
                 drop_path = None
-            blocks += [OsaBlock(
-                in_chs,
-                mid_chs,
-                out_chs,
-                layer_per_block,
-                residual=residual and i > 0,
-                depthwise=depthwise,
-                attn=attn if last_block else '',
-                norm_layer=norm_layer,
-                act_layer=act_layer,
-                drop_path=drop_path,
-                **dd,
-            )]
+            blocks += [
+                OsaBlock(
+                    in_chs,
+                    mid_chs,
+                    out_chs,
+                    layer_per_block,
+                    residual=residual and i > 0,
+                    depthwise=depthwise,
+                    attn=attn if last_block else "",
+                    norm_layer=norm_layer,
+                    act_layer=act_layer,
+                    drop_path=drop_path,
+                    **dd,
+                )
+            ]
             in_chs = out_chs
         self.blocks = nn.Sequential(*blocks)
 
@@ -167,21 +176,20 @@ class OsaStage(nn.Module):
 
 
 class VovNet(nn.Module):
-
     def __init__(
-            self,
-            cfg: dict,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            output_stride: int = 32,
-            norm_layer: Type[nn.Module] = BatchNormAct2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            device=None,
-            dtype=None,
-            **kwargs,
+        self,
+        cfg: dict,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        output_stride: int = 32,
+        norm_layer: type[nn.Module] = BatchNormAct2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        device=None,
+        dtype=None,
+        **kwargs,
     ):
         """
         Args:
@@ -194,10 +202,10 @@ class VovNet(nn.Module):
             act_layer (Union[str, nn.Module]): activation layer
             drop_rate (float): Dropout rate (default: 0.)
             drop_path_rate (float): Stochastic depth drop-path rate (default: 0.)
-            kwargs (dict): Extra kwargs overlayed onto cfg
+            kwargs (dict): Extra kwargs overlaid onto cfg.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.drop_rate = drop_rate
@@ -215,13 +223,14 @@ class VovNet(nn.Module):
         # Stem module
         last_stem_stride = stem_stride // 2
         conv_type = SeparableConvNormAct if cfg["depthwise"] else ConvNormAct
-        self.stem = nn.Sequential(*[
-            ConvNormAct(in_chans, stem_chs[0], 3, stride=2, **conv_kwargs),
-            conv_type(stem_chs[0], stem_chs[1], 3, stride=1, **conv_kwargs),
-            conv_type(stem_chs[1], stem_chs[2], 3, stride=last_stem_stride, **conv_kwargs),
-        ])
-        self.feature_info = [dict(
-            num_chs=stem_chs[1], reduction=2, module=f'stem.{1 if stem_stride == 4 else 2}')]
+        self.stem = nn.Sequential(
+            *[
+                ConvNormAct(in_chans, stem_chs[0], 3, stride=2, **conv_kwargs),
+                conv_type(stem_chs[0], stem_chs[1], 3, stride=1, **conv_kwargs),
+                conv_type(stem_chs[1], stem_chs[2], 3, stride=last_stem_stride, **conv_kwargs),
+            ]
+        )
+        self.feature_info = [{"num_chs": stem_chs[1], "reduction": 2, "module": f"stem.{1 if stem_stride == 4 else 2}"}]
         current_stride = stem_stride
 
         # OSA stages
@@ -231,19 +240,21 @@ class VovNet(nn.Module):
         stages = []
         for i in range(4):  # num_stages
             downsample = stem_stride == 2 or i > 0  # first stage has no stride/downsample if stem_stride is 4
-            stages += [OsaStage(
-                in_ch_list[i],
-                stage_conv_chs[i],
-                stage_out_chs[i],
-                block_per_stage[i],
-                layer_per_block,
-                downsample=downsample,
-                drop_path_rates=stage_dpr[i],
-                **stage_args,
-            )]
+            stages += [
+                OsaStage(
+                    in_ch_list[i],
+                    stage_conv_chs[i],
+                    stage_out_chs[i],
+                    block_per_stage[i],
+                    layer_per_block,
+                    downsample=downsample,
+                    drop_path_rates=stage_dpr[i],
+                    **stage_args,
+                )
+            ]
             self.num_features = stage_out_chs[i]
             current_stride *= 2 if downsample else 1
-            self.feature_info += [dict(num_chs=self.num_features, reduction=current_stride, module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": self.num_features, "reduction": current_stride, "module": f"stages.{i}"}]
 
         self.stages = nn.Sequential(*stages)
 
@@ -252,16 +263,16 @@ class VovNet(nn.Module):
 
         for n, m in self.named_modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, nn.Linear):
                 nn.init.zeros_(m.bias)
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^stem',
-            blocks=r'^stages\.(\d+)' if coarse else r'^stages\.(\d+).blocks\.(\d+)',
-        )
+        return {
+            "stem": r"^stem",
+            "blocks": r"^stages\.(\d+)" if coarse else r"^stages\.(\d+).blocks\.(\d+)",
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -272,20 +283,20 @@ class VovNet(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes, global_pool: str | None = None):
         self.num_classes = num_classes
         self.head.reset(num_classes, global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -294,10 +305,8 @@ class VovNet(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(5, indices)
 
@@ -324,17 +333,16 @@ class VovNet(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(5, indices)
         self.stages = self.stages[:max_index]  # truncate blocks w/ stem as idx 0
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -352,113 +360,109 @@ class VovNet(nn.Module):
 
 # model cfgs adapted from https://github.com/youngwanLEE/vovnet-detectron2 &
 # https://github.com/stigma0617/VoVNet.pytorch/blob/master/models_vovnet/vovnet.py
-model_cfgs = dict(
-    vovnet39a=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=5,
-        block_per_stage=[1, 1, 2, 2],
-        residual=False,
-        depthwise=False,
-        attn='',
-    ),
-    vovnet57a=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=5,
-        block_per_stage=[1, 1, 4, 3],
-        residual=False,
-        depthwise=False,
-        attn='',
-
-    ),
-    ese_vovnet19b_slim_dw=dict(
-        stem_chs=[64, 64, 64],
-        stage_conv_chs=[64, 80, 96, 112],
-        stage_out_chs=[112, 256, 384, 512],
-        layer_per_block=3,
-        block_per_stage=[1, 1, 1, 1],
-        residual=True,
-        depthwise=True,
-        attn='ese',
-
-    ),
-    ese_vovnet19b_dw=dict(
-        stem_chs=[64, 64, 64],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=3,
-        block_per_stage=[1, 1, 1, 1],
-        residual=True,
-        depthwise=True,
-        attn='ese',
-    ),
-    ese_vovnet19b_slim=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[64, 80, 96, 112],
-        stage_out_chs=[112, 256, 384, 512],
-        layer_per_block=3,
-        block_per_stage=[1, 1, 1, 1],
-        residual=True,
-        depthwise=False,
-        attn='ese',
-    ),
-    ese_vovnet19b=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=3,
-        block_per_stage=[1, 1, 1, 1],
-        residual=True,
-        depthwise=False,
-        attn='ese',
-
-    ),
-    ese_vovnet39b=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=5,
-        block_per_stage=[1, 1, 2, 2],
-        residual=True,
-        depthwise=False,
-        attn='ese',
-    ),
-    ese_vovnet57b=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=5,
-        block_per_stage=[1, 1, 4, 3],
-        residual=True,
-        depthwise=False,
-        attn='ese',
-
-    ),
-    ese_vovnet99b=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=5,
-        block_per_stage=[1, 3, 9, 3],
-        residual=True,
-        depthwise=False,
-        attn='ese',
-    ),
-    eca_vovnet39b=dict(
-        stem_chs=[64, 64, 128],
-        stage_conv_chs=[128, 160, 192, 224],
-        stage_out_chs=[256, 512, 768, 1024],
-        layer_per_block=5,
-        block_per_stage=[1, 1, 2, 2],
-        residual=True,
-        depthwise=False,
-        attn='eca',
-    ),
-)
-model_cfgs['ese_vovnet39b_evos'] = model_cfgs['ese_vovnet39b']
+model_cfgs = {
+    "vovnet39a": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 5,
+        "block_per_stage": [1, 1, 2, 2],
+        "residual": False,
+        "depthwise": False,
+        "attn": "",
+    },
+    "vovnet57a": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 5,
+        "block_per_stage": [1, 1, 4, 3],
+        "residual": False,
+        "depthwise": False,
+        "attn": "",
+    },
+    "ese_vovnet19b_slim_dw": {
+        "stem_chs": [64, 64, 64],
+        "stage_conv_chs": [64, 80, 96, 112],
+        "stage_out_chs": [112, 256, 384, 512],
+        "layer_per_block": 3,
+        "block_per_stage": [1, 1, 1, 1],
+        "residual": True,
+        "depthwise": True,
+        "attn": "ese",
+    },
+    "ese_vovnet19b_dw": {
+        "stem_chs": [64, 64, 64],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 3,
+        "block_per_stage": [1, 1, 1, 1],
+        "residual": True,
+        "depthwise": True,
+        "attn": "ese",
+    },
+    "ese_vovnet19b_slim": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [64, 80, 96, 112],
+        "stage_out_chs": [112, 256, 384, 512],
+        "layer_per_block": 3,
+        "block_per_stage": [1, 1, 1, 1],
+        "residual": True,
+        "depthwise": False,
+        "attn": "ese",
+    },
+    "ese_vovnet19b": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 3,
+        "block_per_stage": [1, 1, 1, 1],
+        "residual": True,
+        "depthwise": False,
+        "attn": "ese",
+    },
+    "ese_vovnet39b": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 5,
+        "block_per_stage": [1, 1, 2, 2],
+        "residual": True,
+        "depthwise": False,
+        "attn": "ese",
+    },
+    "ese_vovnet57b": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 5,
+        "block_per_stage": [1, 1, 4, 3],
+        "residual": True,
+        "depthwise": False,
+        "attn": "ese",
+    },
+    "ese_vovnet99b": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 5,
+        "block_per_stage": [1, 3, 9, 3],
+        "residual": True,
+        "depthwise": False,
+        "attn": "ese",
+    },
+    "eca_vovnet39b": {
+        "stem_chs": [64, 64, 128],
+        "stage_conv_chs": [128, 160, 192, 224],
+        "stage_out_chs": [256, 512, 768, 1024],
+        "layer_per_block": 5,
+        "block_per_stage": [1, 1, 2, 2],
+        "residual": True,
+        "depthwise": False,
+        "attn": "eca",
+    },
+}
+model_cfgs["ese_vovnet39b_evos"] = model_cfgs["ese_vovnet39b"]
 
 
 def _create_vovnet(variant, pretrained=False, **kwargs):
@@ -467,93 +471,104 @@ def _create_vovnet(variant, pretrained=False, **kwargs):
         variant,
         pretrained,
         model_cfg=model_cfgs[variant],
-        feature_cfg=dict(flatten_sequential=True),
+        feature_cfg={"flatten_sequential": True},
         **kwargs,
     )
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url, 'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.875, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.0.conv', 'classifier': 'head.fc', 
-        'license': 'apache-2.0', **kwargs,
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.875,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.0.conv",
+        "classifier": "head.fc",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'vovnet39a.untrained': _cfg(url=''),
-    'vovnet57a.untrained': _cfg(url=''),
-    'ese_vovnet19b_slim_dw.untrained': _cfg(url=''),
-    'ese_vovnet19b_dw.ra_in1k': _cfg(
-        hf_hub_id='timm/',
-        test_input_size=(3, 288, 288), test_crop_pct=0.95),
-    'ese_vovnet19b_slim.untrained': _cfg(url=''),
-    'ese_vovnet39b.ra_in1k': _cfg(
-        hf_hub_id='timm/',
-        test_input_size=(3, 288, 288), test_crop_pct=0.95),
-    'ese_vovnet57b.ra4_e3600_r256_in1k': _cfg(
-        hf_hub_id='timm/',
-        mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5),
-        crop_pct=0.95, input_size=(3, 256, 256), pool_size=(8, 8),
-        test_input_size=(3, 320, 320), test_crop_pct=1.0
-    ),
-    'ese_vovnet99b.untrained': _cfg(url=''),
-    'eca_vovnet39b.untrained': _cfg(url=''),
-    'ese_vovnet39b_evos.untrained': _cfg(url=''),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "vovnet39a.untrained": _cfg(url=""),
+        "vovnet57a.untrained": _cfg(url=""),
+        "ese_vovnet19b_slim_dw.untrained": _cfg(url=""),
+        "ese_vovnet19b_dw.ra_in1k": _cfg(hf_hub_id="timm/", test_input_size=(3, 288, 288), test_crop_pct=0.95),
+        "ese_vovnet19b_slim.untrained": _cfg(url=""),
+        "ese_vovnet39b.ra_in1k": _cfg(hf_hub_id="timm/", test_input_size=(3, 288, 288), test_crop_pct=0.95),
+        "ese_vovnet57b.ra4_e3600_r256_in1k": _cfg(
+            hf_hub_id="timm/",
+            mean=(0.5, 0.5, 0.5),
+            std=(0.5, 0.5, 0.5),
+            crop_pct=0.95,
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+            test_input_size=(3, 320, 320),
+            test_crop_pct=1.0,
+        ),
+        "ese_vovnet99b.untrained": _cfg(url=""),
+        "eca_vovnet39b.untrained": _cfg(url=""),
+        "ese_vovnet39b_evos.untrained": _cfg(url=""),
+    }
+)
 
 
 @register_model
 def vovnet39a(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('vovnet39a', pretrained=pretrained, **kwargs)
+    return _create_vovnet("vovnet39a", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def vovnet57a(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('vovnet57a', pretrained=pretrained, **kwargs)
+    return _create_vovnet("vovnet57a", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def ese_vovnet19b_slim_dw(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet19b_slim_dw', pretrained=pretrained, **kwargs)
+    return _create_vovnet("ese_vovnet19b_slim_dw", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def ese_vovnet19b_dw(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet19b_dw', pretrained=pretrained, **kwargs)
+    return _create_vovnet("ese_vovnet19b_dw", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def ese_vovnet19b_slim(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet19b_slim', pretrained=pretrained, **kwargs)
+    return _create_vovnet("ese_vovnet19b_slim", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def ese_vovnet39b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet39b', pretrained=pretrained, **kwargs)
+    return _create_vovnet("ese_vovnet39b", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def ese_vovnet57b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet57b', pretrained=pretrained, **kwargs)
+    return _create_vovnet("ese_vovnet57b", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def ese_vovnet99b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('ese_vovnet99b', pretrained=pretrained, **kwargs)
+    return _create_vovnet("ese_vovnet99b", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def eca_vovnet39b(pretrained=False, **kwargs) -> VovNet:
-    return _create_vovnet('eca_vovnet39b', pretrained=pretrained, **kwargs)
+    return _create_vovnet("eca_vovnet39b", pretrained=pretrained, **kwargs)
 
 
 # Experimental Models
 
+
 @register_model
 def ese_vovnet39b_evos(pretrained=False, **kwargs) -> VovNet:
     def norm_act_fn(num_features, **nkwargs):
-        return create_norm_act_layer('evonorms0', num_features, jit=False, **nkwargs)
-    return _create_vovnet('ese_vovnet39b_evos', pretrained=pretrained, norm_layer=norm_act_fn, **kwargs)
+        return create_norm_act_layer("evonorms0", num_features, jit=False, **nkwargs)
+
+    return _create_vovnet("ese_vovnet39b_evos", pretrained=pretrained, norm_layer=norm_act_fn, **kwargs)

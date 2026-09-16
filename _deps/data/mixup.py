@@ -1,4 +1,4 @@
-""" Mixup and Cutmix
+"""Mixup and Cutmix.
 
 Papers:
 mixup: Beyond Empirical Risk Minimization (https://arxiv.org/abs/1710.09412)
@@ -10,27 +10,27 @@ CutMix: https://github.com/clovaai/CutMix-PyTorch
 
 Hacked together by / Copyright 2019, Ross Wightman
 """
+
 import numpy as np
 import torch
 
 
-def one_hot(x, num_classes, on_value=1., off_value=0.):
+def one_hot(x, num_classes, on_value=1.0, off_value=0.0):
     x = x.long().view(-1, 1)
     return torch.full((x.size()[0], num_classes), off_value, device=x.device).scatter_(1, x, on_value)
 
 
-def mixup_target(target, num_classes, lam=1., smoothing=0.0):
+def mixup_target(target, num_classes, lam=1.0, smoothing=0.0):
     off_value = smoothing / num_classes
-    on_value = 1. - smoothing + off_value
+    on_value = 1.0 - smoothing + off_value
     y1 = one_hot(target, num_classes, on_value=on_value, off_value=off_value)
     y2 = one_hot(target.flip(0), num_classes, on_value=on_value, off_value=off_value)
-    return y1 * lam + y2 * (1. - lam)
+    return y1 * lam + y2 * (1.0 - lam)
 
 
-def rand_bbox(img_shape, lam, margin=0., count=None):
-    """ Standard CutMix bounding-box
-    Generates a random square bbox based on lambda value. This impl includes
-    support for enforcing a border margin as percent of bbox dimensions.
+def rand_bbox(img_shape, lam, margin=0.0, count=None):
+    """Standard CutMix bounding-box Generates a random square bbox based on lambda value. This impl includes support for
+    enforcing a border margin as percent of bbox dimensions.
 
     Args:
         img_shape (tuple): Image shape as tuple
@@ -52,11 +52,10 @@ def rand_bbox(img_shape, lam, margin=0., count=None):
 
 
 def rand_bbox_minmax(img_shape, minmax, count=None):
-    """ Min-Max CutMix bounding-box
-    Inspired by Darknet cutmix impl, generates a random rectangular bbox
-    based on min/max percent values applied to each dimension of the input image.
+    """Min-Max CutMix bounding-box Inspired by Darknet cutmix impl, generates a random rectangular bbox based on min/max
+    percent values applied to each dimension of the input image.
 
-    Typical defaults for minmax are usually in the  .2-.3 for min and .8-.9 range for max.
+    Typical defaults for minmax are usually in the .2-.3 for min and .8-.9 range for max.
 
     Args:
         img_shape (tuple): Image shape as tuple
@@ -75,20 +74,19 @@ def rand_bbox_minmax(img_shape, minmax, count=None):
 
 
 def cutmix_bbox_and_lam(img_shape, lam, ratio_minmax=None, correct_lam=True, count=None):
-    """ Generate bbox and apply lambda correction.
-    """
+    """Generate bbox and apply lambda correction."""
     if ratio_minmax is not None:
         yl, yu, xl, xu = rand_bbox_minmax(img_shape, ratio_minmax, count=count)
     else:
         yl, yu, xl, xu = rand_bbox(img_shape, lam, count=count)
     if correct_lam or ratio_minmax is not None:
         bbox_area = (yu - yl) * (xu - xl)
-        lam = 1. - bbox_area / float(img_shape[-2] * img_shape[-1])
+        lam = 1.0 - bbox_area / float(img_shape[-2] * img_shape[-1])
     return (yl, yu, xl, xu), lam
 
 
 class Mixup:
-    """ Mixup/Cutmix that applies different params to each element or whole batch
+    """Mixup/Cutmix that applies different params to each element or whole batch.
 
     Args:
         mixup_alpha (float): mixup alpha value, mixup is active if > 0.
@@ -101,8 +99,19 @@ class Mixup:
         label_smoothing (float): apply label smoothing to the mixed target tensor
         num_classes (int): number of classes for target
     """
-    def __init__(self, mixup_alpha=1., cutmix_alpha=0., cutmix_minmax=None, prob=1.0, switch_prob=0.5,
-                 mode='batch', correct_lam=True, label_smoothing=0.1, num_classes=1000):
+
+    def __init__(
+        self,
+        mixup_alpha=1.0,
+        cutmix_alpha=0.0,
+        cutmix_minmax=None,
+        prob=1.0,
+        switch_prob=0.5,
+        mode="batch",
+        correct_lam=True,
+        label_smoothing=0.1,
+        num_classes=1000,
+    ):
         self.mixup_alpha = mixup_alpha
         self.cutmix_alpha = cutmix_alpha
         self.cutmix_minmax = cutmix_minmax
@@ -122,15 +131,16 @@ class Mixup:
         lam = np.ones(batch_size, dtype=np.float32)
         use_cutmix = np.zeros(batch_size, dtype=bool)
         if self.mixup_enabled:
-            if self.mixup_alpha > 0. and self.cutmix_alpha > 0.:
+            if self.mixup_alpha > 0.0 and self.cutmix_alpha > 0.0:
                 use_cutmix = np.random.rand(batch_size) < self.switch_prob
                 lam_mix = np.where(
                     use_cutmix,
                     np.random.beta(self.cutmix_alpha, self.cutmix_alpha, size=batch_size),
-                    np.random.beta(self.mixup_alpha, self.mixup_alpha, size=batch_size))
-            elif self.mixup_alpha > 0.:
+                    np.random.beta(self.mixup_alpha, self.mixup_alpha, size=batch_size),
+                )
+            elif self.mixup_alpha > 0.0:
                 lam_mix = np.random.beta(self.mixup_alpha, self.mixup_alpha, size=batch_size)
-            elif self.cutmix_alpha > 0.:
+            elif self.cutmix_alpha > 0.0:
                 use_cutmix = np.ones(batch_size, dtype=bool)
                 lam_mix = np.random.beta(self.cutmix_alpha, self.cutmix_alpha, size=batch_size)
             else:
@@ -139,16 +149,19 @@ class Mixup:
         return lam, use_cutmix
 
     def _params_per_batch(self):
-        lam = 1.
+        lam = 1.0
         use_cutmix = False
         if self.mixup_enabled and np.random.rand() < self.mix_prob:
-            if self.mixup_alpha > 0. and self.cutmix_alpha > 0.:
+            if self.mixup_alpha > 0.0 and self.cutmix_alpha > 0.0:
                 use_cutmix = np.random.rand() < self.switch_prob
-                lam_mix = np.random.beta(self.cutmix_alpha, self.cutmix_alpha) if use_cutmix else \
-                    np.random.beta(self.mixup_alpha, self.mixup_alpha)
-            elif self.mixup_alpha > 0.:
+                lam_mix = (
+                    np.random.beta(self.cutmix_alpha, self.cutmix_alpha)
+                    if use_cutmix
+                    else np.random.beta(self.mixup_alpha, self.mixup_alpha)
+                )
+            elif self.mixup_alpha > 0.0:
                 lam_mix = np.random.beta(self.mixup_alpha, self.mixup_alpha)
-            elif self.cutmix_alpha > 0.:
+            elif self.cutmix_alpha > 0.0:
                 use_cutmix = True
                 lam_mix = np.random.beta(self.cutmix_alpha, self.cutmix_alpha)
             else:
@@ -163,10 +176,11 @@ class Mixup:
         for i in range(batch_size):
             j = batch_size - i - 1
             lam = lam_batch[i]
-            if lam != 1.:
+            if lam != 1.0:
                 if use_cutmix[i]:
                     (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
-                        x[i].shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+                        x[i].shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam
+                    )
                     x[i][:, yl:yh, xl:xh] = x_orig[j][:, yl:yh, xl:xh]
                     lam_batch[i] = lam
                 else:
@@ -180,10 +194,11 @@ class Mixup:
         for i in range(batch_size // 2):
             j = batch_size - i - 1
             lam = lam_batch[i]
-            if lam != 1.:
+            if lam != 1.0:
                 if use_cutmix[i]:
                     (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
-                        x[i].shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+                        x[i].shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam
+                    )
                     x[i][:, yl:yh, xl:xh] = x_orig[j][:, yl:yh, xl:xh]
                     x[j][:, yl:yh, xl:xh] = x_orig[i][:, yl:yh, xl:xh]
                     lam_batch[i] = lam
@@ -195,22 +210,23 @@ class Mixup:
 
     def _mix_batch(self, x):
         lam, use_cutmix = self._params_per_batch()
-        if lam == 1.:
-            return 1.
+        if lam == 1.0:
+            return 1.0
         if use_cutmix:
             (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
-                x.shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+                x.shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam
+            )
             x[:, :, yl:yh, xl:xh] = x.flip(0)[:, :, yl:yh, xl:xh]
         else:
-            x_flipped = x.flip(0).mul_(1. - lam)
+            x_flipped = x.flip(0).mul_(1.0 - lam)
             x.mul_(lam).add_(x_flipped)
         return lam
 
     def __call__(self, x, target):
-        assert len(x) % 2 == 0, 'Batch size should be even when using this'
-        if self.mode == 'elem':
+        assert len(x) % 2 == 0, "Batch size should be even when using this"
+        if self.mode == "elem":
             lam = self._mix_elem(x)
-        elif self.mode == 'pair':
+        elif self.mode == "pair":
             lam = self._mix_pair(x)
         else:
             lam = self._mix_batch(x)
@@ -219,7 +235,7 @@ class Mixup:
 
 
 class FastCollateMixup(Mixup):
-    """ Fast Collate w/ Mixup/Cutmix that applies different params to each element or whole batch
+    """Fast Collate w/ Mixup/Cutmix that applies different params to each element or whole batch.
 
     A Mixup impl that's performed while collating the batches.
     """
@@ -235,7 +251,7 @@ class FastCollateMixup(Mixup):
             j = batch_size - i - 1
             lam = lam_batch[i]
             mixed = batch[i][0]
-            if lam != 1.:
+            if lam != 1.0:
                 if use_cutmix[i]:
                     if not half:
                         mixed = mixed.copy() if is_np else mixed.clone()
@@ -270,7 +286,7 @@ class FastCollateMixup(Mixup):
             mixed_i = batch[i][0]
             mixed_j = batch[j][0]
             assert 0 <= lam <= 1.0
-            if lam < 1.:
+            if lam < 1.0:
                 if use_cutmix[i]:
                     (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
                         output.shape,
@@ -315,9 +331,11 @@ class FastCollateMixup(Mixup):
         for i in range(batch_size):
             j = batch_size - i - 1
             mixed = batch[i][0]
-            if lam != 1.:
+            if lam != 1.0:
                 if use_cutmix:
-                    mixed = mixed.copy() if is_np else mixed.clone()  # don't want to modify the original while iterating
+                    mixed = (
+                        mixed.copy() if is_np else mixed.clone()
+                    )  # don't want to modify the original while iterating
                     mixed[:, yl:yh, xl:xh] = batch[j][0][:, yl:yh, xl:xh]
                 else:
                     if is_np:
@@ -331,14 +349,14 @@ class FastCollateMixup(Mixup):
 
     def __call__(self, batch, _=None):
         batch_size = len(batch)
-        assert batch_size % 2 == 0, 'Batch size should be even when using this'
-        half = 'half' in self.mode
+        assert batch_size % 2 == 0, "Batch size should be even when using this"
+        half = "half" in self.mode
         if half:
             batch_size //= 2
         output = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
-        if self.mode == 'elem' or self.mode == 'half':
+        if self.mode == "elem" or self.mode == "half":
             lam = self._mix_elem_collate(output, batch, half=half)
-        elif self.mode == 'pair':
+        elif self.mode == "pair":
             lam = self._mix_pair_collate(output, batch)
         else:
             lam = self._mix_batch_collate(output, batch)
@@ -346,4 +364,3 @@ class FastCollateMixup(Mixup):
         target = mixup_target(target, self.num_classes, lam, self.label_smoothing)
         target = target[:batch_size]
         return output, target
-

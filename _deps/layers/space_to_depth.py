@@ -1,16 +1,17 @@
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class SpaceToDepth(nn.Module):
     """Rearrange spatial dimensions into channel dimension.
 
-    Divides spatial dimensions by block_size and multiplies channels by block_size^2.
-    Used in TResNet as an efficient stem operation.
+    Divides spatial dimensions by block_size and multiplies channels by block_size^2. Used in TResNet as an efficient
+    stem operation.
 
     Args:
         block_size: Spatial reduction factor.
     """
+
     bs: torch.jit.Final[int]
 
     def __init__(self, block_size: int = 4):
@@ -29,8 +30,7 @@ class SpaceToDepth(nn.Module):
 class DepthToSpace(nn.Module):
     """Rearrange channel dimension into spatial dimensions.
 
-    Inverse of SpaceToDepth. Divides channels by block_size^2 and multiplies
-    spatial dimensions by block_size.
+    Inverse of SpaceToDepth. Divides channels by block_size^2 and multiplies spatial dimensions by block_size.
 
     Args:
         block_size: Spatial expansion factor.
@@ -42,7 +42,7 @@ class DepthToSpace(nn.Module):
 
     def forward(self, x):
         N, C, H, W = x.size()
-        x = x.view(N, self.bs, self.bs, C // (self.bs ** 2), H, W)  # (N, bs, bs, C//bs^2, H, W)
+        x = x.view(N, self.bs, self.bs, C // (self.bs**2), H, W)  # (N, bs, bs, C//bs^2, H, W)
         x = x.permute(0, 3, 4, 1, 5, 2).contiguous()  # (N, C//bs^2, H, bs, W, bs)
-        x = x.view(N, C // (self.bs ** 2), H * self.bs, W * self.bs)  # (N, C//bs^2, H * bs, W * bs)
+        x = x.view(N, C // (self.bs**2), H * self.bs, W * self.bs)  # (N, C//bs^2, H * bs, W * bs)
         return x
