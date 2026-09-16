@@ -1,4 +1,4 @@
-""" Pooling-based Vision Transformer (PiT) in PyTorch
+"""Pooling-based Vision Transformer (PiT) in PyTorch.
 
 A PyTorch implement of Pooling-based Vision Transformers as described in
 'Rethinking Spatial Dimensions of Vision Transformers' - https://arxiv.org/abs/2103.16302
@@ -11,28 +11,30 @@ Modifications for timm by / Copyright 2020 Ross Wightman
 # Copyright 2021-present NAVER Corp.
 # Apache License v2.0
 
+from __future__ import annotations
+
 import math
 import re
 from functools import partial
-from typing import List, Optional, Sequence, Tuple, Union, Type, Any
+from typing import Any, Sequence
 
 import torch
+from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+from timm.layers import calculate_drop_path_rates, to_2tuple, trunc_normal_
 from torch import nn
 
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import trunc_normal_, to_2tuple, calculate_drop_path_rates
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 from .vision_transformer import Block
 
-
-__all__ = ['PoolingVisionTransformer']  # model_registry will add each entrypoint fn to this
+__all__ = ["PoolingVisionTransformer"]  # model_registry will add each entrypoint fn to this
 
 
 class SequentialTuple(nn.Sequential):
-    """ This module exists to work around torchscript typing issues list -> list"""
-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+    """This module exists to work around torchscript typing issues list -> list."""
+
+    def forward(self, x: tuple[torch.Tensor, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
         for module in self:
             x = module(x)
         return x
@@ -40,40 +42,43 @@ class SequentialTuple(nn.Sequential):
 
 class Transformer(nn.Module):
     def __init__(
-            self,
-            base_dim: int,
-            depth: int,
-            heads: int,
-            mlp_ratio: float,
-            pool: Optional[Any] = None,
-            proj_drop: float = .0,
-            attn_drop: float = .0,
-            drop_path_prob: Optional[List[float]] = None,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        base_dim: int,
+        depth: int,
+        heads: int,
+        mlp_ratio: float,
+        pool: Any | None = None,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path_prob: list[float] | None = None,
+        norm_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         embed_dim = base_dim * heads
 
         self.pool = pool
         self.norm = norm_layer(embed_dim, **dd) if norm_layer else nn.Identity()
-        self.blocks = nn.Sequential(*[
-            Block(
-                dim=embed_dim,
-                num_heads=heads,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=True,
-                proj_drop=proj_drop,
-                attn_drop=attn_drop,
-                drop_path=drop_path_prob[i],
-                norm_layer=partial(nn.LayerNorm, eps=1e-6),
-                **dd,
-            )
-            for i in range(depth)])
+        self.blocks = nn.Sequential(
+            *[
+                Block(
+                    dim=embed_dim,
+                    num_heads=heads,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=True,
+                    proj_drop=proj_drop,
+                    attn_drop=attn_drop,
+                    drop_path=drop_path_prob[i],
+                    norm_layer=partial(nn.LayerNorm, eps=1e-6),
+                    **dd,
+                )
+                for i in range(depth)
+            ]
+        )
 
-    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: tuple[torch.Tensor, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
         x, cls_tokens = x
         token_length = cls_tokens.shape[1]
         if self.pool is not None:
@@ -95,15 +100,15 @@ class Transformer(nn.Module):
 
 class Pooling(nn.Module):
     def __init__(
-            self,
-            in_feature: int,
-            out_feature: int,
-            stride: int,
-            padding_mode: str = 'zeros',
-            device=None,
-            dtype=None,
+        self,
+        in_feature: int,
+        out_feature: int,
+        stride: int,
+        padding_mode: str = "zeros",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.conv = nn.Conv2d(
@@ -118,7 +123,7 @@ class Pooling(nn.Module):
         )
         self.fc = nn.Linear(in_feature, out_feature, **dd)
 
-    def forward(self, x, cls_token) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x, cls_token) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.conv(x)
         cls_token = self.fc(cls_token)
         return x, cls_token
@@ -126,17 +131,17 @@ class Pooling(nn.Module):
 
 class ConvEmbedding(nn.Module):
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            img_size: int = 224,
-            patch_size: int = 16,
-            stride: int = 8,
-            padding: int = 0,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        img_size: int = 224,
+        patch_size: int = 16,
+        stride: int = 8,
+        padding: int = 0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         padding = padding
         self.img_size = to_2tuple(img_size)
@@ -161,36 +166,37 @@ class ConvEmbedding(nn.Module):
 
 
 class PoolingVisionTransformer(nn.Module):
-    """ Pooling-based Vision Transformer
+    """Pooling-based Vision Transformer.
 
     A PyTorch implement of 'Rethinking Spatial Dimensions of Vision Transformers'
         - https://arxiv.org/abs/2103.16302
     """
+
     def __init__(
-            self,
-            img_size: int = 224,
-            patch_size: int = 16,
-            stride: int = 8,
-            stem_type: str = 'overlap',
-            base_dims: Sequence[int] = (48, 48, 48),
-            depth: Sequence[int] = (2, 6, 4),
-            heads: Sequence[int] = (2, 4, 8),
-            mlp_ratio: float = 4,
-            num_classes: int = 1000,
-            in_chans: int = 3,
-            global_pool: str = 'token',
-            distilled: bool = False,
-            drop_rate: float = 0.,
-            pos_drop_drate: float = 0.,
-            proj_drop_rate: float = 0.,
-            attn_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int = 224,
+        patch_size: int = 16,
+        stride: int = 8,
+        stem_type: str = "overlap",
+        base_dims: Sequence[int] = (48, 48, 48),
+        depth: Sequence[int] = (2, 6, 4),
+        heads: Sequence[int] = (2, 4, 8),
+        mlp_ratio: float = 4,
+        num_classes: int = 1000,
+        in_chans: int = 3,
+        global_pool: str = "token",
+        distilled: bool = False,
+        drop_rate: float = 0.0,
+        pos_drop_drate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        assert global_pool in ('token',)
+        dd = {"device": device, "dtype": dtype}
+        assert global_pool in ("token",)
 
         self.base_dims = base_dims
         self.heads = heads
@@ -220,19 +226,23 @@ class PoolingVisionTransformer(nn.Module):
                     stride=2,
                     **dd,
                 )
-            transformers += [Transformer(
-                base_dims[i],
-                depth[i],
-                heads[i],
-                mlp_ratio,
-                pool=pool,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path_prob=dpr[i],
-                **dd,
-            )]
+            transformers += [
+                Transformer(
+                    base_dims[i],
+                    depth[i],
+                    heads[i],
+                    mlp_ratio,
+                    pool=pool,
+                    proj_drop=proj_drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path_prob=dpr[i],
+                    **dd,
+                )
+            ]
             prev_dim = embed_dim
-            self.feature_info += [dict(num_chs=prev_dim, reduction=(stride - 1) * 2**i, module=f'transformers.{i}')]
+            self.feature_info += [
+                {"num_chs": prev_dim, "reduction": (stride - 1) * 2**i, "module": f"transformers.{i}"}
+            ]
 
         self.transformers = SequentialTuple(*transformers)
         self.norm = nn.LayerNorm(base_dims[-1] * heads[-1], eps=1e-6, **dd)
@@ -246,8 +256,8 @@ class PoolingVisionTransformer(nn.Module):
             self.head_dist = nn.Linear(self.embed_dim, self.num_classes, **dd) if num_classes > 0 else nn.Identity()
         self.distilled_training = False  # must set this True to train w/ distillation token
 
-        trunc_normal_(self.pos_embed, std=.02)
-        trunc_normal_(self.cls_token, std=.02)
+        trunc_normal_(self.pos_embed, std=0.02)
+        trunc_normal_(self.cls_token, std=0.02)
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -257,7 +267,7 @@ class PoolingVisionTransformer(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {'pos_embed', 'cls_token'}
+        return {"pos_embed", "cls_token"}
 
     @torch.jit.ignore
     def set_distilled_training(self, enable=True):
@@ -265,7 +275,7 @@ class PoolingVisionTransformer(nn.Module):
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
-        assert not enable, 'gradient checkpointing not supported'
+        assert not enable, "gradient checkpointing not supported"
 
     def get_classifier(self) -> nn.Module:
         if self.head_dist is not None:
@@ -273,26 +283,32 @@ class PoolingVisionTransformer(nn.Module):
         else:
             return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
             self.global_pool = global_pool
-        device = self.head.weight.device if hasattr(self.head, 'weight') else None
-        dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
-        self.head = nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        device = self.head.weight.device if hasattr(self.head, "weight") else None
+        dtype = self.head.weight.dtype if hasattr(self.head, "weight") else None
+        self.head = (
+            nn.Linear(self.embed_dim, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        )
         if self.head_dist is not None:
-            self.head_dist = nn.Linear(self.embed_dim, self.num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+            self.head_dist = (
+                nn.Linear(self.embed_dim, self.num_classes, device=device, dtype=dtype)
+                if num_classes > 0
+                else nn.Identity()
+            )
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -301,10 +317,8 @@ class PoolingVisionTransformer(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
 
@@ -317,7 +331,7 @@ class PoolingVisionTransformer(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.transformers
         else:
-            stages = self.transformers[:max_index + 1]
+            stages = self.transformers[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x, cls_tokens = stage((x, cls_tokens))
@@ -333,19 +347,18 @@ class PoolingVisionTransformer(nn.Module):
         return cls_tokens, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.transformers), indices)
-        self.transformers = self.transformers[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.transformers = self.transformers[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -358,7 +371,7 @@ class PoolingVisionTransformer(nn.Module):
 
     def forward_head(self, x, pre_logits: bool = False) -> torch.Tensor:
         if self.head_dist is not None:
-            assert self.global_pool == 'token'
+            assert self.global_pool == "token"
             x, x_dist = x[:, 0], x[:, 1]
             x = self.head_drop(x)
             x_dist = self.head_drop(x_dist)
@@ -372,7 +385,7 @@ class PoolingVisionTransformer(nn.Module):
                 # during standard train / finetune, inference average the classifier predictions
                 return (x + x_dist) / 2
         else:
-            if self.global_pool == 'token':
+            if self.global_pool == "token":
                 x = x[:, 0]
             x = self.head_drop(x)
             if not pre_logits:
@@ -386,170 +399,170 @@ class PoolingVisionTransformer(nn.Module):
 
 
 def checkpoint_filter_fn(state_dict, model):
-    """ preprocess checkpoints """
+    """Preprocess checkpoints."""
     out_dict = {}
-    p_blocks = re.compile(r'pools\.(\d)\.')
+    p_blocks = re.compile(r"pools\.(\d)\.")
     for k, v in state_dict.items():
         # FIXME need to update resize for PiT impl
         # if k == 'pos_embed' and v.shape != model.pos_embed.shape:
         #     # To resize pos embedding when using model at different size from pretrained weights
         #     v = resize_pos_embed(v, model.pos_embed)
-        k = p_blocks.sub(lambda exp: f'transformers.{int(exp.group(1)) + 1}.pool.', k)
+        k = p_blocks.sub(lambda exp: f"transformers.{int(exp.group(1)) + 1}.pool.", k)
         out_dict[k] = v
     return out_dict
 
 
 def _create_pit(variant, pretrained=False, **kwargs):
     default_out_indices = tuple(range(3))
-    out_indices = kwargs.pop('out_indices', default_out_indices)
+    out_indices = kwargs.pop("out_indices", default_out_indices)
 
     model = build_model_with_cfg(
         PoolingVisionTransformer,
         variant,
         pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(feature_cls='hook', out_indices=out_indices),
+        feature_cfg={"feature_cls": "hook", "out_indices": out_indices},
         **kwargs,
     )
     return model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
-        'crop_pct': .9, 'interpolation': 'bicubic', 'fixed_input_size': True,
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'patch_embed.conv', 'classifier': 'head',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "crop_pct": 0.9,
+        "interpolation": "bicubic",
+        "fixed_input_size": True,
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "patch_embed.conv",
+        "classifier": "head",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    # deit models (FB weights)
-    'pit_ti_224.in1k': _cfg(hf_hub_id='timm/'),
-    'pit_xs_224.in1k': _cfg(hf_hub_id='timm/'),
-    'pit_s_224.in1k': _cfg(hf_hub_id='timm/'),
-    'pit_b_224.in1k': _cfg(hf_hub_id='timm/'),
-    'pit_ti_distilled_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        classifier=('head', 'head_dist')),
-    'pit_xs_distilled_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        classifier=('head', 'head_dist')),
-    'pit_s_distilled_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        classifier=('head', 'head_dist')),
-    'pit_b_distilled_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        classifier=('head', 'head_dist')),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        # deit models (FB weights)
+        "pit_ti_224.in1k": _cfg(hf_hub_id="timm/"),
+        "pit_xs_224.in1k": _cfg(hf_hub_id="timm/"),
+        "pit_s_224.in1k": _cfg(hf_hub_id="timm/"),
+        "pit_b_224.in1k": _cfg(hf_hub_id="timm/"),
+        "pit_ti_distilled_224.in1k": _cfg(hf_hub_id="timm/", classifier=("head", "head_dist")),
+        "pit_xs_distilled_224.in1k": _cfg(hf_hub_id="timm/", classifier=("head", "head_dist")),
+        "pit_s_distilled_224.in1k": _cfg(hf_hub_id="timm/", classifier=("head", "head_dist")),
+        "pit_b_distilled_224.in1k": _cfg(hf_hub_id="timm/", classifier=("head", "head_dist")),
+    }
+)
 
 
 @register_model
 def pit_b_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=14,
-        stride=7,
-        base_dims=[64, 64, 64],
-        depth=[3, 6, 4],
-        heads=[4, 8, 16],
-        mlp_ratio=4,
-    )
-    return _create_pit('pit_b_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 14,
+        "stride": 7,
+        "base_dims": [64, 64, 64],
+        "depth": [3, 6, 4],
+        "heads": [4, 8, 16],
+        "mlp_ratio": 4,
+    }
+    return _create_pit("pit_b_224", pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def pit_s_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=16,
-        stride=8,
-        base_dims=[48, 48, 48],
-        depth=[2, 6, 4],
-        heads=[3, 6, 12],
-        mlp_ratio=4,
-    )
-    return _create_pit('pit_s_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 16,
+        "stride": 8,
+        "base_dims": [48, 48, 48],
+        "depth": [2, 6, 4],
+        "heads": [3, 6, 12],
+        "mlp_ratio": 4,
+    }
+    return _create_pit("pit_s_224", pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def pit_xs_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=16,
-        stride=8,
-        base_dims=[48, 48, 48],
-        depth=[2, 6, 4],
-        heads=[2, 4, 8],
-        mlp_ratio=4,
-    )
-    return _create_pit('pit_xs_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 16,
+        "stride": 8,
+        "base_dims": [48, 48, 48],
+        "depth": [2, 6, 4],
+        "heads": [2, 4, 8],
+        "mlp_ratio": 4,
+    }
+    return _create_pit("pit_xs_224", pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def pit_ti_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=16,
-        stride=8,
-        base_dims=[32, 32, 32],
-        depth=[2, 6, 4],
-        heads=[2, 4, 8],
-        mlp_ratio=4,
-    )
-    return _create_pit('pit_ti_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 16,
+        "stride": 8,
+        "base_dims": [32, 32, 32],
+        "depth": [2, 6, 4],
+        "heads": [2, 4, 8],
+        "mlp_ratio": 4,
+    }
+    return _create_pit("pit_ti_224", pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def pit_b_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=14,
-        stride=7,
-        base_dims=[64, 64, 64],
-        depth=[3, 6, 4],
-        heads=[4, 8, 16],
-        mlp_ratio=4,
-        distilled=True,
-    )
-    return _create_pit('pit_b_distilled_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 14,
+        "stride": 7,
+        "base_dims": [64, 64, 64],
+        "depth": [3, 6, 4],
+        "heads": [4, 8, 16],
+        "mlp_ratio": 4,
+        "distilled": True,
+    }
+    return _create_pit("pit_b_distilled_224", pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def pit_s_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=16,
-        stride=8,
-        base_dims=[48, 48, 48],
-        depth=[2, 6, 4],
-        heads=[3, 6, 12],
-        mlp_ratio=4,
-        distilled=True,
-    )
-    return _create_pit('pit_s_distilled_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 16,
+        "stride": 8,
+        "base_dims": [48, 48, 48],
+        "depth": [2, 6, 4],
+        "heads": [3, 6, 12],
+        "mlp_ratio": 4,
+        "distilled": True,
+    }
+    return _create_pit("pit_s_distilled_224", pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def pit_xs_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=16,
-        stride=8,
-        base_dims=[48, 48, 48],
-        depth=[2, 6, 4],
-        heads=[2, 4, 8],
-        mlp_ratio=4,
-        distilled=True,
-    )
-    return _create_pit('pit_xs_distilled_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 16,
+        "stride": 8,
+        "base_dims": [48, 48, 48],
+        "depth": [2, 6, 4],
+        "heads": [2, 4, 8],
+        "mlp_ratio": 4,
+        "distilled": True,
+    }
+    return _create_pit("pit_xs_distilled_224", pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def pit_ti_distilled_224(pretrained=False, **kwargs) -> PoolingVisionTransformer:
-    model_args = dict(
-        patch_size=16,
-        stride=8,
-        base_dims=[32, 32, 32],
-        depth=[2, 6, 4],
-        heads=[2, 4, 8],
-        mlp_ratio=4,
-        distilled=True,
-    )
-    return _create_pit('pit_ti_distilled_224', pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 16,
+        "stride": 8,
+        "base_dims": [32, 32, 32],
+        "depth": [2, 6, 4],
+        "heads": [2, 4, 8],
+        "mlp_ratio": 4,
+        "distilled": True,
+    }
+    return _create_pit("pit_ti_distilled_224", pretrained, **dict(model_args, **kwargs))

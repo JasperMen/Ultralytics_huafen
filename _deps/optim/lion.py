@@ -1,11 +1,12 @@
-""" Lion Optimizer
+"""Lion Optimizer
 Paper: `Symbolic Discovery of Optimization Algorithms` - https://arxiv.org/abs/2302.06675
-Original Impl: https://github.com/google/automl/tree/master/lion
+Original Impl: https://github.com/google/automl/tree/master/lion.
 
 References for added functionality:
     Cautious Optimizers: https://arxiv.org/abs/2411.16085
     Why Gradients Rapidly Increase Near the End of Training: https://arxiv.org/abs/2506.02285
 """
+
 # Copyright 2023 Google Research. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +21,7 @@ References for added functionality:
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -32,15 +33,15 @@ class Lion(Optimizer):
     r"""Implements Lion algorithm."""
 
     def __init__(
-            self,
-            params: ParamsT,
-            lr: float = 1e-4,
-            betas: Tuple[float, float] = (0.9, 0.99),
-            weight_decay: float = 0.0,
-            caution: bool = False,
-            corrected_weight_decay: bool = False,
-            maximize: bool = False,
-            foreach: Optional[bool] = None,
+        self,
+        params: ParamsT,
+        lr: float = 1e-4,
+        betas: tuple[float, float] = (0.9, 0.99),
+        weight_decay: float = 0.0,
+        caution: bool = False,
+        corrected_weight_decay: bool = False,
+        maximize: bool = False,
+        foreach: bool | None = None,
     ):
         """Initialize the hyperparameters.
 
@@ -52,31 +53,30 @@ class Lion(Optimizer):
             caution: apply caution
             corrected_weight_decay: apply corrected weight decay (lr**2 / max_lr)
         """
-
         if not 0.0 <= lr:
-            raise ValueError('Invalid learning rate: {}'.format(lr))
+            raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= betas[0] < 1.0:
-            raise ValueError('Invalid beta parameter at index 0: {}'.format(betas[0]))
+            raise ValueError(f"Invalid beta parameter at index 0: {betas[0]}")
         if not 0.0 <= betas[1] < 1.0:
-            raise ValueError('Invalid beta parameter at index 1: {}'.format(betas[1]))
-        defaults = dict(
-            lr=lr,
-            betas=betas,
-            weight_decay=weight_decay,
-            caution=caution,
-            corrected_weight_decay=corrected_weight_decay,
-            foreach=foreach,
-            maximize=maximize,
-        )
+            raise ValueError(f"Invalid beta parameter at index 1: {betas[1]}")
+        defaults = {
+            "lr": lr,
+            "betas": betas,
+            "weight_decay": weight_decay,
+            "caution": caution,
+            "corrected_weight_decay": corrected_weight_decay,
+            "foreach": foreach,
+            "maximize": maximize,
+        }
         super().__init__(params, defaults)
 
     def __setstate__(self, state):
         super().__setstate__(state)
         for group in self.param_groups:
-            group.setdefault('caution', False)
-            group.setdefault('corrected_weight_decay', False)
-            group.setdefault('maximize', False)
-            group.setdefault('foreach', None)
+            group.setdefault("caution", False)
+            group.setdefault("corrected_weight_decay", False)
+            group.setdefault("maximize", False)
+            group.setdefault("foreach", None)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -97,23 +97,23 @@ class Lion(Optimizer):
             params_with_grad = []
             grads = []
             exp_avgs = []
-            beta1, beta2 = group['betas']
+            beta1, beta2 = group["betas"]
 
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
                 params_with_grad.append(p)
                 if p.grad.is_sparse:
-                    raise RuntimeError('Lion does not support sparse gradients')
+                    raise RuntimeError("Lion does not support sparse gradients")
                 grads.append(p.grad)
 
                 state = self.state[p]
 
                 # State initialization
                 if len(state) == 0:
-                    state['exp_avg'] = torch.zeros_like(p, memory_format=torch.preserve_format)
+                    state["exp_avg"] = torch.zeros_like(p, memory_format=torch.preserve_format)
 
-                exp_avgs.append(state['exp_avg'])
+                exp_avgs.append(state["exp_avg"])
 
             lion(
                 params_with_grad,
@@ -121,44 +121,43 @@ class Lion(Optimizer):
                 exp_avgs,
                 beta1=beta1,
                 beta2=beta2,
-                lr=group['lr'],
-                weight_decay=group['weight_decay'],
-                caution=group['caution'],
-                maximize=group['maximize'],
-                foreach=group['foreach'],
-                max_lr=self.defaults['lr'] if group['corrected_weight_decay'] else None,
+                lr=group["lr"],
+                weight_decay=group["weight_decay"],
+                caution=group["caution"],
+                maximize=group["maximize"],
+                foreach=group["foreach"],
+                max_lr=self.defaults["lr"] if group["corrected_weight_decay"] else None,
             )
 
         return loss
 
 
 def lion(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        exp_avgs: List[torch.Tensor],
-        # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
-        # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
-        maximize: bool = False,
-        foreach: bool = None,
-        *,
-        beta1: float,
-        beta2: float,
-        lr: float,
-        weight_decay: float,
-        caution: bool,
-        max_lr: Optional[float] = None,
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    exp_avgs: list[torch.Tensor],
+    # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+    # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+    maximize: bool = False,
+    foreach: bool | None = None,
+    *,
+    beta1: float,
+    beta2: float,
+    lr: float,
+    weight_decay: float,
+    caution: bool,
+    max_lr: float | None = None,
 ):
-    r"""Functional API that performs Lion algorithm computation.
-    """
+    r"""Functional API that performs Lion algorithm computation."""
     if foreach is None:
         try:
             # cannot do foreach if this overload doesn't exist when caution enabled
-            foreach = not caution or 'Scalar' in torch.ops.aten._foreach_maximum_.overloads()
+            foreach = not caution or "Scalar" in torch.ops.aten._foreach_maximum_.overloads()
         except Exception:
             foreach = False
 
     if foreach and torch.jit.is_scripting():
-        raise RuntimeError('torch.jit.script not supported with foreach optimizers')
+        raise RuntimeError("torch.jit.script not supported with foreach optimizers")
 
     if foreach and not torch.jit.is_scripting():
         func = _multi_tensor_lion
@@ -180,17 +179,17 @@ def lion(
 
 
 def _single_tensor_lion(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        exp_avgs: List[torch.Tensor],
-        *,
-        beta1: float,
-        beta2: float,
-        lr: float,
-        weight_decay: float,
-        caution: bool,
-        maximize: bool,
-        max_lr: Optional[float],
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    exp_avgs: list[torch.Tensor],
+    *,
+    beta1: float,
+    beta2: float,
+    lr: float,
+    weight_decay: float,
+    caution: bool,
+    maximize: bool,
+    max_lr: float | None,
 ):
     for i, param in enumerate(params):
         grad = grads[i] if not maximize else -grads[i]
@@ -202,7 +201,7 @@ def _single_tensor_lion(
             param = torch.view_as_real(param)
 
         # Perform stepweight decay
-        wd_scale = lr if max_lr is None else lr ** 2 / max_lr
+        wd_scale = lr if max_lr is None else lr**2 / max_lr
         param.mul_(1 - wd_scale * weight_decay)
 
         # Weight update
@@ -221,17 +220,17 @@ def _single_tensor_lion(
 
 
 def _multi_tensor_lion(
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        exp_avgs: List[torch.Tensor],
-        *,
-        beta1: float,
-        beta2: float,
-        lr: float,
-        weight_decay: float,
-        caution: bool,
-        maximize: bool,
-        max_lr: Optional[float],
+    params: list[torch.Tensor],
+    grads: list[torch.Tensor],
+    exp_avgs: list[torch.Tensor],
+    *,
+    beta1: float,
+    beta2: float,
+    lr: float,
+    weight_decay: float,
+    caution: bool,
+    maximize: bool,
+    max_lr: float | None,
 ):
     if len(params) == 0:
         return
@@ -244,7 +243,7 @@ def _multi_tensor_lion(
     params = [torch.view_as_real(x) if torch.is_complex(x) else x for x in params]
 
     # Perform stepweight decay
-    wd_scale = lr if max_lr is None else lr ** 2 / max_lr
+    wd_scale = lr if max_lr is None else lr**2 / max_lr
     torch._foreach_mul_(params, 1 - wd_scale * weight_decay)
 
     # Weight update
