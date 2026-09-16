@@ -7,7 +7,7 @@ thop
 transformers
 pytorch_wavelets
 timm
-grad-cam==1.5.5
+grad-cam==1.5.7
 tidecv
 einops
 prettytable
