@@ -1,4 +1,4 @@
-""" FocalNet
+"""FocalNet.
 
 As described in `Focal Modulation Networks` - https://arxiv.org/abs/2203.11926
 
@@ -11,53 +11,56 @@ This impl is/has:
 * torchscript fixed and a number of quirks cleaned up
 * feature extraction support via `features_only=True`
 """
+
 # --------------------------------------------------------
 # FocalNets -- Focal Modulation Networks
 # Copyright (c) 2022 Microsoft
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Jianwei Yang (jianwyan@microsoft.com)
 # --------------------------------------------------------
+from __future__ import annotations
+
 from functools import partial
-from typing import Callable, List, Optional, Tuple, Type, Union
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import (
-    Mlp,
+    ClassifierHead,
     DropPath,
     LayerNorm2d,
     LayerScale2d,
-    trunc_normal_,
-    ClassifierHead,
+    Mlp,
     NormMlpClassifierHead,
     calculate_drop_path_rates,
+    trunc_normal_,
 )
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
-from ._manipulate import named_apply, checkpoint
+from ._manipulate import checkpoint, named_apply
 from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['FocalNet']
+__all__ = ["FocalNet"]
 
 
 class FocalModulation(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            focal_window: int,
-            focal_level: int,
-            focal_factor: int = 2,
-            bias: bool = True,
-            use_post_norm: bool = False,
-            normalize_modulator: bool = False,
-            proj_drop: float = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        focal_window: int,
+        focal_level: int,
+        focal_factor: int = 2,
+        bias: bool = True,
+        use_post_norm: bool = False,
+        normalize_modulator: bool = False,
+        proj_drop: float = 0.0,
+        norm_layer: type[nn.Module] = LayerNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.dim = dim
@@ -79,10 +82,14 @@ class FocalModulation(nn.Module):
         self.kernel_sizes = []
         for k in range(self.focal_level):
             kernel_size = self.focal_factor * k + self.focal_window
-            self.focal_layers.append(nn.Sequential(
-                nn.Conv2d(dim, dim, kernel_size=kernel_size, groups=dim, padding=kernel_size // 2, bias=False, **dd),
-                nn.GELU(),
-            ))
+            self.focal_layers.append(
+                nn.Sequential(
+                    nn.Conv2d(
+                        dim, dim, kernel_size=kernel_size, groups=dim, padding=kernel_size // 2, bias=False, **dd
+                    ),
+                    nn.GELU(),
+                )
+            )
             self.kernel_sizes.append(kernel_size)
         self.norm = norm_layer(dim, **dd) if self.use_post_norm else nn.Identity()
 
@@ -95,9 +102,9 @@ class FocalModulation(nn.Module):
         ctx_all = 0
         for l, focal_layer in enumerate(self.focal_layers):
             ctx = focal_layer(ctx)
-            ctx_all = ctx_all + ctx * gates[:, l:l + 1]
+            ctx_all = ctx_all + ctx * gates[:, l : l + 1]
         ctx_global = self.act(ctx.mean((2, 3), keepdim=True))
-        ctx_all = ctx_all + ctx_global * gates[:, self.focal_level:]
+        ctx_all = ctx_all + ctx_global * gates[:, self.focal_level :]
 
         # normalize context
         if self.normalize_modulator:
@@ -114,25 +121,24 @@ class FocalModulation(nn.Module):
 
 
 class FocalNetBlock(nn.Module):
-    """ Focal Modulation Network Block.
-    """
+    """Focal Modulation Network Block."""
 
     def __init__(
-            self,
-            dim: int,
-            mlp_ratio: float = 4.,
-            focal_level: int = 1,
-            focal_window: int = 3,
-            use_post_norm: bool = False,
-            use_post_norm_in_modulation: bool = False,
-            normalize_modulator: bool = False,
-            layerscale_value: Optional[float] = 1e-4,
-            proj_drop: float = 0.,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        mlp_ratio: float = 4.0,
+        focal_level: int = 1,
+        focal_window: int = 3,
+        use_post_norm: bool = False,
+        use_post_norm_in_modulation: bool = False,
+        normalize_modulator: bool = False,
+        layerscale_value: float | None = 1e-4,
+        proj_drop: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = LayerNorm2d,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -148,7 +154,7 @@ class FocalNetBlock(nn.Module):
             act_layer: Activation layer.
             norm_layer: Normalization layer.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dim = dim
         self.mlp_ratio = mlp_ratio
@@ -170,7 +176,7 @@ class FocalNetBlock(nn.Module):
         )
         self.norm1_post = norm_layer(dim, **dd) if use_post_norm else nn.Identity()
         self.ls1 = LayerScale2d(dim, layerscale_value, **dd) if layerscale_value is not None else nn.Identity()
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd) if not use_post_norm else nn.Identity()
         self.mlp = Mlp(
@@ -183,7 +189,7 @@ class FocalNetBlock(nn.Module):
         )
         self.norm2_post = norm_layer(dim, **dd) if use_post_norm else nn.Identity()
         self.ls2 = LayerScale2d(dim, layerscale_value, **dd) if layerscale_value is not None else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         shortcut = x
@@ -201,28 +207,27 @@ class FocalNetBlock(nn.Module):
 
 
 class FocalNetStage(nn.Module):
-    """ A basic Focal Transformer layer for one stage.
-    """
+    """A basic Focal Transformer layer for one stage."""
 
     def __init__(
-            self,
-            dim: int,
-            out_dim: int,
-            depth: int,
-            mlp_ratio: float = 4.,
-            downsample: bool = True,
-            focal_level: int = 1,
-            focal_window: int = 1,
-            use_overlap_down: bool = False,
-            use_post_norm: bool = False,
-            use_post_norm_in_modulation: bool = False,
-            normalize_modulator: bool = False,
-            layerscale_value: Optional[float] = 1e-4,
-            proj_drop: float = 0.,
-            drop_path: Union[float, List[float]] = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        out_dim: int,
+        depth: int,
+        mlp_ratio: float = 4.0,
+        downsample: bool = True,
+        focal_level: int = 1,
+        focal_window: int = 1,
+        use_overlap_down: bool = False,
+        use_post_norm: bool = False,
+        use_post_norm_in_modulation: bool = False,
+        normalize_modulator: bool = False,
+        layerscale_value: float | None = 1e-4,
+        proj_drop: float = 0.0,
+        drop_path: float | list[float] = 0.0,
+        norm_layer: type[nn.Module] = LayerNorm2d,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -241,7 +246,7 @@ class FocalNetStage(nn.Module):
             drop_path: Stochastic depth rate.
             norm_layer: Normalization layer.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dim = dim
         self.depth = depth
@@ -260,22 +265,25 @@ class FocalNetStage(nn.Module):
             self.downsample = nn.Identity()
 
         # build blocks
-        self.blocks = nn.ModuleList([
-            FocalNetBlock(
-                dim=out_dim,
-                mlp_ratio=mlp_ratio,
-                focal_level=focal_level,
-                focal_window=focal_window,
-                use_post_norm=use_post_norm,
-                use_post_norm_in_modulation=use_post_norm_in_modulation,
-                normalize_modulator=normalize_modulator,
-                layerscale_value=layerscale_value,
-                proj_drop=proj_drop,
-                drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
-                norm_layer=norm_layer,
-                **dd,
-            )
-            for i in range(depth)])
+        self.blocks = nn.ModuleList(
+            [
+                FocalNetBlock(
+                    dim=out_dim,
+                    mlp_ratio=mlp_ratio,
+                    focal_level=focal_level,
+                    focal_window=focal_window,
+                    use_post_norm=use_post_norm,
+                    use_post_norm_in_modulation=use_post_norm_in_modulation,
+                    normalize_modulator=normalize_modulator,
+                    layerscale_value=layerscale_value,
+                    proj_drop=proj_drop,
+                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                    norm_layer=norm_layer,
+                    **dd,
+                )
+                for i in range(depth)
+            ]
+        )
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -292,19 +300,17 @@ class FocalNetStage(nn.Module):
 
 
 class Downsample(nn.Module):
-
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            stride: int = 4,
-            overlap: bool = False,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        stride: int = 4,
+        overlap: bool = False,
+        norm_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
         """
-
         Args:
             in_chs: Number of input image channels.
             out_chs: Number of linear projection output channels.
@@ -312,7 +318,7 @@ class Downsample(nn.Module):
             overlap: Use overlapping convolutions if True.
             norm_layer: Normalization layer.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.stride = stride
         padding = 0
@@ -333,32 +339,31 @@ class Downsample(nn.Module):
 
 
 class FocalNet(nn.Module):
-    """" Focal Modulation Networks (FocalNets)
-    """
+    """" Focal Modulation Networks (FocalNets)."""
 
     def __init__(
-            self,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            embed_dim: int = 96,
-            depths: Tuple[int, ...] = (2, 2, 6, 2),
-            mlp_ratio: float = 4.,
-            focal_levels: Tuple[int, ...] = (2, 2, 2, 2),
-            focal_windows: Tuple[int, ...] = (3, 3, 3, 3),
-            use_overlap_down: bool = False,
-            use_post_norm: bool = False,
-            use_post_norm_in_modulation: bool = False,
-            normalize_modulator: bool = False,
-            head_hidden_size: Optional[int] = None,
-            head_init_scale: float = 1.0,
-            layerscale_value: Optional[float] = None,
-            drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            drop_path_rate: float = 0.1,
-            norm_layer: Type[nn.Module] = partial(LayerNorm2d, eps=1e-5),
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        embed_dim: int = 96,
+        depths: tuple[int, ...] = (2, 2, 6, 2),
+        mlp_ratio: float = 4.0,
+        focal_levels: tuple[int, ...] = (2, 2, 2, 2),
+        focal_windows: tuple[int, ...] = (3, 3, 3, 3),
+        use_overlap_down: bool = False,
+        use_post_norm: bool = False,
+        use_post_norm_in_modulation: bool = False,
+        normalize_modulator: bool = False,
+        head_hidden_size: int | None = None,
+        head_init_scale: float = 1.0,
+        layerscale_value: float | None = None,
+        drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.1,
+        norm_layer: type[nn.Module] = partial(LayerNorm2d, eps=1e-5),
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -377,9 +382,9 @@ class FocalNet(nn.Module):
             norm_layer: Normalization layer.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_layers = len(depths)
-        embed_dim = [embed_dim * (2 ** i) for i in range(self.num_layers)]
+        embed_dim = [embed_dim * (2**i) for i in range(self.num_layers)]
 
         self.num_classes = num_classes
         self.in_chans = in_chans
@@ -414,13 +419,13 @@ class FocalNet(nn.Module):
                 normalize_modulator=normalize_modulator,
                 layerscale_value=layerscale_value,
                 proj_drop=proj_drop_rate,
-                drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
+                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
                 norm_layer=norm_layer,
                 **dd,
             )
             in_dim = out_dim
             layers += [layer]
-            self.feature_info += [dict(num_chs=out_dim, reduction=4 * 2 ** i_layer, module=f'layers.{i_layer}')]
+            self.feature_info += [{"num_chs": out_dim, "reduction": 4 * 2**i_layer, "module": f"layers.{i_layer}"}]
 
         self.layers = nn.Sequential(*layers)
 
@@ -450,21 +455,20 @@ class FocalNet(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {''}
+        return {""}
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^stem',
-            blocks=[
-                (r'^layers\.(\d+)', None),
-                (r'^norm', (99999,))
-            ] if coarse else [
-                (r'^layers\.(\d+).downsample', (0,)),
-                (r'^layers\.(\d+)\.\w+\.(\d+)', None),
-                (r'^norm', (99999,)),
-            ]
-        )
+        return {
+            "stem": r"^stem",
+            "blocks": [(r"^layers\.(\d+)", None), (r"^norm", (99999,))]
+            if coarse
+            else [
+                (r"^layers\.(\d+).downsample", (0,)),
+                (r"^layers\.(\d+)\.\w+\.(\d+)", None),
+                (r"^norm", (99999,)),
+            ],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -476,20 +480,20 @@ class FocalNet(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         self.head.reset(num_classes, pool_type=global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -498,10 +502,8 @@ class FocalNet(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.layers), indices)
 
@@ -510,7 +512,7 @@ class FocalNet(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.layers
         else:
-            stages = self.layers[:max_index + 1]
+            stages = self.layers[: max_index + 1]
 
         last_idx = len(self.layers) - 1
         for feat_idx, stage in enumerate(stages):
@@ -531,19 +533,18 @@ class FocalNet(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.layers), indices)
-        self.layers = self.layers[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.layers = self.layers[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -563,79 +564,77 @@ class FocalNet(nn.Module):
 
 def _init_weights(module, name=None, head_init_scale=1.0):
     if isinstance(module, nn.Conv2d):
-        trunc_normal_(module.weight, std=.02)
+        trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
             nn.init.zeros_(module.bias)
     elif isinstance(module, nn.Linear):
-        trunc_normal_(module.weight, std=.02)
+        trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
             nn.init.zeros_(module.bias)
-        if name and 'head.fc' in name:
+        if name and "head.fc" in name:
             module.weight.data.mul_(head_init_scale)
             module.bias.data.mul_(head_init_scale)
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': .9, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.proj', 'classifier': 'head.fc',
-        'license': 'mit', **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.9,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.proj",
+        "classifier": "head.fc",
+        "license": "mit",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    "focalnet_tiny_srf.ms_in1k": _cfg(
-        hf_hub_id='timm/'),
-    "focalnet_small_srf.ms_in1k": _cfg(
-        hf_hub_id='timm/'),
-    "focalnet_base_srf.ms_in1k": _cfg(
-        hf_hub_id='timm/'),
-    "focalnet_tiny_lrf.ms_in1k": _cfg(
-        hf_hub_id='timm/'),
-    "focalnet_small_lrf.ms_in1k": _cfg(
-        hf_hub_id='timm/'),
-    "focalnet_base_lrf.ms_in1k": _cfg(
-        hf_hub_id='timm/'),
-
-    "focalnet_large_fl3.ms_in22k": _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842),
-    "focalnet_large_fl4.ms_in22k": _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842),
-    "focalnet_xlarge_fl3.ms_in22k": _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842),
-    "focalnet_xlarge_fl4.ms_in22k": _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842),
-    "focalnet_huge_fl3.ms_in22k": _cfg(
-        hf_hub_id='timm/',
-        num_classes=21842),
-    "focalnet_huge_fl4.ms_in22k": _cfg(
-        hf_hub_id='timm/',
-        num_classes=0),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "focalnet_tiny_srf.ms_in1k": _cfg(hf_hub_id="timm/"),
+        "focalnet_small_srf.ms_in1k": _cfg(hf_hub_id="timm/"),
+        "focalnet_base_srf.ms_in1k": _cfg(hf_hub_id="timm/"),
+        "focalnet_tiny_lrf.ms_in1k": _cfg(hf_hub_id="timm/"),
+        "focalnet_small_lrf.ms_in1k": _cfg(hf_hub_id="timm/"),
+        "focalnet_base_lrf.ms_in1k": _cfg(hf_hub_id="timm/"),
+        "focalnet_large_fl3.ms_in22k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842
+        ),
+        "focalnet_large_fl4.ms_in22k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842
+        ),
+        "focalnet_xlarge_fl3.ms_in22k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842
+        ),
+        "focalnet_xlarge_fl4.ms_in22k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, num_classes=21842
+        ),
+        "focalnet_huge_fl3.ms_in22k": _cfg(hf_hub_id="timm/", num_classes=21842),
+        "focalnet_huge_fl4.ms_in22k": _cfg(hf_hub_id="timm/", num_classes=0),
+    }
+)
 
 
 def checkpoint_filter_fn(state_dict, model: FocalNet):
-    state_dict = state_dict.get('model', state_dict)
-    if 'stem.proj.weight' in state_dict:
+    state_dict = state_dict.get("model", state_dict)
+    if "stem.proj.weight" in state_dict:
         return state_dict
     import re
+
     out_dict = {}
     dest_dict = model.state_dict()
     for k, v in state_dict.items():
-        k = re.sub(r'gamma_([0-9])', r'ls\1.gamma', k)
-        k = k.replace('patch_embed', 'stem')
-        k = re.sub(r'layers.(\d+).downsample', lambda x: f'layers.{int(x.group(1)) + 1}.downsample', k)
-        if 'norm' in k and k not in dest_dict:
-            k = re.sub(r'norm([0-9])', r'norm\1_post', k)
-        k = k.replace('ln.', 'norm.')
-        k = k.replace('head', 'head.fc')
+        k = re.sub(r"gamma_([0-9])", r"ls\1.gamma", k)
+        k = k.replace("patch_embed", "stem")
+        k = re.sub(r"layers.(\d+).downsample", lambda x: f"layers.{int(x.group(1)) + 1}.downsample", k)
+        if "norm" in k and k not in dest_dict:
+            k = re.sub(r"norm([0-9])", r"norm\1_post", k)
+        k = k.replace("ln.", "norm.")
+        k = k.replace("head", "head.fc")
         if k in dest_dict and dest_dict[k].numel() == v.numel() and dest_dict[k].shape != v.shape:
             v = v.reshape(dest_dict[k].shape)
         out_dict[k] = v
@@ -643,98 +642,141 @@ def checkpoint_filter_fn(state_dict, model: FocalNet):
 
 
 def _create_focalnet(variant, pretrained=False, **kwargs):
-    default_out_indices = tuple(i for i, _ in enumerate(kwargs.get('depths', (1, 1, 3, 1))))
-    out_indices = kwargs.pop('out_indices', default_out_indices)
+    default_out_indices = tuple(i for i, _ in enumerate(kwargs.get("depths", (1, 1, 3, 1))))
+    out_indices = kwargs.pop("out_indices", default_out_indices)
 
     model = build_model_with_cfg(
-        FocalNet, variant, pretrained,
+        FocalNet,
+        variant,
+        pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs)
+        feature_cfg={"flatten_sequential": True, "out_indices": out_indices},
+        **kwargs,
+    )
     return model
 
 
 @register_model
 def focalnet_tiny_srf(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(depths=[2, 2, 6, 2], embed_dim=96, **kwargs)
-    return _create_focalnet('focalnet_tiny_srf', pretrained=pretrained, **model_kwargs)
+    return _create_focalnet("focalnet_tiny_srf", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_small_srf(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=96, **kwargs)
-    return _create_focalnet('focalnet_small_srf', pretrained=pretrained, **model_kwargs)
+    return _create_focalnet("focalnet_small_srf", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_base_srf(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=128, **kwargs)
-    return _create_focalnet('focalnet_base_srf', pretrained=pretrained, **model_kwargs)
+    return _create_focalnet("focalnet_base_srf", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_tiny_lrf(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(depths=[2, 2, 6, 2], embed_dim=96, focal_levels=[3, 3, 3, 3], **kwargs)
-    return _create_focalnet('focalnet_tiny_lrf', pretrained=pretrained, **model_kwargs)
+    return _create_focalnet("focalnet_tiny_lrf", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_small_lrf(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=96, focal_levels=[3, 3, 3, 3], **kwargs)
-    return _create_focalnet('focalnet_small_lrf', pretrained=pretrained, **model_kwargs)
+    return _create_focalnet("focalnet_small_lrf", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_base_lrf(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(depths=[2, 2, 18, 2], embed_dim=128, focal_levels=[3, 3, 3, 3], **kwargs)
-    return _create_focalnet('focalnet_base_lrf', pretrained=pretrained, **model_kwargs)
+    return _create_focalnet("focalnet_base_lrf", pretrained=pretrained, **model_kwargs)
 
 
 # FocalNet large+ models
 @register_model
 def focalnet_large_fl3(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
-        depths=[2, 2, 18, 2], embed_dim=192, focal_levels=[3, 3, 3, 3], focal_windows=[5] * 4,
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_large_fl3', pretrained=pretrained, **model_kwargs)
+        depths=[2, 2, 18, 2],
+        embed_dim=192,
+        focal_levels=[3, 3, 3, 3],
+        focal_windows=[5] * 4,
+        use_post_norm=True,
+        use_overlap_down=True,
+        layerscale_value=1e-4,
+        **kwargs,
+    )
+    return _create_focalnet("focalnet_large_fl3", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_large_fl4(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
-        depths=[2, 2, 18, 2], embed_dim=192, focal_levels=[4, 4, 4, 4],
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_large_fl4', pretrained=pretrained, **model_kwargs)
+        depths=[2, 2, 18, 2],
+        embed_dim=192,
+        focal_levels=[4, 4, 4, 4],
+        use_post_norm=True,
+        use_overlap_down=True,
+        layerscale_value=1e-4,
+        **kwargs,
+    )
+    return _create_focalnet("focalnet_large_fl4", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_xlarge_fl3(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
-        depths=[2, 2, 18, 2], embed_dim=256, focal_levels=[3, 3, 3, 3], focal_windows=[5] * 4,
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_xlarge_fl3', pretrained=pretrained, **model_kwargs)
+        depths=[2, 2, 18, 2],
+        embed_dim=256,
+        focal_levels=[3, 3, 3, 3],
+        focal_windows=[5] * 4,
+        use_post_norm=True,
+        use_overlap_down=True,
+        layerscale_value=1e-4,
+        **kwargs,
+    )
+    return _create_focalnet("focalnet_xlarge_fl3", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_xlarge_fl4(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
-        depths=[2, 2, 18, 2], embed_dim=256, focal_levels=[4, 4, 4, 4],
-        use_post_norm=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_xlarge_fl4', pretrained=pretrained, **model_kwargs)
+        depths=[2, 2, 18, 2],
+        embed_dim=256,
+        focal_levels=[4, 4, 4, 4],
+        use_post_norm=True,
+        use_overlap_down=True,
+        layerscale_value=1e-4,
+        **kwargs,
+    )
+    return _create_focalnet("focalnet_xlarge_fl4", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_huge_fl3(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
-        depths=[2, 2, 18, 2], embed_dim=352, focal_levels=[3, 3, 3, 3], focal_windows=[3] * 4,
-        use_post_norm=True, use_post_norm_in_modulation=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_huge_fl3', pretrained=pretrained, **model_kwargs)
+        depths=[2, 2, 18, 2],
+        embed_dim=352,
+        focal_levels=[3, 3, 3, 3],
+        focal_windows=[3] * 4,
+        use_post_norm=True,
+        use_post_norm_in_modulation=True,
+        use_overlap_down=True,
+        layerscale_value=1e-4,
+        **kwargs,
+    )
+    return _create_focalnet("focalnet_huge_fl3", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def focalnet_huge_fl4(pretrained=False, **kwargs) -> FocalNet:
     model_kwargs = dict(
-        depths=[2, 2, 18, 2], embed_dim=352, focal_levels=[4, 4, 4, 4],
-        use_post_norm=True, use_post_norm_in_modulation=True, use_overlap_down=True, layerscale_value=1e-4, **kwargs)
-    return _create_focalnet('focalnet_huge_fl4', pretrained=pretrained, **model_kwargs)
-
+        depths=[2, 2, 18, 2],
+        embed_dim=352,
+        focal_levels=[4, 4, 4, 4],
+        use_post_norm=True,
+        use_post_norm_in_modulation=True,
+        use_overlap_down=True,
+        layerscale_value=1e-4,
+        **kwargs,
+    )
+    return _create_focalnet("focalnet_huge_fl4", pretrained=pretrained, **model_kwargs)
