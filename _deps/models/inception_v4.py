@@ -1,30 +1,32 @@
-""" Pytorch Inception-V4 implementation
+"""Pytorch Inception-V4 implementation
 Sourced from https://github.com/Cadene/tensorflow-model-zoo.torch (MIT License) which is
-based upon Google's Tensorflow implementation and pretrained weights (Apache 2.0 License)
+based upon Google's Tensorflow implementation and pretrained weights (Apache 2.0 License).
 """
+
+from __future__ import annotations
+
 from functools import partial
-from typing import List, Optional, Tuple, Union, Type
 
 import torch
-import torch.nn as nn
-
 from timm.data import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
-from timm.layers import create_classifier, ConvNormAct
+from timm.layers import ConvNormAct, create_classifier
+from torch import nn
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['InceptionV4']
+__all__ = ["InceptionV4"]
 
 
 class Mixed3a(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.maxpool = nn.MaxPool2d(3, stride=2)
         self.conv = conv_block(64, 96, kernel_size=3, stride=2, **dd)
@@ -38,24 +40,23 @@ class Mixed3a(nn.Module):
 
 class Mixed4a(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.branch0 = nn.Sequential(
-            conv_block(160, 64, kernel_size=1, stride=1, **dd),
-            conv_block(64, 96, kernel_size=3, stride=1, **dd)
+            conv_block(160, 64, kernel_size=1, stride=1, **dd), conv_block(64, 96, kernel_size=3, stride=1, **dd)
         )
 
         self.branch1 = nn.Sequential(
             conv_block(160, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 64, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(64, 64, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
-            conv_block(64, 96, kernel_size=(3, 3), stride=1, **dd)
+            conv_block(64, 96, kernel_size=(3, 3), stride=1, **dd),
         )
 
     def forward(self, x):
@@ -67,12 +68,12 @@ class Mixed4a(nn.Module):
 
 class Mixed5a(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv = conv_block(192, 192, kernel_size=3, stride=2, **dd)
         self.maxpool = nn.MaxPool2d(3, stride=2)
@@ -86,29 +87,29 @@ class Mixed5a(nn.Module):
 
 class InceptionA(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.branch0 = conv_block(384, 96, kernel_size=1, stride=1, **dd)
 
         self.branch1 = nn.Sequential(
             conv_block(384, 64, kernel_size=1, stride=1, **dd),
-            conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd)
+            conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd),
         )
 
         self.branch2 = nn.Sequential(
             conv_block(384, 64, kernel_size=1, stride=1, **dd),
             conv_block(64, 96, kernel_size=3, stride=1, padding=1, **dd),
-            conv_block(96, 96, kernel_size=3, stride=1, padding=1, **dd)
+            conv_block(96, 96, kernel_size=3, stride=1, padding=1, **dd),
         )
 
         self.branch3 = nn.Sequential(
             nn.AvgPool2d(3, stride=1, padding=1, count_include_pad=False),
-            conv_block(384, 96, kernel_size=1, stride=1, **dd)
+            conv_block(384, 96, kernel_size=1, stride=1, **dd),
         )
 
     def forward(self, x):
@@ -122,19 +123,19 @@ class InceptionA(nn.Module):
 
 class ReductionA(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.branch0 = conv_block(384, 384, kernel_size=3, stride=2, **dd)
 
         self.branch1 = nn.Sequential(
             conv_block(384, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 224, kernel_size=3, stride=1, padding=1, **dd),
-            conv_block(224, 256, kernel_size=3, stride=2, **dd)
+            conv_block(224, 256, kernel_size=3, stride=2, **dd),
         )
 
         self.branch2 = nn.MaxPool2d(3, stride=2)
@@ -149,19 +150,19 @@ class ReductionA(nn.Module):
 
 class InceptionB(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.branch0 = conv_block(1024, 384, kernel_size=1, stride=1, **dd)
 
         self.branch1 = nn.Sequential(
             conv_block(1024, 192, kernel_size=1, stride=1, **dd),
             conv_block(192, 224, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
-            conv_block(224, 256, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd)
+            conv_block(224, 256, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
         )
 
         self.branch2 = nn.Sequential(
@@ -169,12 +170,12 @@ class InceptionB(nn.Module):
             conv_block(192, 192, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
             conv_block(192, 224, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(224, 224, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
-            conv_block(224, 256, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd)
+            conv_block(224, 256, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
         )
 
         self.branch3 = nn.Sequential(
             nn.AvgPool2d(3, stride=1, padding=1, count_include_pad=False),
-            conv_block(1024, 128, kernel_size=1, stride=1, **dd)
+            conv_block(1024, 128, kernel_size=1, stride=1, **dd),
         )
 
     def forward(self, x):
@@ -188,24 +189,23 @@ class InceptionB(nn.Module):
 
 class ReductionB(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.branch0 = nn.Sequential(
-            conv_block(1024, 192, kernel_size=1, stride=1, **dd),
-            conv_block(192, 192, kernel_size=3, stride=2, **dd)
+            conv_block(1024, 192, kernel_size=1, stride=1, **dd), conv_block(192, 192, kernel_size=3, stride=2, **dd)
         )
 
         self.branch1 = nn.Sequential(
             conv_block(1024, 256, kernel_size=1, stride=1, **dd),
             conv_block(256, 256, kernel_size=(1, 7), stride=1, padding=(0, 3), **dd),
             conv_block(256, 320, kernel_size=(7, 1), stride=1, padding=(3, 0), **dd),
-            conv_block(320, 320, kernel_size=3, stride=2, **dd)
+            conv_block(320, 320, kernel_size=3, stride=2, **dd),
         )
 
         self.branch2 = nn.MaxPool2d(3, stride=2)
@@ -220,12 +220,12 @@ class ReductionB(nn.Module):
 
 class InceptionC(nn.Module):
     def __init__(
-            self,
-            conv_block: Type[nn.Module] = ConvNormAct,
-            device=None,
-            dtype=None,
+        self,
+        conv_block: type[nn.Module] = ConvNormAct,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.branch0 = conv_block(1536, 256, kernel_size=1, stride=1, **dd)
@@ -242,7 +242,7 @@ class InceptionC(nn.Module):
 
         self.branch3 = nn.Sequential(
             nn.AvgPool2d(3, stride=1, padding=1, count_include_pad=False),
-            conv_block(1536, 256, kernel_size=1, stride=1, **dd)
+            conv_block(1536, 256, kernel_size=1, stride=1, **dd),
         )
 
     def forward(self, x):
@@ -268,19 +268,19 @@ class InceptionC(nn.Module):
 
 class InceptionV4(nn.Module):
     def __init__(
-            self,
-            num_classes: int = 1000,
-            in_chans: int = 3,
-            output_stride: int = 32,
-            drop_rate: float = 0.,
-            global_pool: str = 'avg',
-            norm_layer: str = 'batchnorm2d',
-            norm_eps: float = 1e-3,
-            act_layer: str = 'relu',
-            device=None,
-            dtype=None,
+        self,
+        num_classes: int = 1000,
+        in_chans: int = 3,
+        output_stride: int = 32,
+        drop_rate: float = 0.0,
+        global_pool: str = "avg",
+        norm_layer: str = "batchnorm2d",
+        norm_eps: float = 1e-3,
+        act_layer: str = "relu",
+        device=None,
+        dtype=None,
     ) -> None:
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         assert output_stride == 32
         self.num_classes = num_classes
@@ -291,8 +291,8 @@ class InceptionV4(nn.Module):
             padding=0,
             norm_layer=norm_layer,
             act_layer=act_layer,
-            norm_kwargs=dict(eps=norm_eps),
-            act_kwargs=dict(inplace=True),
+            norm_kwargs={"eps": norm_eps},
+            act_kwargs={"inplace": True},
         )
 
         features = [
@@ -310,11 +310,11 @@ class InceptionV4(nn.Module):
         features += [InceptionC(conv_block, **dd) for _ in range(3)]
         self.features = nn.Sequential(*features)
         self.feature_info = [
-            dict(num_chs=64, reduction=2, module='features.2'),
-            dict(num_chs=160, reduction=4, module='features.3'),
-            dict(num_chs=384, reduction=8, module='features.9'),
-            dict(num_chs=1024, reduction=16, module='features.17'),
-            dict(num_chs=1536, reduction=32, module='features.21'),
+            {"num_chs": 64, "reduction": 2, "module": "features.2"},
+            {"num_chs": 160, "reduction": 4, "module": "features.3"},
+            {"num_chs": 384, "reduction": 8, "module": "features.9"},
+            {"num_chs": 1024, "reduction": 16, "module": "features.17"},
+            {"num_chs": 1536, "reduction": 32, "module": "features.21"},
         ]
         self.global_pool, self.head_drop, self.last_linear = create_classifier(
             self.num_features,
@@ -326,34 +326,32 @@ class InceptionV4(nn.Module):
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^features\.[012]\.',
-            blocks=r'^features\.(\d+)'
-        )
+        return {"stem": r"^features\.[012]\.", "blocks": r"^features\.(\d+)"}
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
-        assert not enable, 'gradient checkpointing not supported'
+        assert not enable, "gradient checkpointing not supported"
 
     @torch.jit.ignore
     def get_classifier(self) -> nn.Module:
         return self.last_linear
 
-    def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+    def reset_classifier(self, num_classes: int, global_pool: str = "avg"):
         self.num_classes = num_classes
         self.global_pool, self.last_linear = create_classifier(
-            self.num_features, self.num_classes, pool_type=global_pool)
+            self.num_features, self.num_classes, pool_type=global_pool
+        )
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -362,12 +360,10 @@ class InceptionV4(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
-        stage_ends = [int(info['module'].split('.')[-1]) for info in self.feature_info]
+        stage_ends = [int(info["module"].split(".")[-1]) for info in self.feature_info]
         take_indices, max_index = feature_take_indices(len(stage_ends), indices)
         take_indices = [stage_ends[i] for i in take_indices]
         max_index = stage_ends[max_index]
@@ -376,7 +372,7 @@ class InceptionV4(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.features
         else:
-            stages = self.features[:max_index + 1]
+            stages = self.features[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x = stage(x)
@@ -389,19 +385,18 @@ class InceptionV4(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
-        stage_ends = [int(info['module'].split('.')[-1]) for info in self.feature_info]
+        """Prune layers not required for specified intermediates."""
+        stage_ends = [int(info["module"].split(".")[-1]) for info in self.feature_info]
         take_indices, max_index = feature_take_indices(len(stage_ends), indices)
         max_index = stage_ends[max_index]
-        self.features = self.features[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.features = self.features[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -423,23 +418,30 @@ def _create_inception_v4(variant, pretrained=False, **kwargs) -> InceptionV4:
         InceptionV4,
         variant,
         pretrained,
-        feature_cfg=dict(flatten_sequential=True),
+        feature_cfg={"flatten_sequential": True},
         **kwargs,
     )
 
 
-default_cfgs = generate_default_cfgs({
-    'inception_v4.tf_in1k': {
-        'hf_hub_id': 'timm/',
-        'num_classes': 1000, 'input_size': (3, 299, 299), 'pool_size': (8, 8),
-        'crop_pct': 0.875, 'interpolation': 'bicubic',
-        'mean': IMAGENET_INCEPTION_MEAN, 'std': IMAGENET_INCEPTION_STD,
-        'first_conv': 'features.0.conv', 'classifier': 'last_linear',
-        'license': 'apache-2.0',
+default_cfgs = generate_default_cfgs(
+    {
+        "inception_v4.tf_in1k": {
+            "hf_hub_id": "timm/",
+            "num_classes": 1000,
+            "input_size": (3, 299, 299),
+            "pool_size": (8, 8),
+            "crop_pct": 0.875,
+            "interpolation": "bicubic",
+            "mean": IMAGENET_INCEPTION_MEAN,
+            "std": IMAGENET_INCEPTION_STD,
+            "first_conv": "features.0.conv",
+            "classifier": "last_linear",
+            "license": "apache-2.0",
+        }
     }
-})
+)
 
 
 @register_model
 def inception_v4(pretrained=False, **kwargs):
-    return _create_inception_v4('inception_v4', pretrained, **kwargs)
+    return _create_inception_v4("inception_v4", pretrained, **kwargs)

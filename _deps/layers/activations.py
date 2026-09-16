@@ -1,4 +1,4 @@
-""" Activations
+"""Activations.
 
 A collection of activations fn and modules with a common interface so that they can
 easily be swapped. All have an `inplace` arg even if not used.
@@ -7,13 +7,12 @@ Hacked together by / Copyright 2020 Ross Wightman
 """
 
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.nn import functional as F
 
 
 def swish(x, inplace: bool = False):
-    """Swish - Described in: https://arxiv.org/abs/1710.05941
-    """
+    """Swish - Described in: https://arxiv.org/abs/1710.05941."""
     return x.mul_(x.sigmoid()) if inplace else x.mul(x.sigmoid())
 
 
@@ -27,15 +26,15 @@ class Swish(nn.Module):
 
 
 def mish(x, inplace: bool = False):
-    """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681
-    NOTE: I don't have a working inplace variant
+    """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681 NOTE: I
+    don't have a working inplace variant.
     """
     return x.mul(F.softplus(x).tanh())
 
 
 class Mish(nn.Module):
-    """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681
-    """
+    """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681."""
+
     def __init__(self, inplace: bool = False):
         super().__init__()
 
@@ -72,7 +71,7 @@ class Tanh(nn.Module):
 
 
 def hard_swish(x, inplace: bool = False):
-    inner = F.relu6(x + 3.).div_(6.)
+    inner = F.relu6(x + 3.0).div_(6.0)
     return x.mul_(inner) if inplace else x.mul(inner)
 
 
@@ -87,9 +86,9 @@ class HardSwish(nn.Module):
 
 def hard_sigmoid(x, inplace: bool = False):
     if inplace:
-        return x.add_(3.).clamp_(0., 6.).div_(6.)
+        return x.add_(3.0).clamp_(0.0, 6.0).div_(6.0)
     else:
-        return F.relu6(x + 3.) / 6.
+        return F.relu6(x + 3.0) / 6.0
 
 
 class HardSigmoid(nn.Module):
@@ -102,9 +101,8 @@ class HardSigmoid(nn.Module):
 
 
 def hard_mish(x, inplace: bool = False):
-    """ Hard Mish
-    Experimental, based on notes by Mish author Diganta Misra at
-      https://github.com/digantamisra98/H-Mish/blob/0da20d4bc58e696b6803f2523c58d3c8a82782d0/README.md
+    """Hard Mish Experimental, based on notes by Mish author Diganta Misra at
+    https://github.com/digantamisra98/H-Mish/blob/0da20d4bc58e696b6803f2523c58d3c8a82782d0/README.md.
     """
     if inplace:
         return x.mul_(0.5 * (x + 2).clamp(min=0, max=2))
@@ -122,8 +120,8 @@ class HardMish(nn.Module):
 
 
 class PReLU(nn.PReLU):
-    """Applies PReLU (w/ dummy inplace arg)
-    """
+    """Applies PReLU (w/ dummy inplace arg)."""
+
     def __init__(self, num_parameters: int = 1, init: float = 0.25, inplace: bool = False) -> None:
         super().__init__(num_parameters=num_parameters, init=init)
 
@@ -136,8 +134,8 @@ def gelu(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
 
 
 class GELU(nn.Module):
-    """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)
-    """
+    """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)."""
+
     def __init__(self, inplace: bool = False):
         super().__init__()
 
@@ -146,17 +144,17 @@ class GELU(nn.Module):
 
 
 def gelu_tanh(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
-    return F.gelu(x, approximate='tanh')
+    return F.gelu(x, approximate="tanh")
 
 
 class GELUTanh(nn.Module):
-    """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)
-    """
+    """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)."""
+
     def __init__(self, inplace: bool = False):
         super().__init__()
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return F.gelu(input, approximate='tanh')
+        return F.gelu(input, approximate="tanh")
 
 
 def quick_gelu(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
@@ -164,8 +162,8 @@ def quick_gelu(x: torch.Tensor, inplace: bool = False) -> torch.Tensor:
 
 
 class QuickGELU(nn.Module):
-    """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)
-    """
+    """Applies the Gaussian Error Linear Units function (w/ dummy inplace arg)."""
+
     def __init__(self, inplace: bool = False):
         super().__init__()
 

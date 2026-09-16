@@ -1,4 +1,4 @@
-""" MaxVit and CoAtNet Vision Transformer - CNN Hybrids in PyTorch
+"""MaxVit and CoAtNet Vision Transformer - CNN Hybrids in PyTorch.
 
 This is a from-scratch implementation of both CoAtNet and MaxVit in PyTorch.
 
@@ -34,76 +34,79 @@ CoAtNet: Marrying Convolution and Attention for All Data Sizes - https://arxiv.o
 Hacked together by / Copyright 2022, Ross Wightman
 """
 
+from __future__ import annotations
+
 import math
 from collections import OrderedDict
-from dataclasses import dataclass, replace, field
+from dataclasses import dataclass, field, replace
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable
 
 import torch
-from torch import nn
-from torch.jit import Final
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import (
-    Mlp,
+    ClassifierHead,
     ConvMlp,
     DropPath,
-    calculate_drop_path_rates,
     LayerNorm,
     LayerScale,
     LayerScale2d,
-    ClassifierHead,
+    Mlp,
     NormMlpClassifierHead,
-    create_attn,
-    get_act_layer,
-    get_norm_layer,
-    get_norm_act_layer,
-    create_conv2d,
-    create_pool2d,
-    trunc_normal_tf_,
-    to_2tuple,
-    extend_tuple,
-    make_divisible,
-    _assert,
-    RelPosMlp,
     RelPosBias,
     RelPosBiasTf,
-    use_fused_attn,
+    RelPosMlp,
+    _assert,
+    calculate_drop_path_rates,
+    create_attn,
+    create_conv2d,
+    create_pool2d,
+    extend_tuple,
+    get_act_layer,
+    get_norm_act_layer,
+    get_norm_layer,
+    make_divisible,
     resize_rel_pos_bias_table,
+    to_2tuple,
+    trunc_normal_tf_,
+    use_fused_attn,
 )
+from torch import nn
+from torch.jit import Final
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._features_fx import register_notrace_function
-from ._manipulate import named_apply, checkpoint_seq
+from ._manipulate import checkpoint_seq, named_apply
 from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['MaxxVitCfg', 'MaxxVitConvCfg', 'MaxxVitTransformerCfg', 'MaxxVit']
+__all__ = ["MaxxVit", "MaxxVitCfg", "MaxxVitConvCfg", "MaxxVitTransformerCfg"]
 
 
 @dataclass
 class MaxxVitTransformerCfg:
     """Configuration for MaxxVit transformer blocks."""
+
     dim_head: int = 32
     head_first: bool = True  # head ordering in qkv channel dim
     expand_ratio: float = 4.0
     expand_first: bool = True
     shortcut_bias: bool = True
     attn_bias: bool = True
-    attn_drop: float = 0.
-    proj_drop: float = 0.
-    pool_type: str = 'avg2'
-    rel_pos_type: str = 'bias'
+    attn_drop: float = 0.0
+    proj_drop: float = 0.0
+    pool_type: str = "avg2"
+    rel_pos_type: str = "bias"
     rel_pos_dim: int = 512  # for relative position types w/ MLP
     partition_ratio: int = 32
-    window_size: Optional[Tuple[int, int]] = None
-    grid_size: Optional[Tuple[int, int]] = None
+    window_size: tuple[int, int] | None = None
+    grid_size: tuple[int, int] | None = None
     no_block_attn: bool = False  # disable window block attention for maxvit (ie only grid)
     use_nchw_attn: bool = False  # for MaxViT variants (not used for CoAt), keep tensors in NCHW order
-    init_values: Optional[float] = None
-    act_layer: str = 'gelu'
-    norm_layer: str = 'layernorm2d'
-    norm_layer_cl: str = 'layernorm'
+    init_values: float | None = None
+    act_layer: str = "gelu"
+    norm_layer: str = "layernorm2d"
+    norm_layer_cl: str = "layernorm"
     norm_eps: float = 1e-6
 
     def __post_init__(self):
@@ -118,35 +121,36 @@ class MaxxVitTransformerCfg:
 @dataclass
 class MaxxVitConvCfg:
     """Configuration for MaxxVit convolution blocks."""
-    block_type: str = 'mbconv'
+
+    block_type: str = "mbconv"
     expand_ratio: float = 4.0
     expand_output: bool = True  # calculate expansion channels from output (vs input chs)
     kernel_size: int = 3
     group_size: int = 1  # 1 == depthwise
     pre_norm_act: bool = False  # activation after pre-norm
     output_bias: bool = True  # bias for shortcut + final 1x1 projection conv
-    stride_mode: str = 'dw'  # stride done via one of 'pool', '1x1', 'dw'
-    pool_type: str = 'avg2'
-    downsample_pool_type: str = 'avg2'
-    padding: str = ''
+    stride_mode: str = "dw"  # stride done via one of 'pool', '1x1', 'dw'
+    pool_type: str = "avg2"
+    downsample_pool_type: str = "avg2"
+    padding: str = ""
     attn_early: bool = False  # apply attn between conv2 and norm2, instead of after norm2
-    attn_layer: str = 'se'
-    attn_act_layer: str = 'silu'
+    attn_layer: str = "se"
+    attn_act_layer: str = "silu"
     attn_ratio: float = 0.25
-    init_values: Optional[float] = 1e-6  # for ConvNeXt block, ignored by MBConv
-    act_layer: str = 'gelu'
-    norm_layer: str = ''
-    norm_layer_cl: str = ''
-    norm_eps: Optional[float] = None
+    init_values: float | None = 1e-6  # for ConvNeXt block, ignored by MBConv
+    act_layer: str = "gelu"
+    norm_layer: str = ""
+    norm_layer_cl: str = ""
+    norm_eps: float | None = None
 
     def __post_init__(self):
         # mbconv vs convnext blocks have different defaults, set in post_init to avoid explicit config args
-        assert self.block_type in ('mbconv', 'convnext')
-        use_mbconv = self.block_type == 'mbconv'
+        assert self.block_type in ("mbconv", "convnext")
+        use_mbconv = self.block_type == "mbconv"
         if not self.norm_layer:
-            self.norm_layer = 'batchnorm2d' if use_mbconv else 'layernorm2d'
+            self.norm_layer = "batchnorm2d" if use_mbconv else "layernorm2d"
         if not self.norm_layer_cl and not use_mbconv:
-            self.norm_layer_cl = 'layernorm'
+            self.norm_layer_cl = "layernorm"
         if self.norm_eps is None:
             self.norm_eps = 1e-5 if use_mbconv else 1e-6
         self.downsample_pool_type = self.downsample_pool_type or self.pool_type
@@ -155,34 +159,36 @@ class MaxxVitConvCfg:
 @dataclass
 class MaxxVitCfg:
     """Configuration for MaxxVit models."""
-    embed_dim: Tuple[int, ...] = (96, 192, 384, 768)
-    depths: Tuple[int, ...] = (2, 3, 5, 2)
-    block_type: Tuple[Union[str, Tuple[str, ...]], ...] = ('C', 'C', 'T', 'T')
-    stem_width: Union[int, Tuple[int, int]] = 64
+
+    embed_dim: tuple[int, ...] = (96, 192, 384, 768)
+    depths: tuple[int, ...] = (2, 3, 5, 2)
+    block_type: tuple[str | tuple[str, ...], ...] = ("C", "C", "T", "T")
+    stem_width: int | tuple[int, int] = 64
     stem_bias: bool = False
     conv_cfg: MaxxVitConvCfg = field(default_factory=MaxxVitConvCfg)
     transformer_cfg: MaxxVitTransformerCfg = field(default_factory=MaxxVitTransformerCfg)
-    head_hidden_size: Optional[int] = None
-    weight_init: str = 'vit_eff'
+    head_hidden_size: int | None = None
+    weight_init: str = "vit_eff"
 
 
 class Attention2d(nn.Module):
     """Multi-head attention for 2D NCHW tensors."""
+
     fused_attn: Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            dim_head: int = 32,
-            bias: bool = True,
-            expand_first: bool = True,
-            head_first: bool = True,
-            rel_pos_cls: Optional[Callable] = None,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        dim_head: int = 32,
+        bias: bool = True,
+        expand_first: bool = True,
+        head_first: bool = True,
+        rel_pos_cls: Callable | None = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -196,14 +202,14 @@ class Attention2d(nn.Module):
             attn_drop: Attention dropout rate.
             proj_drop: Projection dropout rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         dim_out = dim_out or dim
         dim_attn = dim_out if expand_first else dim
         self.num_heads = dim_attn // dim_head
         self.dim_head = dim_head
         self.head_first = head_first
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         self.fused_attn = use_fused_attn()
 
         self.qkv = nn.Conv2d(dim, dim_attn * 3, 1, bias=bias, **dd)
@@ -212,8 +218,8 @@ class Attention2d(nn.Module):
         self.proj = nn.Conv2d(dim_attn, dim_out, 1, bias=bias, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x: torch.Tensor, shared_rel_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
-        B, C, H, W = x.shape
+    def forward(self, x: torch.Tensor, shared_rel_pos: torch.Tensor | None = None) -> torch.Tensor:
+        B, _C, H, W = x.shape
 
         if self.head_first:
             q, k, v = self.qkv(x).view(B, self.num_heads, self.dim_head * 3, -1).chunk(3, dim=2)
@@ -227,13 +233,17 @@ class Attention2d(nn.Module):
             elif shared_rel_pos is not None:
                 attn_bias = shared_rel_pos
 
-            x = torch.nn.functional.scaled_dot_product_attention(
-                q.transpose(-1, -2).contiguous(),
-                k.transpose(-1, -2).contiguous(),
-                v.transpose(-1, -2).contiguous(),
-                attn_mask=attn_bias,
-                dropout_p=self.attn_drop.p if self.training else 0.,
-            ).transpose(-1, -2).reshape(B, -1, H, W)
+            x = (
+                torch.nn.functional.scaled_dot_product_attention(
+                    q.transpose(-1, -2).contiguous(),
+                    k.transpose(-1, -2).contiguous(),
+                    v.transpose(-1, -2).contiguous(),
+                    attn_mask=attn_bias,
+                    dropout_p=self.attn_drop.p if self.training else 0.0,
+                )
+                .transpose(-1, -2)
+                .reshape(B, -1, H, W)
+            )
         else:
             q = q * self.scale
             attn = q.transpose(-2, -1) @ k
@@ -252,21 +262,22 @@ class Attention2d(nn.Module):
 
 class AttentionCl(nn.Module):
     """Channels-last multi-head attention (B, ..., C)."""
+
     fused_attn: Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            dim_head: int = 32,
-            bias: bool = True,
-            expand_first: bool = True,
-            head_first: bool = True,
-            rel_pos_cls: Optional[Callable] = None,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        dim_head: int = 32,
+        bias: bool = True,
+        expand_first: bool = True,
+        head_first: bool = True,
+        rel_pos_cls: Callable | None = None,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -280,15 +291,15 @@ class AttentionCl(nn.Module):
             attn_drop: Attention dropout rate.
             proj_drop: Projection dropout rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         dim_out = dim_out or dim
         dim_attn = dim_out if expand_first and dim_out > dim else dim
-        assert dim_attn % dim_head == 0, 'attn dim should be divisible by head_dim'
+        assert dim_attn % dim_head == 0, "attn dim should be divisible by head_dim"
         self.num_heads = dim_attn // dim_head
         self.dim_head = dim_head
         self.head_first = head_first
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         self.fused_attn = use_fused_attn()
 
         self.qkv = nn.Linear(dim, dim_attn * 3, bias=bias, **dd)
@@ -297,7 +308,7 @@ class AttentionCl(nn.Module):
         self.proj = nn.Linear(dim_attn, dim_out, bias=bias, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x: torch.Tensor, shared_rel_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, shared_rel_pos: torch.Tensor | None = None) -> torch.Tensor:
         B = x.shape[0]
         restore_shape = x.shape[:-1]
 
@@ -314,9 +325,11 @@ class AttentionCl(nn.Module):
                 attn_bias = shared_rel_pos
 
             x = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v,
+                q,
+                k,
+                v,
                 attn_mask=attn_bias,
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
@@ -329,7 +342,7 @@ class AttentionCl(nn.Module):
             attn = self.attn_drop(attn)
             x = attn @ v
 
-        x = x.transpose(1, 2).reshape(restore_shape + (-1,))
+        x = x.transpose(1, 2).reshape((*restore_shape, -1))
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
@@ -345,14 +358,14 @@ class Downsample2d(nn.Module):
     """
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: int,
-            pool_type: str = 'avg2',
-            padding: str = '',
-            bias: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int,
+        pool_type: str = "avg2",
+        padding: str = "",
+        bias: bool = True,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -363,16 +376,15 @@ class Downsample2d(nn.Module):
             bias: Whether to use bias in expansion conv.
         """
         super().__init__()
-        assert pool_type in ('max', 'max2', 'avg', 'avg2')
-        if pool_type == 'max':
-            self.pool = create_pool2d('max', kernel_size=3, stride=2, padding=padding or 1)
-        elif pool_type == 'max2':
-            self.pool = create_pool2d('max', 2, padding=padding or 0)  # kernel_size == stride == 2
-        elif pool_type == 'avg':
-            self.pool = create_pool2d(
-                'avg', kernel_size=3, stride=2, count_include_pad=False, padding=padding or 1)
+        assert pool_type in ("max", "max2", "avg", "avg2")
+        if pool_type == "max":
+            self.pool = create_pool2d("max", kernel_size=3, stride=2, padding=padding or 1)
+        elif pool_type == "max2":
+            self.pool = create_pool2d("max", 2, padding=padding or 0)  # kernel_size == stride == 2
+        elif pool_type == "avg":
+            self.pool = create_pool2d("avg", kernel_size=3, stride=2, count_include_pad=False, padding=padding or 1)
         else:
-            self.pool = create_pool2d('avg', 2, padding=padding or 0)
+            self.pool = create_pool2d("avg", 2, padding=padding or 0)
 
         if dim != dim_out:
             self.expand = nn.Conv2d(dim, dim_out, 1, bias=bias, device=device, dtype=dtype)
@@ -385,18 +397,18 @@ class Downsample2d(nn.Module):
         return x
 
 
-def _init_transformer(module: nn.Module, name: str, scheme: str = '') -> None:
+def _init_transformer(module: nn.Module, name: str, scheme: str = "") -> None:
     """Initialize transformer module weights."""
     if isinstance(module, (nn.Conv2d, nn.Linear)):
-        if scheme == 'normal':
-            nn.init.normal_(module.weight, std=.02)
+        if scheme == "normal":
+            nn.init.normal_(module.weight, std=0.02)
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
-        elif scheme == 'trunc_normal':
-            trunc_normal_tf_(module.weight, std=.02)
+        elif scheme == "trunc_normal":
+            trunc_normal_tf_(module.weight, std=0.02)
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
-        elif scheme == 'xavier_normal':
+        elif scheme == "xavier_normal":
             nn.init.xavier_normal_(module.weight)
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
@@ -404,7 +416,7 @@ def _init_transformer(module: nn.Module, name: str, scheme: str = '') -> None:
             # vit like
             nn.init.xavier_uniform_(module.weight)
             if module.bias is not None:
-                if 'mlp' in name:
+                if "mlp" in name:
                     nn.init.normal_(module.bias, std=1e-6)
                 else:
                     nn.init.zeros_(module.bias)
@@ -415,22 +427,22 @@ class TransformerBlock2d(nn.Module):
 
     '2D' NCHW tensor layout
 
-    Some gains can be seen on GPU using a 1D / CL block, BUT w/ the need to switch back/forth to NCHW
-    for spatial pooling, the benefit is minimal so ended up using just this variant for CoAt configs.
+    Some gains can be seen on GPU using a 1D / CL block, BUT w/ the need to switch back/forth to NCHW for spatial
+    pooling, the benefit is minimal so ended up using just this variant for CoAt configs.
 
     This impl was faster on TPU w/ PT XLA than the 1D experiment.
     """
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: int,
-            stride: int = 1,
-            rel_pos_cls: Optional[Callable] = None,
-            cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int,
+        stride: int = 1,
+        rel_pos_cls: Callable | None = None,
+        cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -441,17 +453,21 @@ class TransformerBlock2d(nn.Module):
             cfg: Transformer block configuration.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         norm_layer = partial(get_norm_layer(cfg.norm_layer), eps=cfg.norm_eps)
         act_layer = get_act_layer(cfg.act_layer)
 
         if stride == 2:
             self.shortcut = Downsample2d(dim, dim_out, pool_type=cfg.pool_type, bias=cfg.shortcut_bias, **dd)
-            self.norm1 = nn.Sequential(OrderedDict([
-                ('norm', norm_layer(dim, **dd)),
-                ('down', Downsample2d(dim, dim, pool_type=cfg.pool_type, **dd)),
-            ]))
+            self.norm1 = nn.Sequential(
+                OrderedDict(
+                    [
+                        ("norm", norm_layer(dim, **dd)),
+                        ("down", Downsample2d(dim, dim, pool_type=cfg.pool_type, **dd)),
+                    ]
+                )
+            )
         else:
             assert dim == dim_out
             self.shortcut = nn.Identity()
@@ -469,7 +485,7 @@ class TransformerBlock2d(nn.Module):
             **dd,
         )
         self.ls1 = LayerScale2d(dim_out, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim_out, **dd)
         self.mlp = ConvMlp(
@@ -480,29 +496,29 @@ class TransformerBlock2d(nn.Module):
             **dd,
         )
         self.ls2 = LayerScale2d(dim_out, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-    def init_weights(self, scheme: str = '') -> None:
+    def init_weights(self, scheme: str = "") -> None:
         named_apply(partial(_init_transformer, scheme=scheme), self)
 
-    def forward(self, x: torch.Tensor, shared_rel_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, shared_rel_pos: torch.Tensor | None = None) -> torch.Tensor:
         x = self.shortcut(x) + self.drop_path1(self.ls1(self.attn(self.norm1(x), shared_rel_pos=shared_rel_pos)))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
 
 
-def _init_conv(module: nn.Module, name: str, scheme: str = '') -> None:
+def _init_conv(module: nn.Module, name: str, scheme: str = "") -> None:
     """Initialize convolution module weights."""
     if isinstance(module, nn.Conv2d):
-        if scheme == 'normal':
-            nn.init.normal_(module.weight, std=.02)
+        if scheme == "normal":
+            nn.init.normal_(module.weight, std=0.02)
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
-        elif scheme == 'trunc_normal':
-            trunc_normal_tf_(module.weight, std=.02)
+        elif scheme == "trunc_normal":
+            trunc_normal_tf_(module.weight, std=0.02)
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
-        elif scheme == 'xavier_normal':
+        elif scheme == "xavier_normal":
             nn.init.xavier_normal_(module.weight)
             if module.bias is not None:
                 nn.init.zeros_(module.bias)
@@ -515,7 +531,7 @@ def _init_conv(module: nn.Module, name: str, scheme: str = '') -> None:
                 nn.init.zeros_(module.bias)
 
 
-def num_groups(group_size: Optional[int], channels: int) -> int:
+def num_groups(group_size: int | None, channels: int) -> int:
     """Calculate number of groups for grouped convolution."""
     if not group_size:  # 0 or None
         return 1  # normal conv with 1 group
@@ -529,15 +545,15 @@ class MbConvBlock(nn.Module):
     """Pre-Norm Conv Block - 1x1 - kxk - 1x1, w/ inverted bottleneck (expand)."""
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            stride: int = 1,
-            dilation: Tuple[int, int] = (1, 1),
-            cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        stride: int = 1,
+        dilation: tuple[int, int] = (1, 1),
+        cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -548,7 +564,7 @@ class MbConvBlock(nn.Module):
             cfg: Convolution block configuration.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         norm_act_layer = partial(get_norm_act_layer(cfg.norm_layer, cfg.act_layer), eps=cfg.norm_eps)
         mid_chs = make_divisible((out_chs if cfg.expand_output else in_chs) * cfg.expand_ratio)
@@ -556,17 +572,18 @@ class MbConvBlock(nn.Module):
 
         if stride == 2:
             self.shortcut = Downsample2d(
-                in_chs, out_chs, pool_type=cfg.pool_type, bias=cfg.output_bias, padding=cfg.padding, **dd)
+                in_chs, out_chs, pool_type=cfg.pool_type, bias=cfg.output_bias, padding=cfg.padding, **dd
+            )
         else:
             self.shortcut = nn.Identity()
 
-        assert cfg.stride_mode in ('pool', '1x1', 'dw')
+        assert cfg.stride_mode in ("pool", "1x1", "dw")
         stride_pool, stride_1, stride_2 = 1, 1, 1
-        if cfg.stride_mode == 'pool':
+        if cfg.stride_mode == "pool":
             # NOTE this is not described in paper, experiment to find faster option that doesn't stride in 1x1
             stride_pool, dilation_2 = stride, dilation[1]
             # FIXME handle dilation of avg pool
-        elif cfg.stride_mode == '1x1':
+        elif cfg.stride_mode == "1x1":
             # NOTE I don't like this option described in paper, 1x1 w/ stride throws info away
             stride_1, dilation_2 = stride, dilation[1]
         else:
@@ -592,10 +609,9 @@ class MbConvBlock(nn.Module):
         )
 
         attn_kwargs = {}
-        if isinstance(cfg.attn_layer, str):
-            if cfg.attn_layer == 'se' or cfg.attn_layer == 'eca':
-                attn_kwargs['act_layer'] = cfg.attn_act_layer
-                attn_kwargs['rd_channels'] = int(cfg.attn_ratio * (out_chs if cfg.expand_output else mid_chs))
+        if isinstance(cfg.attn_layer, str) and (cfg.attn_layer == "se" or cfg.attn_layer == "eca"):
+            attn_kwargs["act_layer"] = cfg.attn_act_layer
+            attn_kwargs["rd_channels"] = int(cfg.attn_ratio * (out_chs if cfg.expand_output else mid_chs))
 
         # two different orderings for SE and norm2 (due to some weights and trials using SE before norm2)
         if cfg.attn_early:
@@ -608,9 +624,9 @@ class MbConvBlock(nn.Module):
             self.se = create_attn(cfg.attn_layer, mid_chs, **attn_kwargs, **dd)
 
         self.conv3_1x1 = create_conv2d(mid_chs, out_chs, 1, bias=cfg.output_bias, **dd)
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-    def init_weights(self, scheme: str = '') -> None:
+    def init_weights(self, scheme: str = "") -> None:
         named_apply(partial(_init_conv, scheme=scheme), self)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -640,17 +656,17 @@ class ConvNeXtBlock(nn.Module):
     """ConvNeXt Block."""
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: Optional[int] = None,
-            kernel_size: int = 7,
-            stride: int = 1,
-            dilation: Tuple[int, int] = (1, 1),
-            cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
-            conv_mlp: bool = True,
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int | None = None,
+        kernel_size: int = 7,
+        stride: int = 1,
+        dilation: tuple[int, int] = (1, 1),
+        cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
+        conv_mlp: bool = True,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -663,7 +679,7 @@ class ConvNeXtBlock(nn.Module):
             conv_mlp: Whether to use convolutional MLP.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_chs = out_chs or in_chs
         act_layer = get_act_layer(cfg.act_layer)
@@ -671,7 +687,7 @@ class ConvNeXtBlock(nn.Module):
             norm_layer = partial(get_norm_layer(cfg.norm_layer), eps=cfg.norm_eps)
             mlp_layer = ConvMlp
         else:
-            assert 'layernorm' in cfg.norm_layer
+            assert "layernorm" in cfg.norm_layer
             norm_layer = LayerNorm
             mlp_layer = Mlp
         self.use_conv_mlp = conv_mlp
@@ -683,10 +699,10 @@ class ConvNeXtBlock(nn.Module):
         else:
             self.shortcut = nn.Identity()
 
-        assert cfg.stride_mode in ('pool', 'dw')
+        assert cfg.stride_mode in ("pool", "dw")
         stride_pool, stride_dw = 1, 1
         # FIXME handle dilation?
-        if cfg.stride_mode == 'pool':
+        if cfg.stride_mode == "pool":
             stride_pool = stride
         else:
             stride_dw = stride
@@ -718,7 +734,7 @@ class ConvNeXtBlock(nn.Module):
             self.ls = LayerScale2d(out_chs, cfg.init_values, **dd) if cfg.init_values else nn.Identity()
         else:
             self.ls = LayerScale(out_chs, cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         shortcut = self.shortcut(x)
@@ -739,18 +755,18 @@ class ConvNeXtBlock(nn.Module):
         return x
 
 
-def window_partition(x: torch.Tensor, window_size: List[int]) -> torch.Tensor:
+def window_partition(x: torch.Tensor, window_size: list[int]) -> torch.Tensor:
     """Partition into non-overlapping windows."""
     B, H, W, C = x.shape
-    _assert(H % window_size[0] == 0, f'height ({H}) must be divisible by window ({window_size[0]})')
-    _assert(W % window_size[1] == 0, f'width ({W}) must be divisible by window ({window_size[1]})')
+    _assert(H % window_size[0] == 0, f"height ({H}) must be divisible by window ({window_size[0]})")
+    _assert(W % window_size[1] == 0, f"width ({W}) must be divisible by window ({window_size[1]})")
     x = x.view(B, H // window_size[0], window_size[0], W // window_size[1], window_size[1], C)
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0], window_size[1], C)
     return windows
 
 
 @register_notrace_function  # reason: int argument is a Proxy
-def window_reverse(windows: torch.Tensor, window_size: List[int], img_size: List[int]) -> torch.Tensor:
+def window_reverse(windows: torch.Tensor, window_size: list[int], img_size: list[int]) -> torch.Tensor:
     """Reverse window partition."""
     H, W = img_size
     C = windows.shape[-1]
@@ -759,18 +775,18 @@ def window_reverse(windows: torch.Tensor, window_size: List[int], img_size: List
     return x
 
 
-def grid_partition(x: torch.Tensor, grid_size: List[int]) -> torch.Tensor:
+def grid_partition(x: torch.Tensor, grid_size: list[int]) -> torch.Tensor:
     """Partition into overlapping windows with grid striding."""
     B, H, W, C = x.shape
-    _assert(H % grid_size[0] == 0, f'height {H} must be divisible by grid {grid_size[0]}')
-    _assert(W % grid_size[1] == 0, f'width {W} must be divisible by grid {grid_size[1]}')
+    _assert(H % grid_size[0] == 0, f"height {H} must be divisible by grid {grid_size[0]}")
+    _assert(W % grid_size[1] == 0, f"width {W} must be divisible by grid {grid_size[1]}")
     x = x.view(B, grid_size[0], H // grid_size[0], grid_size[1], W // grid_size[1], C)
     windows = x.permute(0, 2, 4, 1, 3, 5).contiguous().view(-1, grid_size[0], grid_size[1], C)
     return windows
 
 
 @register_notrace_function  # reason: int argument is a Proxy
-def grid_reverse(windows: torch.Tensor, grid_size: List[int], img_size: List[int]) -> torch.Tensor:
+def grid_reverse(windows: torch.Tensor, grid_size: list[int], img_size: list[int]) -> torch.Tensor:
     """Reverse grid partition."""
     H, W = img_size
     C = windows.shape[-1]
@@ -779,14 +795,14 @@ def grid_reverse(windows: torch.Tensor, grid_size: List[int], img_size: List[int
     return x
 
 
-def get_rel_pos_cls(cfg: MaxxVitTransformerCfg, window_size: Tuple[int, int]) -> Optional[Callable]:
+def get_rel_pos_cls(cfg: MaxxVitTransformerCfg, window_size: tuple[int, int]) -> Callable | None:
     """Get relative position class based on config."""
     rel_pos_cls = None
-    if cfg.rel_pos_type == 'mlp':
+    if cfg.rel_pos_type == "mlp":
         rel_pos_cls = partial(RelPosMlp, window_size=window_size, hidden_dim=cfg.rel_pos_dim)
-    elif cfg.rel_pos_type == 'bias':
+    elif cfg.rel_pos_type == "bias":
         rel_pos_cls = partial(RelPosBias, window_size=window_size)
-    elif cfg.rel_pos_type == 'bias_tf':
+    elif cfg.rel_pos_type == "bias_tf":
         rel_pos_cls = partial(RelPosBiasTf, window_size=window_size)
     return rel_pos_cls
 
@@ -798,20 +814,20 @@ class PartitionAttentionCl(nn.Module):
     """
 
     def __init__(
-            self,
-            dim: int,
-            partition_type: str = 'block',
-            cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        partition_type: str = "block",
+        cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         norm_layer = partial(get_norm_layer(cfg.norm_layer_cl), eps=cfg.norm_eps)  # NOTE this block is channels-last
         act_layer = get_act_layer(cfg.act_layer)
 
-        self.partition_block = partition_type == 'block'
+        self.partition_block = partition_type == "block"
         self.partition_size = to_2tuple(cfg.window_size if self.partition_block else cfg.grid_size)
         rel_pos_cls = get_rel_pos_cls(cfg, self.partition_size)
 
@@ -828,7 +844,7 @@ class PartitionAttentionCl(nn.Module):
             **dd,
         )
         self.ls1 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = Mlp(
@@ -839,7 +855,7 @@ class PartitionAttentionCl(nn.Module):
             **dd,
         )
         self.ls2 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def _partition_attn(self, x):
         img_size = x.shape[1:3]
@@ -869,12 +885,12 @@ class ParallelPartitionAttention(nn.Module):
     """
 
     def __init__(
-            self,
-            dim: int,
-            cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -882,7 +898,7 @@ class ParallelPartitionAttention(nn.Module):
             cfg: Transformer block configuration.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         assert dim % 2 == 0
         norm_layer = partial(get_norm_layer(cfg.norm_layer_cl), eps=cfg.norm_eps)  # NOTE this block is channels-last
@@ -916,7 +932,7 @@ class ParallelPartitionAttention(nn.Module):
             **dd,
         )
         self.ls1 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = Mlp(
@@ -928,7 +944,7 @@ class ParallelPartitionAttention(nn.Module):
             **dd,
         )
         self.ls2 = LayerScale(dim, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def _partition_attn(self, x: torch.Tensor) -> torch.Tensor:
         img_size = x.shape[1:3]
@@ -949,18 +965,18 @@ class ParallelPartitionAttention(nn.Module):
         return x
 
 
-def window_partition_nchw(x: torch.Tensor, window_size: List[int]) -> torch.Tensor:
+def window_partition_nchw(x: torch.Tensor, window_size: list[int]) -> torch.Tensor:
     """Partition windows for NCHW tensors."""
     B, C, H, W = x.shape
-    _assert(H % window_size[0] == 0, f'height ({H}) must be divisible by window ({window_size[0]})')
-    _assert(W % window_size[1] == 0, f'width ({W}) must be divisible by window ({window_size[1]})')
+    _assert(H % window_size[0] == 0, f"height ({H}) must be divisible by window ({window_size[0]})")
+    _assert(W % window_size[1] == 0, f"width ({W}) must be divisible by window ({window_size[1]})")
     x = x.view(B, C, H // window_size[0], window_size[0], W // window_size[1], window_size[1])
     windows = x.permute(0, 2, 4, 1, 3, 5).contiguous().view(-1, C, window_size[0], window_size[1])
     return windows
 
 
 @register_notrace_function  # reason: int argument is a Proxy
-def window_reverse_nchw(windows: torch.Tensor, window_size: List[int], img_size: List[int]) -> torch.Tensor:
+def window_reverse_nchw(windows: torch.Tensor, window_size: list[int], img_size: list[int]) -> torch.Tensor:
     """Reverse window partition for NCHW tensors."""
     H, W = img_size
     C = windows.shape[1]
@@ -969,18 +985,18 @@ def window_reverse_nchw(windows: torch.Tensor, window_size: List[int], img_size:
     return x
 
 
-def grid_partition_nchw(x: torch.Tensor, grid_size: List[int]) -> torch.Tensor:
+def grid_partition_nchw(x: torch.Tensor, grid_size: list[int]) -> torch.Tensor:
     """Grid partition for NCHW tensors."""
     B, C, H, W = x.shape
-    _assert(H % grid_size[0] == 0, f'height {H} must be divisible by grid {grid_size[0]}')
-    _assert(W % grid_size[1] == 0, f'width {W} must be divisible by grid {grid_size[1]}')
+    _assert(H % grid_size[0] == 0, f"height {H} must be divisible by grid {grid_size[0]}")
+    _assert(W % grid_size[1] == 0, f"width {W} must be divisible by grid {grid_size[1]}")
     x = x.view(B, C, grid_size[0], H // grid_size[0], grid_size[1], W // grid_size[1])
     windows = x.permute(0, 3, 5, 1, 2, 4).contiguous().view(-1, C, grid_size[0], grid_size[1])
     return windows
 
 
 @register_notrace_function  # reason: int argument is a Proxy
-def grid_reverse_nchw(windows: torch.Tensor, grid_size: List[int], img_size: List[int]) -> torch.Tensor:
+def grid_reverse_nchw(windows: torch.Tensor, grid_size: list[int], img_size: list[int]) -> torch.Tensor:
     """Reverse grid partition for NCHW tensors."""
     H, W = img_size
     C = windows.shape[1]
@@ -996,13 +1012,13 @@ class PartitionAttention2d(nn.Module):
     """
 
     def __init__(
-            self,
-            dim: int,
-            partition_type: str = 'block',
-            cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        partition_type: str = "block",
+        cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -1011,12 +1027,12 @@ class PartitionAttention2d(nn.Module):
             cfg: Transformer block configuration.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         norm_layer = partial(get_norm_layer(cfg.norm_layer), eps=cfg.norm_eps)  # NOTE this block is channels-last
         act_layer = get_act_layer(cfg.act_layer)
 
-        self.partition_block = partition_type == 'block'
+        self.partition_block = partition_type == "block"
         self.partition_size = to_2tuple(cfg.window_size if self.partition_block else cfg.grid_size)
         rel_pos_cls = get_rel_pos_cls(cfg, self.partition_size)
 
@@ -1033,7 +1049,7 @@ class PartitionAttention2d(nn.Module):
             **dd,
         )
         self.ls1 = LayerScale2d(dim, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = ConvMlp(
@@ -1044,7 +1060,7 @@ class PartitionAttention2d(nn.Module):
             **dd,
         )
         self.ls2 = LayerScale2d(dim, init_values=cfg.init_values, **dd) if cfg.init_values else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def _partition_attn(self, x: torch.Tensor) -> torch.Tensor:
         img_size = x.shape[-2:]
@@ -1071,15 +1087,15 @@ class MaxxVitBlock(nn.Module):
     """MaxVit conv, window partition + FFN , grid partition + FFN."""
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: int,
-            stride: int = 1,
-            conv_cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
-            transformer_cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int,
+        stride: int = 1,
+        conv_cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
+        transformer_cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """Initialize MaxxVitBlock.
 
@@ -1091,19 +1107,19 @@ class MaxxVitBlock(nn.Module):
             transformer_cfg: Configuration for transformer blocks.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.nchw_attn = transformer_cfg.use_nchw_attn
 
-        conv_cls = ConvNeXtBlock if conv_cfg.block_type == 'convnext' else MbConvBlock
+        conv_cls = ConvNeXtBlock if conv_cfg.block_type == "convnext" else MbConvBlock
         self.conv = conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)
 
         attn_kwargs = dict(dim=dim_out, cfg=transformer_cfg, drop_path=drop_path, **dd)
         partition_layer = PartitionAttention2d if self.nchw_attn else PartitionAttentionCl
         self.attn_block = None if transformer_cfg.no_block_attn else partition_layer(**attn_kwargs)
-        self.attn_grid = partition_layer(partition_type='grid', **attn_kwargs)
+        self.attn_grid = partition_layer(partition_type="grid", **attn_kwargs)
 
-    def init_weights(self, scheme=''):
+    def init_weights(self, scheme=""):
         if self.attn_block is not None:
             named_apply(partial(_init_transformer, scheme=scheme), self.attn_block)
         named_apply(partial(_init_transformer, scheme=scheme), self.attn_grid)
@@ -1130,16 +1146,16 @@ class ParallelMaxxVitBlock(nn.Module):
     """
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: int,
-            stride: int = 1,
-            num_conv: int = 2,
-            conv_cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
-            transformer_cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int,
+        stride: int = 1,
+        num_conv: int = 2,
+        conv_cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
+        transformer_cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -1151,10 +1167,10 @@ class ParallelMaxxVitBlock(nn.Module):
             transformer_cfg: Transformer block configuration.
             drop_path: Drop path rate.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
-        conv_cls = ConvNeXtBlock if conv_cfg.block_type == 'convnext' else MbConvBlock
+        conv_cls = ConvNeXtBlock if conv_cfg.block_type == "convnext" else MbConvBlock
         if num_conv > 1:
             convs = [conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)]
             convs += [conv_cls(dim_out, dim_out, cfg=conv_cfg, drop_path=drop_path, **dd)] * (num_conv - 1)
@@ -1163,7 +1179,7 @@ class ParallelMaxxVitBlock(nn.Module):
             self.conv = conv_cls(dim, dim_out, stride=stride, cfg=conv_cfg, drop_path=drop_path, **dd)
         self.attn = ParallelPartitionAttention(dim=dim_out, cfg=transformer_cfg, drop_path=drop_path, **dd)
 
-    def init_weights(self, scheme: str = '') -> None:
+    def init_weights(self, scheme: str = "") -> None:
         named_apply(partial(_init_transformer, scheme=scheme), self.attn)
         named_apply(partial(_init_conv, scheme=scheme), self.conv)
 
@@ -1179,18 +1195,18 @@ class MaxxVitStage(nn.Module):
     """MaxxVit stage consisting of mixed convolution and transformer blocks."""
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            stride: int = 2,
-            depth: int = 4,
-            feat_size: Tuple[int, int] = (14, 14),
-            block_types: Union[str, Tuple[str]] = 'C',
-            transformer_cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
-            conv_cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
-            drop_path: Union[float, List[float]] = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        stride: int = 2,
+        depth: int = 4,
+        feat_size: tuple[int, int] = (14, 14),
+        block_types: str | tuple[str] = "C",
+        transformer_cfg: MaxxVitTransformerCfg = MaxxVitTransformerCfg(),
+        conv_cfg: MaxxVitConvCfg = MaxxVitConvCfg(),
+        drop_path: float | list[float] = 0.0,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -1204,7 +1220,7 @@ class MaxxVitStage(nn.Module):
             conv_cfg: Convolution block configuration.
             drop_path: Drop path rate(s).
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.grad_checkpointing = False
 
@@ -1212,48 +1228,56 @@ class MaxxVitStage(nn.Module):
         blocks = []
         for i, t in enumerate(block_types):
             block_stride = stride if i == 0 else 1
-            assert t in ('C', 'T', 'M', 'PM')
-            if t == 'C':
-                conv_cls = ConvNeXtBlock if conv_cfg.block_type == 'convnext' else MbConvBlock
-                blocks += [conv_cls(
-                    in_chs,
-                    out_chs,
-                    stride=block_stride,
-                    cfg=conv_cfg,
-                    drop_path=drop_path[i],
-                    **dd,
-                )]
-            elif t == 'T':
+            assert t in ("C", "T", "M", "PM")
+            if t == "C":
+                conv_cls = ConvNeXtBlock if conv_cfg.block_type == "convnext" else MbConvBlock
+                blocks += [
+                    conv_cls(
+                        in_chs,
+                        out_chs,
+                        stride=block_stride,
+                        cfg=conv_cfg,
+                        drop_path=drop_path[i],
+                        **dd,
+                    )
+                ]
+            elif t == "T":
                 rel_pos_cls = get_rel_pos_cls(transformer_cfg, feat_size)
-                blocks += [TransformerBlock2d(
-                    in_chs,
-                    out_chs,
-                    stride=block_stride,
-                    rel_pos_cls=rel_pos_cls,
-                    cfg=transformer_cfg,
-                    drop_path=drop_path[i],
-                    **dd,
-                )]
-            elif t == 'M':
-                blocks += [MaxxVitBlock(
-                    in_chs,
-                    out_chs,
-                    stride=block_stride,
-                    conv_cfg=conv_cfg,
-                    transformer_cfg=transformer_cfg,
-                    drop_path=drop_path[i],
-                    **dd,
-                )]
-            elif t == 'PM':
-                blocks += [ParallelMaxxVitBlock(
-                    in_chs,
-                    out_chs,
-                    stride=block_stride,
-                    conv_cfg=conv_cfg,
-                    transformer_cfg=transformer_cfg,
-                    drop_path=drop_path[i],
-                    **dd,
-                )]
+                blocks += [
+                    TransformerBlock2d(
+                        in_chs,
+                        out_chs,
+                        stride=block_stride,
+                        rel_pos_cls=rel_pos_cls,
+                        cfg=transformer_cfg,
+                        drop_path=drop_path[i],
+                        **dd,
+                    )
+                ]
+            elif t == "M":
+                blocks += [
+                    MaxxVitBlock(
+                        in_chs,
+                        out_chs,
+                        stride=block_stride,
+                        conv_cfg=conv_cfg,
+                        transformer_cfg=transformer_cfg,
+                        drop_path=drop_path[i],
+                        **dd,
+                    )
+                ]
+            elif t == "PM":
+                blocks += [
+                    ParallelMaxxVitBlock(
+                        in_chs,
+                        out_chs,
+                        stride=block_stride,
+                        conv_cfg=conv_cfg,
+                        transformer_cfg=transformer_cfg,
+                        drop_path=drop_path[i],
+                        **dd,
+                    )
+                ]
             in_chs = out_chs
         self.blocks = nn.Sequential(*blocks)
 
@@ -1269,17 +1293,17 @@ class Stem(nn.Module):
     """Stem layer for feature extraction."""
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            kernel_size: int = 3,
-            padding: str = '',
-            bias: bool = False,
-            act_layer: str = 'gelu',
-            norm_layer: str = 'batchnorm2d',
-            norm_eps: float = 1e-5,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        kernel_size: int = 3,
+        padding: str = "",
+        bias: bool = False,
+        act_layer: str = "gelu",
+        norm_layer: str = "batchnorm2d",
+        norm_eps: float = 1e-5,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -1292,7 +1316,7 @@ class Stem(nn.Module):
             norm_layer: Normalization layer.
             norm_eps: Normalization epsilon.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if not isinstance(out_chs, (list, tuple)):
             out_chs = to_2tuple(out_chs)
@@ -1305,7 +1329,7 @@ class Stem(nn.Module):
         self.norm1 = norm_act_layer(out_chs[0], **dd)
         self.conv2 = create_conv2d(out_chs[0], out_chs[1], kernel_size, stride=1, padding=padding, bias=bias, **dd)
 
-    def init_weights(self, scheme: str = '') -> None:
+    def init_weights(self, scheme: str = "") -> None:
         named_apply(partial(_init_conv, scheme=scheme), self)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -1315,7 +1339,7 @@ class Stem(nn.Module):
         return x
 
 
-def cfg_window_size(cfg: MaxxVitTransformerCfg, img_size: Tuple[int, int]) -> MaxxVitTransformerCfg:
+def cfg_window_size(cfg: MaxxVitTransformerCfg, img_size: tuple[int, int]) -> MaxxVitTransformerCfg:
     """Configure window size based on image size and partition ratio."""
     if cfg.window_size is not None:
         assert cfg.grid_size
@@ -1331,17 +1355,17 @@ def _overlay_kwargs(cfg: MaxxVitCfg, **kwargs: Any) -> MaxxVitCfg:
     conv_kwargs = {}
     base_kwargs = {}
     for k, v in kwargs.items():
-        if k.startswith('transformer_'):
-            transformer_kwargs[k.replace('transformer_', '')] = v
-        elif k.startswith('conv_'):
-            conv_kwargs[k.replace('conv_', '')] = v
+        if k.startswith("transformer_"):
+            transformer_kwargs[k.replace("transformer_", "")] = v
+        elif k.startswith("conv_"):
+            conv_kwargs[k.replace("conv_", "")] = v
         else:
             base_kwargs[k] = v
     cfg = replace(
         cfg,
         transformer_cfg=replace(cfg.transformer_cfg, **transformer_kwargs),
         conv_cfg=replace(cfg.conv_cfg, **conv_kwargs),
-        **base_kwargs
+        **base_kwargs,
     )
     return cfg
 
@@ -1353,17 +1377,17 @@ class MaxxVit(nn.Module):
     """
 
     def __init__(
-            self,
-            cfg: MaxxVitCfg,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            device=None,
-            dtype=None,
-            **kwargs: Any,
+        self,
+        cfg: MaxxVitCfg,
+        img_size: int | tuple[int, int] = 224,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        device=None,
+        dtype=None,
+        **kwargs: Any,
     ):
         """
         Args:
@@ -1377,7 +1401,7 @@ class MaxxVit(nn.Module):
             **kwargs: Additional keyword arguments to overlay on config.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         img_size = to_2tuple(img_size)
         if kwargs:
             cfg = _overlay_kwargs(cfg, **kwargs)
@@ -1401,7 +1425,7 @@ class MaxxVit(nn.Module):
             **dd,
         )
         stride = self.stem.stride
-        self.feature_info += [dict(num_chs=self.stem.out_chs, reduction=2, module='stem')]
+        self.feature_info += [{"num_chs": self.stem.out_chs, "reduction": 2, "module": "stem"}]
         feat_size = tuple([i // s for i, s in zip(img_size, to_2tuple(stride))])
 
         num_stages = len(cfg.embed_dim)
@@ -1413,20 +1437,22 @@ class MaxxVit(nn.Module):
             stage_stride = 2
             out_chs = cfg.embed_dim[i]
             feat_size = tuple([(r - 1) // stage_stride + 1 for r in feat_size])
-            stages += [MaxxVitStage(
-                in_chs,
-                out_chs,
-                depth=cfg.depths[i],
-                block_types=cfg.block_type[i],
-                conv_cfg=cfg.conv_cfg,
-                transformer_cfg=transformer_cfg,
-                feat_size=feat_size,
-                drop_path=dpr[i],
-                **dd,
-            )]
+            stages += [
+                MaxxVitStage(
+                    in_chs,
+                    out_chs,
+                    depth=cfg.depths[i],
+                    block_types=cfg.block_type[i],
+                    conv_cfg=cfg.conv_cfg,
+                    transformer_cfg=transformer_cfg,
+                    feat_size=feat_size,
+                    drop_path=dpr[i],
+                    **dd,
+                )
+            ]
             stride *= stage_stride
             in_chs = out_chs
-            self.feature_info += [dict(num_chs=out_chs, reduction=stride, module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": out_chs, "reduction": stride, "module": f"stages.{i}"}]
         self.stages = nn.Sequential(*stages)
 
         final_norm_layer = partial(get_norm_layer(cfg.transformer_cfg.norm_layer), eps=cfg.transformer_cfg.norm_eps)
@@ -1455,29 +1481,31 @@ class MaxxVit(nn.Module):
             )
 
         # Weight init (default PyTorch init works well for AdamW if scheme not set)
-        assert cfg.weight_init in ('', 'normal', 'trunc_normal', 'xavier_normal', 'vit_eff')
+        assert cfg.weight_init in ("", "normal", "trunc_normal", "xavier_normal", "vit_eff")
         if cfg.weight_init:
             named_apply(partial(self._init_weights, scheme=cfg.weight_init), self)
 
-    def _init_weights(self, module: nn.Module, name: str, scheme: str = '') -> None:
-        if hasattr(module, 'init_weights'):
+    def _init_weights(self, module: nn.Module, name: str, scheme: str = "") -> None:
+        if hasattr(module, "init_weights"):
             try:
                 module.init_weights(scheme=scheme)
             except TypeError:
                 module.init_weights()
 
     @torch.jit.ignore
-    def no_weight_decay(self) -> Set[str]:
+    def no_weight_decay(self) -> set[str]:
         return {
-            k for k, _ in self.named_parameters()
-            if any(n in k for n in ["relative_position_bias_table", "rel_pos.mlp"])}
+            k
+            for k, _ in self.named_parameters()
+            if any(n in k for n in ["relative_position_bias_table", "rel_pos.mlp"])
+        }
 
     @torch.jit.ignore
-    def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
-        matcher = dict(
-            stem=r'^stem',  # stem and embed
-            blocks=[(r'^stages\.(\d+)', None), (r'^norm', (99999,))]
-        )
+    def group_matcher(self, coarse: bool = False) -> dict[str, Any]:
+        matcher = {
+            "stem": r"^stem",  # stem and embed
+            "blocks": [(r"^stages\.(\d+)", None), (r"^norm", (99999,))],
+        }
         return matcher
 
     @torch.jit.ignore
@@ -1489,20 +1517,20 @@ class MaxxVit(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None) -> None:
         self.num_classes = num_classes
         self.head.reset(num_classes, global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -1511,10 +1539,8 @@ class MaxxVit(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages) + 1, indices)
 
@@ -1548,18 +1574,18 @@ class MaxxVit(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
-    ) -> Tuple[int, ...]:
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
+    ) -> tuple[int, ...]:
         """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages) + 1, indices)
         self.stages = self.stages[:max_index]  # truncate blocks w/ stem as idx 0
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.head = self.reset_classifier(0, '')
+            self.head = self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -1578,39 +1604,39 @@ class MaxxVit(nn.Module):
 
 
 def _rw_coat_cfg(
-        stride_mode: str = 'pool',
-        pool_type: str = 'avg2',
-        conv_output_bias: bool = False,
-        conv_attn_early: bool = False,
-        conv_attn_act_layer: str = 'relu',
-        conv_norm_layer: str = '',
-        transformer_shortcut_bias: bool = True,
-        transformer_norm_layer: str = 'layernorm2d',
-        transformer_norm_layer_cl: str = 'layernorm',
-        init_values: Optional[float] = None,
-        rel_pos_type: str = 'bias',
-        rel_pos_dim: int = 512,
-) -> Dict[str, Any]:
+    stride_mode: str = "pool",
+    pool_type: str = "avg2",
+    conv_output_bias: bool = False,
+    conv_attn_early: bool = False,
+    conv_attn_act_layer: str = "relu",
+    conv_norm_layer: str = "",
+    transformer_shortcut_bias: bool = True,
+    transformer_norm_layer: str = "layernorm2d",
+    transformer_norm_layer_cl: str = "layernorm",
+    init_values: float | None = None,
+    rel_pos_type: str = "bias",
+    rel_pos_dim: int = 512,
+) -> dict[str, Any]:
     """RW variant configuration for CoAtNet models.
 
     These models were created and trained before seeing https://github.com/google-research/maxvit
 
     Common differences for initial timm models:
-      - pre-norm layer in MZBConv included an activation after norm
-      - mbconv expansion calculated from input instead of output chs
-      - mbconv shortcut and final 1x1 conv did not have a bias
-      - SE act layer was relu, not silu
-      - mbconv uses silu in timm, not gelu
-      - expansion in attention block done via output proj, not input proj
+    - pre-norm layer in MZBConv included an activation after norm
+    - mbconv expansion calculated from input instead of output chs
+    - mbconv shortcut and final 1x1 conv did not have a bias
+    - SE act layer was relu, not silu
+    - mbconv uses silu in timm, not gelu
+    - expansion in attention block done via output proj, not input proj
 
     Variable differences (evolved over training initial models):
-      - avg pool with kernel_size=2 favoured downsampling (instead of maxpool for coat)
-      - SE attention was between conv2 and norm/act
-      - default to avg pool for mbconv downsample instead of 1x1 or dw conv
-      - transformer block shortcut has no bias
+    - avg pool with kernel_size=2 favored downsampling (instead of maxpool for coat)
+    - SE attention was between conv2 and norm/act
+    - default to avg pool for mbconv downsample instead of 1x1 or dw conv
+    - transformer block shortcut has no bias
     """
-    return dict(
-        conv_cfg=MaxxVitConvCfg(
+    return {
+        "conv_cfg": MaxxVitConvCfg(
             stride_mode=stride_mode,
             pool_type=pool_type,
             pre_norm_act=True,
@@ -1618,10 +1644,10 @@ def _rw_coat_cfg(
             output_bias=conv_output_bias,
             attn_early=conv_attn_early,
             attn_act_layer=conv_attn_act_layer,
-            act_layer='silu',
+            act_layer="silu",
             norm_layer=conv_norm_layer,
         ),
-        transformer_cfg=MaxxVitTransformerCfg(
+        "transformer_cfg": MaxxVitTransformerCfg(
             expand_first=False,
             shortcut_bias=transformer_shortcut_bias,
             pool_type=pool_type,
@@ -1631,44 +1657,44 @@ def _rw_coat_cfg(
             rel_pos_type=rel_pos_type,
             rel_pos_dim=rel_pos_dim,
         ),
-    )
+    }
 
 
 def _rw_max_cfg(
-        stride_mode: str = 'dw',
-        pool_type: str = 'avg2',
-        conv_output_bias: bool = False,
-        conv_attn_ratio: float = 1 / 16,
-        conv_norm_layer: str = '',
-        transformer_norm_layer: str = 'layernorm2d',
-        transformer_norm_layer_cl: str = 'layernorm',
-        window_size: Optional[Tuple[int, int]] = None,
-        dim_head: int = 32,
-        init_values: Optional[float] = None,
-        rel_pos_type: str = 'bias',
-        rel_pos_dim: int = 512,
-) -> Dict[str, Any]:
+    stride_mode: str = "dw",
+    pool_type: str = "avg2",
+    conv_output_bias: bool = False,
+    conv_attn_ratio: float = 1 / 16,
+    conv_norm_layer: str = "",
+    transformer_norm_layer: str = "layernorm2d",
+    transformer_norm_layer_cl: str = "layernorm",
+    window_size: tuple[int, int] | None = None,
+    dim_head: int = 32,
+    init_values: float | None = None,
+    rel_pos_type: str = "bias",
+    rel_pos_dim: int = 512,
+) -> dict[str, Any]:
     """RW variant configuration for MaxViT models.
 
     These models were created and trained before seeing https://github.com/google-research/maxvit
 
     Differences of initial timm models:
-      - mbconv expansion calculated from input instead of output chs
-      - mbconv shortcut and final 1x1 conv did not have a bias
-      - mbconv uses silu in timm, not gelu
-      - expansion in attention block done via output proj, not input proj
+    - mbconv expansion calculated from input instead of output chs
+    - mbconv shortcut and final 1x1 conv did not have a bias
+    - mbconv uses silu in timm, not gelu
+    - expansion in attention block done via output proj, not input proj
     """
-    return dict(
-        conv_cfg=MaxxVitConvCfg(
+    return {
+        "conv_cfg": MaxxVitConvCfg(
             stride_mode=stride_mode,
             pool_type=pool_type,
             expand_output=False,
             output_bias=conv_output_bias,
             attn_ratio=conv_attn_ratio,
-            act_layer='silu',
+            act_layer="silu",
             norm_layer=conv_norm_layer,
         ),
-        transformer_cfg=MaxxVitTransformerCfg(
+        "transformer_cfg": MaxxVitTransformerCfg(
             expand_first=False,
             pool_type=pool_type,
             dim_head=dim_head,
@@ -1679,27 +1705,27 @@ def _rw_max_cfg(
             rel_pos_type=rel_pos_type,
             rel_pos_dim=rel_pos_dim,
         ),
-    )
+    }
 
 
 def _next_cfg(
-        stride_mode: str = 'dw',
-        pool_type: str = 'avg2',
-        conv_norm_layer: str = 'layernorm2d',
-        conv_norm_layer_cl: str = 'layernorm',
-        transformer_norm_layer: str = 'layernorm2d',
-        transformer_norm_layer_cl: str = 'layernorm',
-        window_size: Optional[Tuple[int, int]] = None,
-        no_block_attn: bool = False,
-        init_values: Union[float, Tuple[float, float]] = 1e-6,
-        rel_pos_type: str = 'mlp',  # MLP by default for maxxvit
-        rel_pos_dim: int = 512,
-) -> Dict[str, Any]:
+    stride_mode: str = "dw",
+    pool_type: str = "avg2",
+    conv_norm_layer: str = "layernorm2d",
+    conv_norm_layer_cl: str = "layernorm",
+    transformer_norm_layer: str = "layernorm2d",
+    transformer_norm_layer_cl: str = "layernorm",
+    window_size: tuple[int, int] | None = None,
+    no_block_attn: bool = False,
+    init_values: float | tuple[float, float] = 1e-6,
+    rel_pos_type: str = "mlp",  # MLP by default for maxxvit
+    rel_pos_dim: int = 512,
+) -> dict[str, Any]:
     """Configuration for experimental ConvNeXt-based MaxxViT models."""
     init_values = to_2tuple(init_values)
-    return dict(
-        conv_cfg=MaxxVitConvCfg(
-            block_type='convnext',
+    return {
+        "conv_cfg": MaxxVitConvCfg(
+            block_type="convnext",
             stride_mode=stride_mode,
             pool_type=pool_type,
             expand_output=False,
@@ -1707,7 +1733,7 @@ def _next_cfg(
             norm_layer=conv_norm_layer,
             norm_layer_cl=conv_norm_layer_cl,
         ),
-        transformer_cfg=MaxxVitTransformerCfg(
+        "transformer_cfg": MaxxVitTransformerCfg(
             expand_first=False,
             pool_type=pool_type,
             window_size=window_size,
@@ -1718,29 +1744,29 @@ def _next_cfg(
             rel_pos_type=rel_pos_type,
             rel_pos_dim=rel_pos_dim,
         ),
-    )
+    }
 
 
-def _tf_cfg() -> Dict[str, Any]:
+def _tf_cfg() -> dict[str, Any]:
     """Configuration matching TensorFlow MaxViT models."""
-    return dict(
-        conv_cfg=MaxxVitConvCfg(
+    return {
+        "conv_cfg": MaxxVitConvCfg(
             norm_eps=1e-3,
-            act_layer='gelu_tanh',
-            padding='same',
+            act_layer="gelu_tanh",
+            padding="same",
         ),
-        transformer_cfg=MaxxVitTransformerCfg(
+        "transformer_cfg": MaxxVitTransformerCfg(
             norm_eps=1e-5,
-            act_layer='gelu_tanh',
+            act_layer="gelu_tanh",
             head_first=False,  # heads are interleaved (q_nh, q_hdim, k_nh, q_hdim, ....)
-            rel_pos_type='bias_tf',
+            rel_pos_type="bias_tf",
         ),
-    )
+    }
 
 
-model_cfgs = dict(
+model_cfgs = {
     # timm specific CoAtNet configs
-    coatnet_pico_rw=MaxxVitCfg(
+    "coatnet_pico_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(2, 3, 5, 2),
         stem_width=(32, 64),
@@ -1749,17 +1775,17 @@ model_cfgs = dict(
             conv_attn_ratio=0.25,
         ),
     ),
-    coatnet_nano_rw=MaxxVitCfg(
+    "coatnet_nano_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(3, 4, 6, 3),
         stem_width=(32, 64),
         **_rw_max_cfg(  # using newer max defaults here
-            stride_mode='pool',
+            stride_mode="pool",
             conv_output_bias=True,
             conv_attn_ratio=0.25,
         ),
     ),
-    coatnet_0_rw=MaxxVitCfg(
+    "coatnet_0_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 3, 7, 2),  # deeper than paper '0' model
         stem_width=(32, 64),
@@ -1768,351 +1794,330 @@ model_cfgs = dict(
             transformer_shortcut_bias=False,
         ),
     ),
-    coatnet_1_rw=MaxxVitCfg(
+    "coatnet_1_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 6, 14, 2),
         stem_width=(32, 64),
         **_rw_coat_cfg(
-            stride_mode='dw',
+            stride_mode="dw",
             conv_attn_early=True,
             transformer_shortcut_bias=False,
-        )
+        ),
     ),
-    coatnet_2_rw=MaxxVitCfg(
+    "coatnet_2_rw": MaxxVitCfg(
         embed_dim=(128, 256, 512, 1024),
         depths=(2, 6, 14, 2),
         stem_width=(64, 128),
         **_rw_coat_cfg(
-            stride_mode='dw',
-            conv_attn_act_layer='silu',
-            #init_values=1e-6,
+            stride_mode="dw",
+            conv_attn_act_layer="silu",
+            # init_values=1e-6,
         ),
     ),
-    coatnet_3_rw=MaxxVitCfg(
+    "coatnet_3_rw": MaxxVitCfg(
         embed_dim=(192, 384, 768, 1536),
         depths=(2, 6, 14, 2),
         stem_width=(96, 192),
         **_rw_coat_cfg(
-            stride_mode='dw',
-            conv_attn_act_layer='silu',
+            stride_mode="dw",
+            conv_attn_act_layer="silu",
             init_values=1e-6,
         ),
     ),
-
     # Experimental CoAtNet configs w/ ImageNet-1k train (different norm layers, MLP rel-pos)
-    coatnet_bn_0_rw=MaxxVitCfg(
+    "coatnet_bn_0_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 3, 7, 2),  # deeper than paper '0' model
         stem_width=(32, 64),
         **_rw_coat_cfg(
-            stride_mode='dw',
+            stride_mode="dw",
             conv_attn_early=True,
             transformer_shortcut_bias=False,
-            transformer_norm_layer='batchnorm2d',
-        )
+            transformer_norm_layer="batchnorm2d",
+        ),
     ),
-    coatnet_rmlp_nano_rw=MaxxVitCfg(
+    "coatnet_rmlp_nano_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(3, 4, 6, 3),
         stem_width=(32, 64),
         **_rw_max_cfg(
             conv_output_bias=True,
             conv_attn_ratio=0.25,
-            rel_pos_type='mlp',
+            rel_pos_type="mlp",
             rel_pos_dim=384,
         ),
     ),
-    coatnet_rmlp_0_rw=MaxxVitCfg(
+    "coatnet_rmlp_0_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 3, 7, 2),  # deeper than paper '0' model
         stem_width=(32, 64),
         **_rw_coat_cfg(
-            stride_mode='dw',
-            rel_pos_type='mlp',
+            stride_mode="dw",
+            rel_pos_type="mlp",
         ),
     ),
-    coatnet_rmlp_1_rw=MaxxVitCfg(
+    "coatnet_rmlp_1_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 6, 14, 2),
         stem_width=(32, 64),
         **_rw_coat_cfg(
-            pool_type='max',
+            pool_type="max",
             conv_attn_early=True,
             transformer_shortcut_bias=False,
-            rel_pos_type='mlp',
+            rel_pos_type="mlp",
             rel_pos_dim=384,  # was supposed to be 512, woops
         ),
     ),
-    coatnet_rmlp_1_rw2=MaxxVitCfg(
+    "coatnet_rmlp_1_rw2": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 6, 14, 2),
         stem_width=(32, 64),
         **_rw_coat_cfg(
-            stride_mode='dw',
-            rel_pos_type='mlp',
+            stride_mode="dw",
+            rel_pos_type="mlp",
             rel_pos_dim=512,  # was supposed to be 512, woops
         ),
     ),
-    coatnet_rmlp_2_rw=MaxxVitCfg(
+    "coatnet_rmlp_2_rw": MaxxVitCfg(
         embed_dim=(128, 256, 512, 1024),
         depths=(2, 6, 14, 2),
         stem_width=(64, 128),
-        **_rw_coat_cfg(
-            stride_mode='dw',
-            conv_attn_act_layer='silu',
-            init_values=1e-6,
-            rel_pos_type='mlp'
-        ),
+        **_rw_coat_cfg(stride_mode="dw", conv_attn_act_layer="silu", init_values=1e-6, rel_pos_type="mlp"),
     ),
-    coatnet_rmlp_3_rw=MaxxVitCfg(
+    "coatnet_rmlp_3_rw": MaxxVitCfg(
         embed_dim=(192, 384, 768, 1536),
         depths=(2, 6, 14, 2),
         stem_width=(96, 192),
-        **_rw_coat_cfg(
-            stride_mode='dw',
-            conv_attn_act_layer='silu',
-            init_values=1e-6,
-            rel_pos_type='mlp'
-        ),
+        **_rw_coat_cfg(stride_mode="dw", conv_attn_act_layer="silu", init_values=1e-6, rel_pos_type="mlp"),
     ),
-
-    coatnet_nano_cc=MaxxVitCfg(
+    "coatnet_nano_cc": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(3, 4, 6, 3),
         stem_width=(32, 64),
-        block_type=('C', 'C', ('C', 'T'), ('C', 'T')),
+        block_type=("C", "C", ("C", "T"), ("C", "T")),
         **_rw_coat_cfg(),
     ),
-    coatnext_nano_rw=MaxxVitCfg(
+    "coatnext_nano_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(3, 4, 6, 3),
         stem_width=(32, 64),
-        weight_init='normal',
-        **_next_cfg(
-            rel_pos_type='bias',
-            init_values=(1e-5, None)
-        ),
+        weight_init="normal",
+        **_next_cfg(rel_pos_type="bias", init_values=(1e-5, None)),
     ),
-
     # Trying to be like the CoAtNet paper configs
-    coatnet_0=MaxxVitCfg(
+    "coatnet_0": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 3, 5, 2),
         stem_width=64,
         head_hidden_size=768,
     ),
-    coatnet_1=MaxxVitCfg(
+    "coatnet_1": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 6, 14, 2),
         stem_width=64,
         head_hidden_size=768,
     ),
-    coatnet_2=MaxxVitCfg(
+    "coatnet_2": MaxxVitCfg(
         embed_dim=(128, 256, 512, 1024),
         depths=(2, 6, 14, 2),
         stem_width=128,
         head_hidden_size=1024,
     ),
-    coatnet_3=MaxxVitCfg(
+    "coatnet_3": MaxxVitCfg(
         embed_dim=(192, 384, 768, 1536),
         depths=(2, 6, 14, 2),
         stem_width=192,
         head_hidden_size=1536,
     ),
-    coatnet_4=MaxxVitCfg(
+    "coatnet_4": MaxxVitCfg(
         embed_dim=(192, 384, 768, 1536),
         depths=(2, 12, 28, 2),
         stem_width=192,
         head_hidden_size=1536,
     ),
-    coatnet_5=MaxxVitCfg(
+    "coatnet_5": MaxxVitCfg(
         embed_dim=(256, 512, 1280, 2048),
         depths=(2, 12, 28, 2),
         stem_width=192,
         head_hidden_size=2048,
     ),
-
     # Experimental MaxVit configs
-    maxvit_pico_rw=MaxxVitCfg(
+    "maxvit_pico_rw": MaxxVitCfg(
         embed_dim=(32, 64, 128, 256),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(24, 32),
         **_rw_max_cfg(),
     ),
-    maxvit_nano_rw=MaxxVitCfg(
+    "maxvit_nano_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(1, 2, 3, 1),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
         **_rw_max_cfg(),
     ),
-    maxvit_tiny_rw=MaxxVitCfg(
+    "maxvit_tiny_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
         **_rw_max_cfg(),
     ),
-    maxvit_tiny_pm=MaxxVitCfg(
+    "maxvit_tiny_pm": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(2, 2, 5, 2),
-        block_type=('PM',) * 4,
+        block_type=("PM",) * 4,
         stem_width=(32, 64),
         **_rw_max_cfg(),
     ),
-
-    maxvit_rmlp_pico_rw=MaxxVitCfg(
+    "maxvit_rmlp_pico_rw": MaxxVitCfg(
         embed_dim=(32, 64, 128, 256),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(24, 32),
-        **_rw_max_cfg(rel_pos_type='mlp'),
+        **_rw_max_cfg(rel_pos_type="mlp"),
     ),
-    maxvit_rmlp_nano_rw=MaxxVitCfg(
+    "maxvit_rmlp_nano_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(1, 2, 3, 1),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
-        **_rw_max_cfg(rel_pos_type='mlp'),
+        **_rw_max_cfg(rel_pos_type="mlp"),
     ),
-    maxvit_rmlp_tiny_rw=MaxxVitCfg(
+    "maxvit_rmlp_tiny_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
-        **_rw_max_cfg(rel_pos_type='mlp'),
+        **_rw_max_cfg(rel_pos_type="mlp"),
     ),
-    maxvit_rmlp_small_rw=MaxxVitCfg(
+    "maxvit_rmlp_small_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
         **_rw_max_cfg(
-            rel_pos_type='mlp',
+            rel_pos_type="mlp",
             init_values=1e-6,
         ),
     ),
-    maxvit_rmlp_base_rw=MaxxVitCfg(
+    "maxvit_rmlp_base_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 6, 14, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
         head_hidden_size=768,
         **_rw_max_cfg(
-            rel_pos_type='mlp',
+            rel_pos_type="mlp",
         ),
     ),
-
-    maxxvit_rmlp_nano_rw=MaxxVitCfg(
+    "maxxvit_rmlp_nano_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(1, 2, 3, 1),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
-        weight_init='normal',
+        weight_init="normal",
         **_next_cfg(),
     ),
-    maxxvit_rmlp_tiny_rw=MaxxVitCfg(
+    "maxxvit_rmlp_tiny_rw": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(32, 64),
         **_next_cfg(),
     ),
-    maxxvit_rmlp_small_rw=MaxxVitCfg(
+    "maxxvit_rmlp_small_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(48, 96),
         **_next_cfg(),
     ),
-
-    maxxvitv2_nano_rw=MaxxVitCfg(
+    "maxxvitv2_nano_rw": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(1, 2, 3, 1),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(48, 96),
-        weight_init='normal',
+        weight_init="normal",
         **_next_cfg(
             no_block_attn=True,
-            rel_pos_type='bias',
+            rel_pos_type="bias",
         ),
     ),
-    maxxvitv2_rmlp_base_rw=MaxxVitCfg(
+    "maxxvitv2_rmlp_base_rw": MaxxVitCfg(
         embed_dim=(128, 256, 512, 1024),
         depths=(2, 6, 12, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(64, 128),
         **_next_cfg(
             no_block_attn=True,
         ),
     ),
-    maxxvitv2_rmlp_large_rw=MaxxVitCfg(
+    "maxxvitv2_rmlp_large_rw": MaxxVitCfg(
         embed_dim=(160, 320, 640, 1280),
         depths=(2, 6, 16, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=(80, 160),
         head_hidden_size=1280,
         **_next_cfg(
             no_block_attn=True,
         ),
     ),
-
     # Trying to be like the MaxViT paper configs
-    maxvit_tiny_tf=MaxxVitCfg(
+    "maxvit_tiny_tf": MaxxVitCfg(
         embed_dim=(64, 128, 256, 512),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=64,
         stem_bias=True,
         head_hidden_size=512,
         **_tf_cfg(),
     ),
-    maxvit_small_tf=MaxxVitCfg(
+    "maxvit_small_tf": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 2, 5, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=64,
         stem_bias=True,
         head_hidden_size=768,
         **_tf_cfg(),
     ),
-    maxvit_base_tf=MaxxVitCfg(
+    "maxvit_base_tf": MaxxVitCfg(
         embed_dim=(96, 192, 384, 768),
         depths=(2, 6, 14, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=64,
         stem_bias=True,
         head_hidden_size=768,
         **_tf_cfg(),
     ),
-    maxvit_large_tf=MaxxVitCfg(
+    "maxvit_large_tf": MaxxVitCfg(
         embed_dim=(128, 256, 512, 1024),
         depths=(2, 6, 14, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=128,
         stem_bias=True,
         head_hidden_size=1024,
         **_tf_cfg(),
     ),
-    maxvit_xlarge_tf=MaxxVitCfg(
+    "maxvit_xlarge_tf": MaxxVitCfg(
         embed_dim=(192, 384, 768, 1536),
         depths=(2, 6, 14, 2),
-        block_type=('M',) * 4,
+        block_type=("M",) * 4,
         stem_width=192,
         stem_bias=True,
         head_hidden_size=1536,
         **_tf_cfg(),
     ),
-)
+}
 
 
-def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) -> Dict[str, torch.Tensor]:
+def checkpoint_filter_fn(state_dict: dict[str, torch.Tensor], model: nn.Module) -> dict[str, torch.Tensor]:
     """Filter checkpoint state dict for compatibility."""
     model_state_dict = model.state_dict()
     out_dict = {}
     for k, v in state_dict.items():
-        if k.endswith('relative_position_bias_table'):
+        if k.endswith("relative_position_bias_table"):
             m = model.get_submodule(k[:-29])
             if v.shape != m.relative_position_bias_table.shape or m.window_size[0] != m.window_size[1]:
                 v = resize_rel_pos_bias_table(
@@ -2129,583 +2134,568 @@ def checkpoint_filter_fn(state_dict: Dict[str, torch.Tensor], model: nn.Module) 
     return out_dict
 
 
-def _create_maxxvit(variant: str, cfg_variant: Optional[str] = None, pretrained: bool = False, **kwargs: Any) -> MaxxVit:
+def _create_maxxvit(variant: str, cfg_variant: str | None = None, pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """Create a MaxxVit model variant."""
     if cfg_variant is None:
         if variant in model_cfgs:
             cfg_variant = variant
         else:
-            cfg_variant = '_'.join(variant.split('_')[:-1])
+            cfg_variant = "_".join(variant.split("_")[:-1])
     return build_model_with_cfg(
-        MaxxVit, variant, pretrained,
+        MaxxVit,
+        variant,
+        pretrained,
         model_cfg=model_cfgs[cfg_variant],
-        feature_cfg=dict(flatten_sequential=True),
+        feature_cfg={"flatten_sequential": True},
         pretrained_filter_fn=checkpoint_filter_fn,
-        **kwargs)
+        **kwargs,
+    )
 
 
-def _cfg(url: str = '', **kwargs: Any) -> Dict[str, Any]:
+def _cfg(url: str = "", **kwargs: Any) -> dict[str, Any]:
     """Create a default configuration dict."""
     return {
-        'url': url, 'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.95, 'interpolation': 'bicubic',
-        'mean': (0.5, 0.5, 0.5), 'std': (0.5, 0.5, 0.5),
-        'first_conv': 'stem.conv1', 'classifier': 'head.fc',
-        'fixed_input_size': True,
-        'license': 'apache-2.0', **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.95,
+        "interpolation": "bicubic",
+        "mean": (0.5, 0.5, 0.5),
+        "std": (0.5, 0.5, 0.5),
+        "first_conv": "stem.conv1",
+        "classifier": "head.fc",
+        "fixed_input_size": True,
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    # timm specific CoAtNet configs, ImageNet-1k pretrain, fixed rel-pos
-    'coatnet_pico_rw_224.untrained': _cfg(url=''),
-    'coatnet_nano_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_nano_rw_224_sw-f53093b4.pth',
-        crop_pct=0.9),
-    'coatnet_0_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_0_rw_224_sw-a6439706.pth'),
-    'coatnet_1_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_1_rw_224_sw-5cae1ea8.pth'
-    ),
-
-    # timm specific CoAtNet configs, ImageNet-12k pretrain w/ 1k fine-tune, fixed rel-pos
-    'coatnet_2_rw_224.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    #'coatnet_3_rw_224.untrained': _cfg(url=''),
-
-    # Experimental CoAtNet configs w/ ImageNet-12k pretrain -> 1k fine-tune (different norm layers, MLP rel-pos)
-    'coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-
-    # Experimental CoAtNet configs w/ ImageNet-1k train (different norm layers, MLP rel-pos)
-    'coatnet_bn_0_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_bn_0_rw_224_sw-c228e218.pth',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD,
-        crop_pct=0.95),
-    'coatnet_rmlp_nano_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_rmlp_nano_rw_224_sw-bd1d51b3.pth',
-        crop_pct=0.9),
-    'coatnet_rmlp_0_rw_224.untrained': _cfg(url=''),
-    'coatnet_rmlp_1_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_rmlp_1_rw_224_sw-9051e6c3.pth'),
-    'coatnet_rmlp_2_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_rmlp_2_rw_224_sw-5ccfac55.pth'),
-    'coatnet_rmlp_3_rw_224.untrained': _cfg(url=''),
-    'coatnet_nano_cc_224.untrained': _cfg(url=''),
-    'coatnext_nano_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnext_nano_rw_224_ad-22cb71c2.pth',
-        crop_pct=0.9),
-
-    # ImagenNet-12k pretrain CoAtNet
-    'coatnet_2_rw_224.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821),
-    'coatnet_3_rw_224.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821),
-    'coatnet_rmlp_1_rw2_224.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821),
-    'coatnet_rmlp_2_rw_224.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821),
-
-    # Trying to be like the CoAtNet paper configs (will adapt if 'tf' weights are ever released)
-    'coatnet_0_224.untrained': _cfg(url=''),
-    'coatnet_1_224.untrained': _cfg(url=''),
-    'coatnet_2_224.untrained': _cfg(url=''),
-    'coatnet_3_224.untrained': _cfg(url=''),
-    'coatnet_4_224.untrained': _cfg(url=''),
-    'coatnet_5_224.untrained': _cfg(url=''),
-
-    # timm specific MaxVit configs, ImageNet-1k pretrain or untrained
-    'maxvit_pico_rw_256.untrained': _cfg(url='', input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxvit_nano_rw_256.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_nano_rw_256_sw-fb127241.pth',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxvit_tiny_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_tiny_rw_224_sw-7d0dffeb.pth'),
-    'maxvit_tiny_rw_256.untrained': _cfg(
-        url='',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxvit_tiny_pm_256.untrained': _cfg(url='', input_size=(3, 256, 256), pool_size=(8, 8)),
-
-    # timm specific MaxVit w/ MLP rel-pos, ImageNet-1k pretrain
-    'maxvit_rmlp_pico_rw_256.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_pico_rw_256_sw-8d82f2c6.pth',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxvit_rmlp_nano_rw_256.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_nano_rw_256_sw-c17bb0d6.pth',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxvit_rmlp_tiny_rw_256.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_tiny_rw_256_sw-bbef0ff5.pth',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxvit_rmlp_small_rw_224.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_small_rw_224_sw-6ef0ae4f.pth',
-        crop_pct=0.9,
-    ),
-    'maxvit_rmlp_small_rw_256.untrained': _cfg(
-        url='',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-
-    # timm specific MaxVit w/ ImageNet-12k pretrain and 1k fine-tune
-    'maxvit_rmlp_base_rw_224.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'maxvit_rmlp_base_rw_384.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-
-    # timm specific MaxVit w/ ImageNet-12k pretrain
-    'maxvit_rmlp_base_rw_224.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821,
-    ),
-
-    # timm MaxxViT configs (ConvNeXt conv blocks mixed with MaxVit transformer blocks)
-    'maxxvit_rmlp_nano_rw_256.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxxvit_rmlp_nano_rw_256_sw-0325d459.pth',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxxvit_rmlp_tiny_rw_256.untrained': _cfg(url='', input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxxvit_rmlp_small_rw_256.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxxvit_rmlp_small_rw_256_sw-37e217ff.pth',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-
-    # timm MaxxViT-V2 configs (ConvNeXt conv blocks mixed with MaxVit transformer blocks, more width, no block attn)
-    'maxxvitv2_nano_rw_256.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'maxxvitv2_rmlp_base_rw_224.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'maxxvitv2_rmlp_base_rw_384.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxxvitv2_rmlp_large_rw_224.untrained': _cfg(url=''),
-
-    'maxxvitv2_rmlp_base_rw_224.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821),
-
-    # MaxViT models ported from official Tensorflow impl
-    'maxvit_tiny_tf_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'maxvit_tiny_tf_384.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_tiny_tf_512.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_small_tf_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'maxvit_small_tf_384.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_small_tf_512.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_base_tf_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'maxvit_base_tf_384.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_base_tf_512.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_large_tf_224.in1k': _cfg(
-        hf_hub_id='timm/',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-    'maxvit_large_tf_384.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_large_tf_512.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode='squash'),
-
-    'maxvit_base_tf_224.in21k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=21843),
-    'maxvit_base_tf_384.in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_base_tf_512.in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_large_tf_224.in21k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=21843),
-    'maxvit_large_tf_384.in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_large_tf_512.in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 512, 512), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_xlarge_tf_224.in21k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=21843),
-    'maxvit_xlarge_tf_384.in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode='squash'),
-    'maxvit_xlarge_tf_512.in21k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode='squash'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        # timm specific CoAtNet configs, ImageNet-1k pretrain, fixed rel-pos
+        "coatnet_pico_rw_224.untrained": _cfg(url=""),
+        "coatnet_nano_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_nano_rw_224_sw-f53093b4.pth",
+            crop_pct=0.9,
+        ),
+        "coatnet_0_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_0_rw_224_sw-a6439706.pth",
+        ),
+        "coatnet_1_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_1_rw_224_sw-5cae1ea8.pth",
+        ),
+        # timm specific CoAtNet configs, ImageNet-12k pretrain w/ 1k fine-tune, fixed rel-pos
+        "coatnet_2_rw_224.sw_in12k_ft_in1k": _cfg(hf_hub_id="timm/"),
+        #'coatnet_3_rw_224.untrained': _cfg(url=''),
+        # Experimental CoAtNet configs w/ ImageNet-12k pretrain -> 1k fine-tune (different norm layers, MLP rel-pos)
+        "coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        # Experimental CoAtNet configs w/ ImageNet-1k train (different norm layers, MLP rel-pos)
+        "coatnet_bn_0_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_bn_0_rw_224_sw-c228e218.pth",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+            crop_pct=0.95,
+        ),
+        "coatnet_rmlp_nano_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_rmlp_nano_rw_224_sw-bd1d51b3.pth",
+            crop_pct=0.9,
+        ),
+        "coatnet_rmlp_0_rw_224.untrained": _cfg(url=""),
+        "coatnet_rmlp_1_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_rmlp_1_rw_224_sw-9051e6c3.pth",
+        ),
+        "coatnet_rmlp_2_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnet_rmlp_2_rw_224_sw-5ccfac55.pth",
+        ),
+        "coatnet_rmlp_3_rw_224.untrained": _cfg(url=""),
+        "coatnet_nano_cc_224.untrained": _cfg(url=""),
+        "coatnext_nano_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/coatnext_nano_rw_224_ad-22cb71c2.pth",
+            crop_pct=0.9,
+        ),
+        # ImagenNet-12k pretrain CoAtNet
+        "coatnet_2_rw_224.sw_in12k": _cfg(hf_hub_id="timm/", num_classes=11821),
+        "coatnet_3_rw_224.sw_in12k": _cfg(hf_hub_id="timm/", num_classes=11821),
+        "coatnet_rmlp_1_rw2_224.sw_in12k": _cfg(hf_hub_id="timm/", num_classes=11821),
+        "coatnet_rmlp_2_rw_224.sw_in12k": _cfg(hf_hub_id="timm/", num_classes=11821),
+        # Trying to be like the CoAtNet paper configs (will adapt if 'tf' weights are ever released)
+        "coatnet_0_224.untrained": _cfg(url=""),
+        "coatnet_1_224.untrained": _cfg(url=""),
+        "coatnet_2_224.untrained": _cfg(url=""),
+        "coatnet_3_224.untrained": _cfg(url=""),
+        "coatnet_4_224.untrained": _cfg(url=""),
+        "coatnet_5_224.untrained": _cfg(url=""),
+        # timm specific MaxVit configs, ImageNet-1k pretrain or untrained
+        "maxvit_pico_rw_256.untrained": _cfg(url="", input_size=(3, 256, 256), pool_size=(8, 8)),
+        "maxvit_nano_rw_256.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_nano_rw_256_sw-fb127241.pth",
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+        ),
+        "maxvit_tiny_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_tiny_rw_224_sw-7d0dffeb.pth",
+        ),
+        "maxvit_tiny_rw_256.untrained": _cfg(url="", input_size=(3, 256, 256), pool_size=(8, 8)),
+        "maxvit_tiny_pm_256.untrained": _cfg(url="", input_size=(3, 256, 256), pool_size=(8, 8)),
+        # timm specific MaxVit w/ MLP rel-pos, ImageNet-1k pretrain
+        "maxvit_rmlp_pico_rw_256.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_pico_rw_256_sw-8d82f2c6.pth",
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+        ),
+        "maxvit_rmlp_nano_rw_256.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_nano_rw_256_sw-c17bb0d6.pth",
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+        ),
+        "maxvit_rmlp_tiny_rw_256.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_tiny_rw_256_sw-bbef0ff5.pth",
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+        ),
+        "maxvit_rmlp_small_rw_224.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxvit_rmlp_small_rw_224_sw-6ef0ae4f.pth",
+            crop_pct=0.9,
+        ),
+        "maxvit_rmlp_small_rw_256.untrained": _cfg(url="", input_size=(3, 256, 256), pool_size=(8, 8)),
+        # timm specific MaxVit w/ ImageNet-12k pretrain and 1k fine-tune
+        "maxvit_rmlp_base_rw_224.sw_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "maxvit_rmlp_base_rw_384.sw_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        # timm specific MaxVit w/ ImageNet-12k pretrain
+        "maxvit_rmlp_base_rw_224.sw_in12k": _cfg(
+            hf_hub_id="timm/",
+            num_classes=11821,
+        ),
+        # timm MaxxViT configs (ConvNeXt conv blocks mixed with MaxVit transformer blocks)
+        "maxxvit_rmlp_nano_rw_256.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxxvit_rmlp_nano_rw_256_sw-0325d459.pth",
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+        ),
+        "maxxvit_rmlp_tiny_rw_256.untrained": _cfg(url="", input_size=(3, 256, 256), pool_size=(8, 8)),
+        "maxxvit_rmlp_small_rw_256.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-maxx/maxxvit_rmlp_small_rw_256_sw-37e217ff.pth",
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+        ),
+        # timm MaxxViT-V2 configs (ConvNeXt conv blocks mixed with MaxVit transformer blocks, more width, no block attn)
+        "maxxvitv2_nano_rw_256.sw_in1k": _cfg(hf_hub_id="timm/", input_size=(3, 256, 256), pool_size=(8, 8)),
+        "maxxvitv2_rmlp_base_rw_224.sw_in12k_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "maxxvitv2_rmlp_base_rw_384.sw_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxxvitv2_rmlp_large_rw_224.untrained": _cfg(url=""),
+        "maxxvitv2_rmlp_base_rw_224.sw_in12k": _cfg(hf_hub_id="timm/", num_classes=11821),
+        # MaxViT models ported from official Tensorflow impl
+        "maxvit_tiny_tf_224.in1k": _cfg(hf_hub_id="timm/", mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+        "maxvit_tiny_tf_384.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_tiny_tf_512.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_small_tf_224.in1k": _cfg(hf_hub_id="timm/", mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+        "maxvit_small_tf_384.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_small_tf_512.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_base_tf_224.in1k": _cfg(hf_hub_id="timm/", mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+        "maxvit_base_tf_384.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_base_tf_512.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_large_tf_224.in1k": _cfg(hf_hub_id="timm/", mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+        "maxvit_large_tf_384.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_large_tf_512.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_base_tf_224.in21k": _cfg(hf_hub_id="timm/", num_classes=21843),
+        "maxvit_base_tf_384.in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_base_tf_512.in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_large_tf_224.in21k": _cfg(hf_hub_id="timm/", num_classes=21843),
+        "maxvit_large_tf_384.in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_large_tf_512.in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 512, 512), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_xlarge_tf_224.in21k": _cfg(hf_hub_id="timm/", num_classes=21843),
+        "maxvit_xlarge_tf_384.in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0, crop_mode="squash"
+        ),
+        "maxvit_xlarge_tf_512.in21k_ft_in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 512, 512), pool_size=(16, 16), crop_pct=1.0, crop_mode="squash"
+        ),
+    }
+)
 
 
 @register_model
 def coatnet_pico_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Pico model with RW configuration."""
-    return _create_maxxvit('coatnet_pico_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_pico_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_nano_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Nano model with RW configuration."""
-    return _create_maxxvit('coatnet_nano_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_nano_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_0_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model with RW configuration."""
-    return _create_maxxvit('coatnet_0_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_0_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_1_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model with RW configuration."""
-    return _create_maxxvit('coatnet_1_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_1_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_2_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model with RW configuration."""
-    return _create_maxxvit('coatnet_2_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_2_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_3_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-3 model with RW configuration."""
-    return _create_maxxvit('coatnet_3_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_3_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_bn_0_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model with BatchNorm and RW configuration."""
-    return _create_maxxvit('coatnet_bn_0_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_bn_0_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_rmlp_nano_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Nano model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_nano_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_rmlp_nano_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_rmlp_0_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_0_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_rmlp_0_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_rmlp_1_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_1_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_rmlp_1_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_rmlp_1_rw2_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model with Relative Position MLP v2."""
-    return _create_maxxvit('coatnet_rmlp_1_rw2_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_rmlp_1_rw2_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_rmlp_2_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_2_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_rmlp_2_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_rmlp_2_rw_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model with Relative Position MLP at 384x384."""
-    return _create_maxxvit('coatnet_rmlp_2_rw_384', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_rmlp_2_rw_384", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_rmlp_3_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-3 model with Relative Position MLP."""
-    return _create_maxxvit('coatnet_rmlp_3_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_rmlp_3_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_nano_cc_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet Nano model with ConvNeXt blocks."""
-    return _create_maxxvit('coatnet_nano_cc_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_nano_cc_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnext_nano_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoAtNeXt Nano model with RW configuration."""
-    return _create_maxxvit('coatnext_nano_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnext_nano_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_0_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-0 model."""
-    return _create_maxxvit('coatnet_0_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_0_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_1_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-1 model."""
-    return _create_maxxvit('coatnet_1_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_1_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_2_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-2 model."""
-    return _create_maxxvit('coatnet_2_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_2_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_3_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-3 model."""
-    return _create_maxxvit('coatnet_3_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_3_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_4_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-4 model."""
-    return _create_maxxvit('coatnet_4_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_4_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def coatnet_5_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """CoatNet-5 model."""
-    return _create_maxxvit('coatnet_5_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("coatnet_5_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_pico_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Pico model with RW configuration."""
-    return _create_maxxvit('maxvit_pico_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_pico_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Nano model with RW configuration."""
-    return _create_maxxvit('maxvit_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_nano_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_tiny_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model with RW configuration."""
-    return _create_maxxvit('maxvit_tiny_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_tiny_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_tiny_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model with RW configuration at 256x256."""
-    return _create_maxxvit('maxvit_tiny_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_tiny_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_rmlp_pico_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Pico RW 256x256 model."""
-    return _create_maxxvit('maxvit_rmlp_pico_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_rmlp_pico_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_rmlp_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Nano RW 256x256 model."""
-    return _create_maxxvit('maxvit_rmlp_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_rmlp_nano_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_rmlp_tiny_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Tiny RW 256x256 model."""
-    return _create_maxxvit('maxvit_rmlp_tiny_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_rmlp_tiny_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_rmlp_small_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Relative Position MLP Small RW 224x224 model."""
-    return _create_maxxvit('maxvit_rmlp_small_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_rmlp_small_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_rmlp_small_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model with Relative Position MLP at 256x256."""
-    return _create_maxxvit('maxvit_rmlp_small_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_rmlp_small_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_rmlp_base_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model with Relative Position MLP."""
-    return _create_maxxvit('maxvit_rmlp_base_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_rmlp_base_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_rmlp_base_rw_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model with Relative Position MLP at 384x384."""
-    return _create_maxxvit('maxvit_rmlp_base_rw_384', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_rmlp_base_rw_384", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_tiny_pm_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model with parallel blocks."""
-    return _create_maxxvit('maxvit_tiny_pm_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_tiny_pm_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxxvit_rmlp_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT Relative Position MLP Nano RW 256x256 model."""
-    return _create_maxxvit('maxxvit_rmlp_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxxvit_rmlp_nano_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxxvit_rmlp_tiny_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT Tiny model with Relative Position MLP."""
-    return _create_maxxvit('maxxvit_rmlp_tiny_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxxvit_rmlp_tiny_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxxvit_rmlp_small_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT Small model with Relative Position MLP."""
-    return _create_maxxvit('maxxvit_rmlp_small_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxxvit_rmlp_small_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxxvitv2_nano_rw_256(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Nano model."""
-    return _create_maxxvit('maxxvitv2_nano_rw_256', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxxvitv2_nano_rw_256", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxxvitv2_rmlp_base_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Base model with Relative Position MLP."""
-    return _create_maxxvit('maxxvitv2_rmlp_base_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxxvitv2_rmlp_base_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxxvitv2_rmlp_base_rw_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Base model with Relative Position MLP at 384x384."""
-    return _create_maxxvit('maxxvitv2_rmlp_base_rw_384', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxxvitv2_rmlp_base_rw_384", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxxvitv2_rmlp_large_rw_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxxViT-V2 Large model with Relative Position MLP."""
-    return _create_maxxvit('maxxvitv2_rmlp_large_rw_224', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxxvitv2_rmlp_large_rw_224", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_tiny_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model from TensorFlow."""
-    return _create_maxxvit('maxvit_tiny_tf_224', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_tiny_tf_224", "maxvit_tiny_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_tiny_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_tiny_tf_384', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_tiny_tf_384", "maxvit_tiny_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_tiny_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Tiny model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_tiny_tf_512', 'maxvit_tiny_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_tiny_tf_512", "maxvit_tiny_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_small_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model from TensorFlow."""
-    return _create_maxxvit('maxvit_small_tf_224', 'maxvit_small_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_small_tf_224", "maxvit_small_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_small_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_small_tf_384', 'maxvit_small_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_small_tf_384", "maxvit_small_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_small_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Small model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_small_tf_512', 'maxvit_small_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_small_tf_512", "maxvit_small_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_base_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model from TensorFlow."""
-    return _create_maxxvit('maxvit_base_tf_224', 'maxvit_base_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_base_tf_224", "maxvit_base_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_base_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_base_tf_384', 'maxvit_base_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_base_tf_384", "maxvit_base_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_base_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Base model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_base_tf_512', 'maxvit_base_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_base_tf_512", "maxvit_base_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_large_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Large model from TensorFlow."""
-    return _create_maxxvit('maxvit_large_tf_224', 'maxvit_large_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_large_tf_224", "maxvit_large_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_large_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Large model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_large_tf_384', 'maxvit_large_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_large_tf_384", "maxvit_large_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_large_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT Large model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_large_tf_512', 'maxvit_large_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_large_tf_512", "maxvit_large_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_xlarge_tf_224(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT XLarge model from TensorFlow."""
-    return _create_maxxvit('maxvit_xlarge_tf_224', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_xlarge_tf_224", "maxvit_xlarge_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_xlarge_tf_384(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT XLarge model from TensorFlow at 384x384."""
-    return _create_maxxvit('maxvit_xlarge_tf_384', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_xlarge_tf_384", "maxvit_xlarge_tf", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def maxvit_xlarge_tf_512(pretrained: bool = False, **kwargs: Any) -> MaxxVit:
     """MaxViT XLarge model from TensorFlow at 512x512."""
-    return _create_maxxvit('maxvit_xlarge_tf_512', 'maxvit_xlarge_tf', pretrained=pretrained, **kwargs)
+    return _create_maxxvit("maxvit_xlarge_tf_512", "maxvit_xlarge_tf", pretrained=pretrained, **kwargs)

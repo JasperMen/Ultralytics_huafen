@@ -13,25 +13,27 @@ This module provides:
 
 Hacked together by / Copyright 2025, Ross Wightman, Hugging Face
 """
+
+from __future__ import annotations
+
 import math
 import random
-from typing import Dict, List, Tuple, Union
 
 import torch
 
 
 def mix_batch_variable_size(
-        imgs: List[torch.Tensor],
-        *,
-        mixup_alpha: float = 0.8,
-        cutmix_alpha: float = 1.0,
-        switch_prob: float = 0.5,
-        local_shuffle: int = 4,
-) -> Tuple[List[torch.Tensor], List[float], Dict[int, int]]:
+    imgs: list[torch.Tensor],
+    *,
+    mixup_alpha: float = 0.8,
+    cutmix_alpha: float = 1.0,
+    switch_prob: float = 0.5,
+    local_shuffle: int = 4,
+) -> tuple[list[torch.Tensor], list[float], dict[int, int]]:
     """Apply Mixup or CutMix on a batch of variable-sized images.
 
-    Sorts images by aspect ratio and pairs neighboring samples. Only the mutual
-    central overlap region of each pair is mixed.
+    Sorts images by aspect ratio and pairs neighboring samples. Only the mutual central overlap region of each pair is
+    mixed.
 
     Args:
         imgs: List of transformed images shaped (C, H, W).
@@ -69,17 +71,17 @@ def mix_batch_variable_size(
     order = sorted(range(len(imgs)), key=lambda i: imgs[i].shape[2] / imgs[i].shape[1])
     if local_shuffle > 1:
         for start in range(0, len(order), local_shuffle):
-            random.shuffle(order[start:start + local_shuffle])
+            random.shuffle(order[start : start + local_shuffle])
 
-    pair_to: Dict[int, int] = {}
+    pair_to: dict[int, int] = {}
     for a, b in zip(order[::2], order[1::2]):
         pair_to[a] = b
         pair_to[b] = a
 
     odd_one = order[-1] if len(imgs) % 2 else None
 
-    mixed_imgs: List[torch.Tensor] = [None] * len(imgs)
-    lam_list: List[float] = [1.0] * len(imgs)
+    mixed_imgs: list[torch.Tensor] = [None] * len(imgs)
+    lam_list: list[float] = [1.0] * len(imgs)
 
     for i in range(len(imgs)):
         if i == odd_one:
@@ -109,18 +111,18 @@ def mix_batch_variable_size(
 
             yl_i, xl_i = top_i + y_off, left_i + x_off
             yl_j, xl_j = top_j + y_off, left_j + x_off
-            xi[:, yl_i: yl_i + ch, xl_i: xl_i + cw] = xj[:, yl_j: yl_j + ch, xl_j: xl_j + cw]
+            xi[:, yl_i : yl_i + ch, xl_i : xl_i + cw] = xj[:, yl_j : yl_j + ch, xl_j : xl_j + cw]
             mixed_imgs[i] = xi
 
             corrected_lam = 1.0 - cut_area / float(dest_area)
             lam_list[i] = corrected_lam
         else:
             # Mixup: blend the entire overlap region
-            patch_i = xi[:, top_i:top_i + oh, left_i:left_i + ow]
-            patch_j = xj[:, top_j:top_j + oh, left_j:left_j + ow]
+            patch_i = xi[:, top_i : top_i + oh, left_i : left_i + ow]
+            patch_j = xj[:, top_j : top_j + oh, left_j : left_j + ow]
 
             blended = patch_i.mul(lam_raw).add_(patch_j, alpha=1.0 - lam_raw)
-            xi[:, top_i:top_i + oh, left_i:left_i + ow] = blended
+            xi[:, top_i : top_i + oh, left_i : left_i + ow] = blended
             mixed_imgs[i] = xi
 
             corrected_lam = (dest_area - overlap_area) / dest_area + lam_raw * overlap_area / dest_area
@@ -130,31 +132,26 @@ def mix_batch_variable_size(
 
 
 def smoothed_sparse_target(
-        targets: torch.Tensor,
-        *,
-        num_classes: int,
-        smoothing: float = 0.0,
+    targets: torch.Tensor,
+    *,
+    num_classes: int,
+    smoothing: float = 0.0,
 ) -> torch.Tensor:
     off_val = smoothing / num_classes
     on_val = 1.0 - smoothing + off_val
 
-    y_onehot = torch.full(
-        (targets.size(0), num_classes),
-        off_val,
-        dtype=torch.float32,
-        device=targets.device
-    )
+    y_onehot = torch.full((targets.size(0), num_classes), off_val, dtype=torch.float32, device=targets.device)
     y_onehot.scatter_(1, targets.unsqueeze(1), on_val)
     return y_onehot
 
 
 def pairwise_mixup_target(
-        targets: torch.Tensor,
-        pair_to: Dict[int, int],
-        lam_list: List[float],
-        *,
-        num_classes: int,
-        smoothing: float = 0.0,
+    targets: torch.Tensor,
+    pair_to: dict[int, int],
+    lam_list: list[float],
+    *,
+    num_classes: int,
+    smoothing: float = 0.0,
 ) -> torch.Tensor:
     """Create soft targets that match the pixel‑level mixing performed.
 
@@ -181,15 +178,15 @@ class NaFlexMixup:
     """Callable wrapper that combines mixing and target generation."""
 
     def __init__(
-            self,
-            *,
-            num_classes: int,
-            mixup_alpha: float = 0.8,
-            cutmix_alpha: float = 1.0,
-            switch_prob: float = 0.5,
-            prob: float = 1.0,
-            local_shuffle: int = 4,
-            label_smoothing: float = 0.0,
+        self,
+        *,
+        num_classes: int,
+        mixup_alpha: float = 0.8,
+        cutmix_alpha: float = 1.0,
+        switch_prob: float = 0.5,
+        prob: float = 1.0,
+        local_shuffle: int = 4,
+        label_smoothing: float = 0.0,
     ) -> None:
         """Configure the augmentation.
 
@@ -211,10 +208,10 @@ class NaFlexMixup:
         self.smoothing = label_smoothing
 
     def __call__(
-            self,
-            imgs: List[torch.Tensor],
-            targets: torch.Tensor,
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+        self,
+        imgs: list[torch.Tensor],
+        targets: torch.Tensor,
+    ) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         """Apply the augmentation and generate matching targets.
 
         Args:
