@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import fnmatch
 import logging
 from itertools import islice
-from typing import Collection, Optional
+from typing import Collection
 
-from torch import nn as nn
+from torch import nn
 
 from timm.models import group_parameters
-
 
 _logger = logging.getLogger(__name__)
 
@@ -17,11 +18,11 @@ def _matches_pattern(name: str, patterns: Collection[str]) -> bool:
 
 
 def param_groups_weight_decay(
-        model: nn.Module,
-        weight_decay: float = 1e-5,
-        no_weight_decay_list: Collection[str] = (),
-        fallback_list: Collection[str] = (),
-        fallback_no_weight_decay: bool = False,
+    model: nn.Module,
+    weight_decay: float = 1e-5,
+    no_weight_decay_list: Collection[str] = (),
+    fallback_list: Collection[str] = (),
+    fallback_no_weight_decay: bool = False,
 ):
     # Merge no_weight_decay into fallback_list if requested
     if fallback_no_weight_decay:
@@ -55,15 +56,16 @@ def param_groups_weight_decay(
 
     groups = []
     if no_decay:
-        groups.append({'params': no_decay, 'weight_decay': 0.})
+        groups.append({"params": no_decay, "weight_decay": 0.0})
     if decay:
-        groups.append({'params': decay, 'weight_decay': weight_decay})
+        groups.append({"params": decay, "weight_decay": weight_decay})
     if no_decay_fallback:
-        groups.append({'params': no_decay_fallback, 'weight_decay': 0., 'use_fallback': True})
+        groups.append({"params": no_decay_fallback, "weight_decay": 0.0, "use_fallback": True})
     if decay_fallback:
-        groups.append({'params': decay_fallback, 'weight_decay': weight_decay, 'use_fallback': True})
+        groups.append({"params": decay_fallback, "weight_decay": weight_decay, "use_fallback": True})
 
     return groups
+
 
 def _group(it, size):
     it = iter(it)
@@ -75,11 +77,11 @@ def auto_group_layers(model, layers_per_group=12, num_groups=None):
         if not hp:
             return True
         elif isinstance(hp, (tuple, list)):
-            return any([n.startswith(hpi) for hpi in hp])
+            return any(n.startswith(hpi) for hpi in hp)
         else:
             return n.startswith(hp)
 
-    head_prefix = getattr(model, 'pretrained_cfg', {}).get('classifier', None)
+    head_prefix = getattr(model, "pretrained_cfg", {}).get("classifier", None)
     names_trunk = []
     names_head = []
     for n, _ in model.named_parameters():
@@ -96,24 +98,24 @@ def auto_group_layers(model, layers_per_group=12, num_groups=None):
     layer_map.update({n: num_trunk_groups for n in names_head})
     return layer_map
 
+
 _layer_map = auto_group_layers  # backward compat
 
 
 def param_groups_layer_decay(
-        model: nn.Module,
-        weight_decay: float = 0.05,
-        no_weight_decay_list: Collection[str] = (),
-        fallback_list: Collection[str] = (),
-        fallback_no_weight_decay: bool = False,
-        weight_decay_exclude_1d: bool = True,
-        layer_decay: float = .75,
-        min_scale: float = 0.,
-        no_opt_scale: Optional[float] = None,
-        verbose: bool = False,
+    model: nn.Module,
+    weight_decay: float = 0.05,
+    no_weight_decay_list: Collection[str] = (),
+    fallback_list: Collection[str] = (),
+    fallback_no_weight_decay: bool = False,
+    weight_decay_exclude_1d: bool = True,
+    layer_decay: float = 0.75,
+    min_scale: float = 0.0,
+    no_opt_scale: float | None = None,
+    verbose: bool = False,
 ):
-    """
-    Parameter groups for layer-wise lr decay & weight decay
-    Based on BEiT: https://github.com/microsoft/unilm/blob/master/beit/optim_factory.py#L58
+    """Parameter groups for layer-wise lr decay & weight decay Based on BEiT:
+    https://github.com/microsoft/unilm/blob/master/beit/optim_factory.py#L58.
     """
     # Merge no_weight_decay into fallback_list if requested
     if fallback_no_weight_decay:
@@ -122,7 +124,7 @@ def param_groups_layer_decay(
     param_group_names = {}  # NOTE for debugging
     param_groups = {}
 
-    if hasattr(model, 'group_matcher'):
+    if hasattr(model, "group_matcher"):
         # FIXME interface needs more work
         layer_map = group_parameters(model, model.group_matcher(coarse=False), reverse=True)
     else:
@@ -130,7 +132,7 @@ def param_groups_layer_decay(
         layer_map = auto_group_layers(model)
     num_layers = max(layer_map.values()) + 1
     layer_max = num_layers - 1
-    layer_scales = list(max(min_scale, layer_decay ** (layer_max - i)) for i in range(num_layers))
+    layer_scales = [max(min_scale, layer_decay ** (layer_max - i)) for i in range(num_layers)]
 
     for name, param in model.named_parameters():
         if not param.requires_grad:
@@ -143,7 +145,7 @@ def param_groups_layer_decay(
         if (weight_decay_exclude_1d and param.ndim <= 1) or _matches_pattern(name, no_weight_decay_list):
             # no weight decay for 1D parameters and model specific ones
             g_decay = "no_decay"
-            this_decay = 0.
+            this_decay = 0.0
         else:
             g_decay = "decay"
             this_decay = weight_decay
@@ -178,6 +180,7 @@ def param_groups_layer_decay(
 
     if verbose:
         import json
-        _logger.info("parameter groups: \n%s" % json.dumps(param_group_names, indent=2))
+
+        _logger.info(f"parameter groups: \n{json.dumps(param_group_names, indent=2)}")
 
     return list(param_groups.values())

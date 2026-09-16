@@ -104,7 +104,7 @@ Description-Content-Type: text/markdown
   * select from several NS coefficient presets or specify your own via `ns_coefficients`
 * First 2 steps of 'meta' device model initialization supported
   * Fix several ops that were breaking creation under 'meta' device context
-  * Add device & dtype factory kwarg support to all models and modules (anything inherting from nn.Module) in `timm`
+  * Add device & dtype factory kwarg support to all models and modules (anything inheriting from nn.Module) in `timm`
 * License fields added to pretrained cfgs in code
 * Release 1.0.21
 
@@ -132,7 +132,7 @@ Description-Content-Type: text/markdown
 * Fix XY order with grid_indexing='xy', impacted non-square image use in 'xy' mode (only ROPE-ViT and PE impacted).
 
 ## July 7, 2025
-* MobileNet-v5 backbone tweaks for improved Google Gemma 3n behaviour (to pair with updated official weights)
+* MobileNet-v5 backbone tweaks for improved Google Gemma 3n behavior (to pair with updated official weights)
   * Add stem bias (zero'd in updated weights, compat break with old weights)
   * GELU -> GELU (tanh approx). A minor change to be closer to JAX
 * Add two arguments to layer-decay support, a min scale clamp and 'no optimization' scale threshold
@@ -417,12 +417,12 @@ Included optimizers available via `timm.optim.create_optimizer_v2` factory metho
 * `lookahead` adapted from impl by [Liam](https://github.com/alphadl/lookahead.pytorch) - https://arxiv.org/abs/1907.08610
 * `madgrad` an implementation of MADGRAD adapted from https://github.com/facebookresearch/madgrad - https://arxiv.org/abs/2101.11075
 * `mars` MARS optimizer from https://github.com/AGI-Arena/MARS - https://arxiv.org/abs/2411.10438
-* `muon` MUON optimizer from https://github.com/KellerJordan/Muon with numerous additions and improved non-transformer behaviour
+* `muon` MUON optimizer from https://github.com/KellerJordan/Muon with numerous additions and improved non-transformer behavior
 * `nadam` an implementation of Adam w/ Nesterov momentum
 * `nadamw` an implementation of AdamW (Adam w/ decoupled weight-decay) w/ Nesterov momentum. A simplified impl based on https://github.com/mlcommons/algorithmic-efficiency
 * `novograd` by [Masashi Kimura](https://github.com/convergence-lab/novograd) - https://arxiv.org/abs/1905.11286
 * `radam` by [Liyuan Liu](https://github.com/LiyuanLucasLiu/RAdam) - https://arxiv.org/abs/1908.03265
-* `rmsprop_tf` adapted from PyTorch RMSProp by myself. Reproduces much improved Tensorflow RMSProp behaviour
+* `rmsprop_tf` adapted from PyTorch RMSProp by myself. Reproduces much improved Tensorflow RMSProp behavior
 * `sgdw` and implementation of SGD w/ decoupled weight-decay
 * `fused<name>` optimizers by name with [NVIDIA Apex](https://github.com/NVIDIA/apex/tree/master/apex/optimizers) installed
 * `bnb<name>` optimizers by name with [BitsAndBytes](https://github.com/TimDettmers/bitsandbytes) installed
@@ -507,7 +507,7 @@ The root folder of the repository contains reference train, validation, and infe
 
 ## Awesome PyTorch Resources
 
-One of the greatest assets of PyTorch is the community and their contributions. A few of my favourite resources that pair well with the models and components here are listed below.
+One of the greatest assets of PyTorch is the community and their contributions. A few of my favorite resources that pair well with the models and components here are listed below.
 
 ### Object Detection, Instance and Semantic Segmentation
 * Detectron2 - https://github.com/facebookresearch/detectron2
