@@ -1,4 +1,4 @@
-""" Coordinate Attention and Variants
+"""Coordinate Attention and Variants.
 
 Coordinate Attention decomposes channel attention into two 1D feature encoding processes
 to capture long-range dependencies with precise positional information. This module includes
@@ -10,7 +10,8 @@ Papers / References:
 
 Hacked together by / Copyright 2025 Ross Wightman
 """
-from typing import Optional, Type, Union
+
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -22,19 +23,19 @@ from .norm import GroupNorm1
 
 class CoordAttn(nn.Module):
     def __init__(
-            self,
-            channels: int,
-            rd_ratio: float = 1. / 16,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            se_factor: float = 2/3,
-            bias: bool = False,
-            act_layer: Type[nn.Module] = nn.Hardswish,
-            norm_layer: Optional[Type[nn.Module]] = nn.BatchNorm2d,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            has_skip: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        channels: int,
+        rd_ratio: float = 1.0 / 16,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        se_factor: float = 2 / 3,
+        bias: bool = False,
+        act_layer: type[nn.Module] = nn.Hardswish,
+        norm_layer: type[nn.Module] | None = nn.BatchNorm2d,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        has_skip: bool = False,
+        device=None,
+        dtype=None,
     ):
         """Coordinate Attention module for spatial feature recalibration.
 
@@ -56,12 +57,11 @@ class CoordAttn(nn.Module):
             device: Device to place tensors on.
             dtype: Data type for tensors.
         """
-
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.has_skip = has_skip
         if not rd_channels:
-            rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
+            rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.0)
 
         self.conv1 = nn.Conv2d(channels, rd_channels, kernel_size=1, stride=1, padding=0, bias=bias, **dd)
         self.bn1 = norm_layer(rd_channels, **dd) if norm_layer is not None else nn.Identity()
@@ -74,7 +74,7 @@ class CoordAttn(nn.Module):
     def forward(self, x):
         identity = x
 
-        N, C, H, W = x.size()
+        _N, _C, H, W = x.size()
 
         # Strip pooling
         x_h = x.mean(3, keepdim=True)
@@ -102,26 +102,26 @@ class SimpleCoordAttn(nn.Module):
     """Simplified Coordinate Attention variant.
 
     Uses
-     * linear layers instead of convolutions
-     * no norm
-     * additive pre-gating re-combination
-    for reduced complexity while maintaining the core coordinate attention mechanism
-    of separate height and width attention.
+    * linear layers instead of convolutions
+    * no norm
+    * additive pre-gating re-combination
+    for reduced complexity while maintaining the core coordinate attention mechanism of separate height and width
+    attention.
     """
 
     def __init__(
-            self,
-            channels: int,
-            rd_ratio: float = 0.25,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            se_factor: float = 2 / 3,
-            bias: bool = True,
-            act_layer: Type[nn.Module] = nn.SiLU,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            has_skip: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        channels: int,
+        rd_ratio: float = 0.25,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        se_factor: float = 2 / 3,
+        bias: bool = True,
+        act_layer: type[nn.Module] = nn.SiLU,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        has_skip: bool = False,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -137,12 +137,12 @@ class SimpleCoordAttn(nn.Module):
             device: Device to place tensors on.
             dtype: Data type for tensors.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.has_skip = has_skip
 
         if not rd_channels:
-            rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.)
+            rd_channels = make_divisible(channels * rd_ratio * se_factor, rd_divisor, round_limit=0.0)
 
         self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)
         self.act = act_layer()
@@ -176,24 +176,23 @@ class SimpleCoordAttn(nn.Module):
 class EfficientLocalAttn(nn.Module):
     """Efficient Local Attention.
 
-    Lightweight alternative to Coordinate Attention that preserves spatial
-    information without channel reduction. Uses 1D depthwise convolutions
-    and GroupNorm for better generalization.
+    Lightweight alternative to Coordinate Attention that preserves spatial information without channel reduction. Uses
+    1D depthwise convolutions and GroupNorm for better generalization.
 
     Paper: https://arxiv.org/abs/2403.01123
     """
 
     def __init__(
-            self,
-            channels: int,
-            kernel_size: int = 7,
-            bias: bool = False,
-            act_layer: Type[nn.Module] = nn.SiLU,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            norm_layer: Optional[Type[nn.Module]] = GroupNorm1,
-            has_skip: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        channels: int,
+        kernel_size: int = 7,
+        bias: bool = False,
+        act_layer: type[nn.Module] = nn.SiLU,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        norm_layer: type[nn.Module] | None = GroupNorm1,
+        has_skip: bool = False,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -207,27 +206,29 @@ class EfficientLocalAttn(nn.Module):
             device: Device to place tensors on.
             dtype: Data type for tensors.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.has_skip = has_skip
 
         self.conv_h = nn.Conv2d(
-            channels, channels,
+            channels,
+            channels,
             kernel_size=(kernel_size, 1),
             stride=1,
             padding=(kernel_size // 2, 0),
             groups=channels,
             bias=bias,
-            **dd
+            **dd,
         )
         self.conv_w = nn.Conv2d(
-            channels, channels,
+            channels,
+            channels,
             kernel_size=(1, kernel_size),
             stride=1,
             padding=(0, kernel_size // 2),
             groups=channels,
             bias=bias,
-            **dd
+            **dd,
         )
         if norm_layer is not None:
             self.norm_h = norm_layer(channels, **dd)
@@ -267,16 +268,16 @@ class StripAttn(nn.Module):
     """
 
     def __init__(
-            self,
-            channels: int,
-            use_conv: bool = True,
-            kernel_size: int = 3,
-            bias: bool = False,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            has_skip: bool = False,
-            device=None,
-            dtype=None,
-            **_,
+        self,
+        channels: int,
+        use_conv: bool = True,
+        kernel_size: int = 3,
+        bias: bool = False,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        has_skip: bool = False,
+        device=None,
+        dtype=None,
+        **_,
     ):
         """
         Args:
@@ -289,29 +290,31 @@ class StripAttn(nn.Module):
             device: Device to place tensors on.
             dtype: Data type for tensors.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.has_skip = has_skip
         self.use_conv = use_conv
 
         if use_conv:
             self.conv_h = nn.Conv2d(
-                channels, channels,
+                channels,
+                channels,
                 kernel_size=(kernel_size, 1),
                 stride=1,
                 padding=(kernel_size // 2, 0),
                 groups=channels,
                 bias=bias,
-                **dd
+                **dd,
             )
             self.conv_w = nn.Conv2d(
-                channels, channels,
+                channels,
+                channels,
                 kernel_size=(1, kernel_size),
                 stride=1,
                 padding=(0, kernel_size // 2),
                 groups=channels,
                 bias=bias,
-                **dd
+                **dd,
             )
         else:
             self.conv_h = nn.Identity()
@@ -338,4 +341,3 @@ class StripAttn(nn.Module):
             out = out + identity
 
         return out
-

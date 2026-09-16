@@ -1,4 +1,4 @@
-""" Vision Transformer (ViT) in PyTorch
+"""Vision Transformer (ViT) in PyTorch.
 
 A PyTorch implement of Vision Transformers as described in:
 
@@ -9,31 +9,33 @@ A PyTorch implement of Vision Transformers as described in:
     - https://github.com/facebookresearch/segment-anything/
 
 """
+
+from __future__ import annotations
+
 import logging
 from functools import partial
-from typing import Callable, List, Optional, Tuple, Type, Union
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
 from timm.layers import (
-    PatchEmbed,
-    Mlp,
+    ClassifierHead,
     DropPath,
-    calculate_drop_path_rates,
-    PatchDropout,
+    Format,
     LayerNorm2d,
     LayerScale,
-    ClassifierHead,
+    Mlp,
     NormMlpClassifierHead,
-    Format,
-    resample_abs_pos_embed_nhwc,
+    PatchDropout,
+    PatchEmbed,
     RotaryEmbeddingCat,
     apply_rot_embed_cat,
+    calculate_drop_path_rates,
+    resample_abs_pos_embed_nhwc,
     to_2tuple,
     use_fused_attn,
 )
+from torch import nn
 from torch.jit import Final
 
 from ._builder import build_model_with_cfg
@@ -43,16 +45,15 @@ from ._manipulate import checkpoint, checkpoint_seq
 from ._registry import generate_default_cfgs, register_model
 
 # model_registry will add each entrypoint fn to this
-__all__ = ['VisionTransformerSAM']
+__all__ = ["VisionTransformerSAM"]
 
 
 _logger = logging.getLogger(__name__)
 
 
 def get_rel_pos(q_size: int, k_size: int, rel_pos: torch.Tensor) -> torch.Tensor:
-    """
-    Get relative positional embeddings according to the relative positions of
-        query and key sizes.
+    """Get relative positional embeddings according to the relative positions of query and key sizes.
+
     Args:
         q_size (int): size of query q.
         k_size (int): size of key k.
@@ -81,19 +82,20 @@ def get_rel_pos(q_size: int, k_size: int, rel_pos: torch.Tensor) -> torch.Tensor
 
     return rel_pos_resized[relative_coords.long()]
 
+
 register_notrace_function(get_rel_pos)
 
 
 def get_decomposed_rel_pos_bias(
-        q: torch.Tensor,
-        rel_pos_h: torch.Tensor,
-        rel_pos_w: torch.Tensor,
-        q_size: Tuple[int, int],
-        k_size: Tuple[int, int],
+    q: torch.Tensor,
+    rel_pos_h: torch.Tensor,
+    rel_pos_w: torch.Tensor,
+    q_size: tuple[int, int],
+    k_size: tuple[int, int],
 ) -> torch.Tensor:
-    """
-    Calculate decomposed Relative Positional Embeddings from :paper:`mvitv2`.
-    https://github.com/facebookresearch/mvit/blob/19786631e330df9f3622e5402b4a419a263a2c80/mvit/models/attention.py
+    """Calculate decomposed Relative Positional Embeddings from :paper:`mvitv2`.
+    https://github.com/facebookresearch/mvit/blob/19786631e330df9f3622e5402b4a419a263a2c80/mvit/models/attention.py.
+
     Args:
         q (Tensor): query q in the attention layer with shape (B, q_h * q_w, C).
         rel_pos_h (Tensor): relative position embeddings (Lh, C) for height axis.
@@ -122,26 +124,26 @@ class Attention(nn.Module):
     fused_attn: Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            qkv_bias: bool = True,
-            qk_norm: bool = False,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            use_rel_pos: bool = False,
-            input_size: Optional[Tuple[int, int]] = None,
-            rope: Optional[nn.Module] = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = True,
+        qk_norm: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        use_rel_pos: bool = False,
+        input_size: tuple[int, int] | None = None,
+        rope: nn.Module | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        assert dim % num_heads == 0, "dim should be divisible by num_heads"
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, **dd)
@@ -153,9 +155,7 @@ class Attention(nn.Module):
         self.use_rel_pos = use_rel_pos
         if self.use_rel_pos:
             assert rope is None
-            assert (
-                input_size is not None
-            ), "Input size must be provided if using relative positional encoding."
+            assert input_size is not None, "Input size must be provided if using relative positional encoding."
             # initialize relative positional embeddings
             self.rel_pos_h = nn.Parameter(torch.zeros(2 * input_size[0] - 1, self.head_dim, **dd))
             self.rel_pos_w = nn.Parameter(torch.zeros(2 * input_size[1] - 1, self.head_dim, **dd))
@@ -182,9 +182,11 @@ class Attention(nn.Module):
 
         if self.fused_attn:
             x = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v,
+                q,
+                k,
+                v,
                 attn_mask=attn_bias,
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
@@ -203,29 +205,28 @@ class Attention(nn.Module):
 
 
 class Block(nn.Module):
-
     def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            mlp_ratio: float = 4.,
-            qkv_bias: bool = True,
-            qk_norm: bool = False,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            init_values: Optional[float] = None,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            mlp_layer: Type[nn.Module] = Mlp,
-            use_rel_pos: bool = False,
-            window_size: int = 0,
-            input_size=None,
-            rope=None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = True,
+        qk_norm: bool = False,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        init_values: float | None = None,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        mlp_layer: type[nn.Module] = Mlp,
+        use_rel_pos: bool = False,
+        window_size: int = 0,
+        input_size=None,
+        rope=None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.window_size = window_size
         self.norm1 = norm_layer(dim, **dd)
@@ -243,7 +244,7 @@ class Block(nn.Module):
             **dd,
         )
         self.ls1 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = mlp_layer(
@@ -254,7 +255,7 @@ class Block(nn.Module):
             **dd,
         )
         self.ls2 = LayerScale(dim, init_values=init_values, **dd) if init_values else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         B, H, W, _ = x.shape
@@ -262,7 +263,7 @@ class Block(nn.Module):
         shortcut = x
         x = self.norm1(x)
         # Window partition
-        pad_hw: Optional[Tuple[int, int]] = None
+        pad_hw: tuple[int, int] | None = None
         if self.window_size > 0:
             x, pad_hw = window_partition(x, self.window_size)
 
@@ -281,9 +282,9 @@ class Block(nn.Module):
         return x
 
 
-def window_partition(x: torch.Tensor, window_size: int) -> Tuple[torch.Tensor, Tuple[int, int]]:
-    """
-    Partition into non-overlapping windows with padding if needed.
+def window_partition(x: torch.Tensor, window_size: int) -> tuple[torch.Tensor, tuple[int, int]]:
+    """Partition into non-overlapping windows with padding if needed.
+
     Args:
         x (tensor): input tokens with [B, H, W, C].
         window_size (int): window size.
@@ -305,10 +306,13 @@ def window_partition(x: torch.Tensor, window_size: int) -> Tuple[torch.Tensor, T
 
 
 def window_unpartition(
-    windows: torch.Tensor, window_size: int, hw: Tuple[int, int], pad_hw: Optional[Tuple[int, int]] = None,
+    windows: torch.Tensor,
+    window_size: int,
+    hw: tuple[int, int],
+    pad_hw: tuple[int, int] | None = None,
 ) -> torch.Tensor:
-    """
-    Window unpartition into original sequences and removing padding.
+    """Window unpartition into original sequences and removing padding.
+
     Args:
         windows (tensor): input tokens with [B * num_windows, window_size, window_size, C].
         window_size (int): window size.
@@ -328,49 +332,50 @@ def window_unpartition(
 
 
 class VisionTransformerSAM(nn.Module):
-    """ Vision Transformer for Segment-Anything Model(SAM)
+    """Vision Transformer for Segment-Anything Model(SAM).
 
-    A PyTorch impl of : `Exploring Plain Vision Transformer Backbones for Object Detection` or `Segment Anything Model (SAM)`
+    A PyTorch impl of : `Exploring Plain Vision Transformer Backbones for Object Detection` or `Segment Anything Model
+    (SAM)`
         - https://arxiv.org/abs/2010.11929
     """
 
     def __init__(
-            self,
-            img_size: int = 1024,
-            patch_size: int = 16,
-            in_chans: int = 3,
-            num_classes: int = 768,
-            embed_dim: int = 768,
-            depth: int = 12,
-            num_heads: int = 12,
-            mlp_ratio: float = 4.,
-            qkv_bias: bool = True,
-            qk_norm: bool = False,
-            init_values: Optional[float] = None,
-            pre_norm: bool = False,
-            drop_rate: float = 0.,
-            pos_drop_rate: float = 0.,
-            patch_drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            attn_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            weight_init: str = '',
-            embed_layer: Type[nn.Module] = partial(PatchEmbed, output_fmt=Format.NHWC, strict_img_size=False),
-            norm_layer: Optional[Type[nn.Module]] = nn.LayerNorm,
-            act_layer: Optional[Type[nn.Module]] = nn.GELU,
-            block_fn: Type[nn.Module] = Block,
-            mlp_layer: Type[nn.Module] = Mlp,
-            use_abs_pos: bool = True,
-            use_rel_pos: bool = False,
-            use_rope: bool = False,
-            window_size: int = 14,
-            global_attn_indexes: Tuple[int, ...] = (),
-            neck_chans: int = 256,
-            global_pool: str = 'avg',
-            head_hidden_size: Optional[int] = None,
-            ref_feat_shape: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int = 1024,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        num_classes: int = 768,
+        embed_dim: int = 768,
+        depth: int = 12,
+        num_heads: int = 12,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = True,
+        qk_norm: bool = False,
+        init_values: float | None = None,
+        pre_norm: bool = False,
+        drop_rate: float = 0.0,
+        pos_drop_rate: float = 0.0,
+        patch_drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        weight_init: str = "",
+        embed_layer: type[nn.Module] = partial(PatchEmbed, output_fmt=Format.NHWC, strict_img_size=False),
+        norm_layer: type[nn.Module] | None = nn.LayerNorm,
+        act_layer: type[nn.Module] | None = nn.GELU,
+        block_fn: type[nn.Module] = Block,
+        mlp_layer: type[nn.Module] = Mlp,
+        use_abs_pos: bool = True,
+        use_rel_pos: bool = False,
+        use_rope: bool = False,
+        window_size: int = 14,
+        global_attn_indexes: tuple[int, ...] = (),
+        neck_chans: int = 256,
+        global_pool: str = "avg",
+        head_hidden_size: int | None = None,
+        ref_feat_shape: tuple[tuple[int, int], tuple[int, int]] | None = None,
+        device=None,
+        dtype=None,
     ):
         """
         Args:
@@ -401,10 +406,10 @@ class VisionTransformerSAM(nn.Module):
             global_attn_indexes: Indexes for blocks using global attention. Used when window_size > 0.
             global_pool: Global pooling type.
             head_hidden_size: If set, use NormMlpHead
-            ref_feat_shape: Tuple of reference feature shapes for ROPE, (global, local)
+            ref_feat_shape: Tuple of reference feature shapes for ROPE, (global, local).
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         act_layer = act_layer or nn.GELU
 
@@ -423,7 +428,7 @@ class VisionTransformerSAM(nn.Module):
             **dd,
         )
         grid_size = self.patch_embed.grid_size
-        r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, 'feat_ratio') else patch_size
+        r = self.patch_embed.feat_ratio() if hasattr(self.patch_embed, "feat_ratio") else patch_size
 
         if use_abs_pos:
             # Initialize absolute positional embedding with pretrain image size.
@@ -466,29 +471,31 @@ class VisionTransformerSAM(nn.Module):
 
         # stochastic depth decay rule
         dpr = calculate_drop_path_rates(drop_path_rate, depth)
-        self.blocks = nn.Sequential(*[
-            block_fn(
-                dim=embed_dim,
-                num_heads=num_heads,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=qkv_bias,
-                qk_norm=qk_norm,
-                init_values=init_values,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[i],
-                norm_layer=norm_layer,
-                act_layer=act_layer,
-                mlp_layer=mlp_layer,
-                use_rel_pos=use_rel_pos,
-                window_size=window_size if i not in global_attn_indexes else 0,
-                input_size=grid_size,
-                rope=self.rope_window if i not in global_attn_indexes else self.rope_global,
-                **dd,
-            )
-            for i in range(depth)])
-        self.feature_info = [
-            dict(module=f'blocks.{i}', num_chs=embed_dim, reduction=r) for i in range(depth)]
+        self.blocks = nn.Sequential(
+            *[
+                block_fn(
+                    dim=embed_dim,
+                    num_heads=num_heads,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    qk_norm=qk_norm,
+                    init_values=init_values,
+                    proj_drop=proj_drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=dpr[i],
+                    norm_layer=norm_layer,
+                    act_layer=act_layer,
+                    mlp_layer=mlp_layer,
+                    use_rel_pos=use_rel_pos,
+                    window_size=window_size if i not in global_attn_indexes else 0,
+                    input_size=grid_size,
+                    rope=self.rope_window if i not in global_attn_indexes else self.rope_global,
+                    **dd,
+                )
+                for i in range(depth)
+            ]
+        )
+        self.feature_info = [{"module": f"blocks.{i}", "num_chs": embed_dim, "reduction": r} for i in range(depth)]
 
         if neck_chans:
             self.neck = nn.Sequential(
@@ -540,14 +547,14 @@ class VisionTransformerSAM(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {'pos_embed', 'dist_token'}
+        return {"pos_embed", "dist_token"}
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^pos_embed|patch_embed',  # stem and embed
-            blocks=[(r'^blocks\.(\d+)', None), (r'^norm', (99999,))]
-        )
+        return {
+            "stem": r"^pos_embed|patch_embed",  # stem and embed
+            "blocks": [(r"^blocks\.(\d+)", None), (r"^norm", (99999,))],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -557,20 +564,20 @@ class VisionTransformerSAM(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         self.head.reset(num_classes, global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -579,10 +586,8 @@ class VisionTransformerSAM(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt == 'NCHW', 'Output shape for ViT-SAM must be NCHW.'
+        assert output_fmt == "NCHW", "Output shape for ViT-SAM must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
 
@@ -598,7 +603,7 @@ class VisionTransformerSAM(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
-            blocks = self.blocks[:max_index + 1]
+            blocks = self.blocks[: max_index + 1]
         for i, blk in enumerate(blocks):
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
@@ -621,20 +626,19 @@ class VisionTransformerSAM(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Optional[Union[int, List[int]]] = None,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] | None = None,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.blocks), indices)
-        self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+        self.blocks = self.blocks[: max_index + 1]  # truncate blocks
         if prune_norm:
             # neck is being treated as equivalent to final norm here
             self.neck = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -662,16 +666,16 @@ class VisionTransformerSAM(nn.Module):
 
 
 def checkpoint_filter_fn(
-        state_dict,
-        model,
+    state_dict,
+    model,
 ):
-    """ Remap SAM checkpoints -> timm """
-    sam_checkpoint = 'image_encoder.patch_embed.proj.weight' in state_dict
+    """Remap SAM checkpoints -> timm."""
+    sam_checkpoint = "image_encoder.patch_embed.proj.weight" in state_dict
     out_dict = {}
     for k, v in state_dict.items():
-        if k.startswith('image_encoder.'):
+        if k.startswith("image_encoder."):
             k = k[14:]
-            k = k.replace('mlp.lin', 'mlp.fc')
+            k = k.replace("mlp.lin", "mlp.fc")
         else:
             if sam_checkpoint:
                 continue
@@ -679,105 +683,144 @@ def checkpoint_filter_fn(
     return out_dict
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 1024, 1024), 'pool_size': None,
-        'crop_pct': .9, 'interpolation': 'bicubic', 'fixed_input_size': True,
-        'mean': IMAGENET_INCEPTION_MEAN, 'std': IMAGENET_INCEPTION_STD,
-        'first_conv': 'patch_embed.proj', 'classifier': 'head.fc',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 1024, 1024),
+        "pool_size": None,
+        "crop_pct": 0.9,
+        "interpolation": "bicubic",
+        "fixed_input_size": True,
+        "mean": IMAGENET_INCEPTION_MEAN,
+        "std": IMAGENET_INCEPTION_STD,
+        "first_conv": "patch_embed.proj",
+        "classifier": "head.fc",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-
-    # Segment-Anything Model (SAM) pretrained - https://github.com/facebookresearch/segment-anything (no classifier head, for fine-tune/features only)
-    'samvit_base_patch16.sa1b': _cfg(
-        url='https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth',
-        hf_hub_id='timm/',
-        license='apache-2.0',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD, num_classes=0,
-        input_size=(3, 1024, 1024), crop_pct=1.0),
-    'samvit_large_patch16.sa1b': _cfg(
-        url='https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth',
-        hf_hub_id='timm/',
-        license='apache-2.0',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD, num_classes=0,
-        input_size=(3, 1024, 1024), crop_pct=1.0),
-    'samvit_huge_patch16.sa1b': _cfg(
-        url='https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth',
-        hf_hub_id='timm/',
-        license='apache-2.0',
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD, num_classes=0,
-        input_size=(3, 1024, 1024), crop_pct=1.0),
-
-    'samvit_base_patch16_224': _cfg(
-        mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD, num_classes=1000,
-        input_size=(3, 224, 224), crop_pct=0.9),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        # Segment-Anything Model (SAM) pretrained - https://github.com/facebookresearch/segment-anything (no classifier head, for fine-tune/features only)
+        "samvit_base_patch16.sa1b": _cfg(
+            url="https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth",
+            hf_hub_id="timm/",
+            license="apache-2.0",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+            num_classes=0,
+            input_size=(3, 1024, 1024),
+            crop_pct=1.0,
+        ),
+        "samvit_large_patch16.sa1b": _cfg(
+            url="https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth",
+            hf_hub_id="timm/",
+            license="apache-2.0",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+            num_classes=0,
+            input_size=(3, 1024, 1024),
+            crop_pct=1.0,
+        ),
+        "samvit_huge_patch16.sa1b": _cfg(
+            url="https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth",
+            hf_hub_id="timm/",
+            license="apache-2.0",
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+            num_classes=0,
+            input_size=(3, 1024, 1024),
+            crop_pct=1.0,
+        ),
+        "samvit_base_patch16_224": _cfg(
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+            num_classes=1000,
+            input_size=(3, 224, 224),
+            crop_pct=0.9,
+        ),
+    }
+)
 
 
 def _create_vision_transformer(variant, pretrained=False, **kwargs):
-    out_indices = kwargs.pop('out_indices', 3)
+    out_indices = kwargs.pop("out_indices", 3)
     return build_model_with_cfg(
         VisionTransformerSAM,
         variant,
         pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+        feature_cfg={"out_indices": out_indices, "feature_cls": "getter"},
         **kwargs,
     )
 
 
 @register_model
 def samvit_base_patch16(pretrained=False, **kwargs) -> VisionTransformerSAM:
-    """ ViT-B/16 for Segment-Anything
-    """
-    model_args = dict(
-        patch_size=16, embed_dim=768, depth=12, num_heads=12, global_attn_indexes=[2, 5, 8, 11],
-        window_size=14, use_rel_pos=True, img_size=1024,
-    )
-    model = _create_vision_transformer(
-        'samvit_base_patch16', pretrained=pretrained, **dict(model_args, **kwargs))
+    """ViT-B/16 for Segment-Anything."""
+    model_args = {
+        "patch_size": 16,
+        "embed_dim": 768,
+        "depth": 12,
+        "num_heads": 12,
+        "global_attn_indexes": [2, 5, 8, 11],
+        "window_size": 14,
+        "use_rel_pos": True,
+        "img_size": 1024,
+    }
+    model = _create_vision_transformer("samvit_base_patch16", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def samvit_large_patch16(pretrained=False, **kwargs) -> VisionTransformerSAM:
-    """ ViT-L/16 for Segment-Anything
-    """
-    model_args = dict(
-        patch_size=16, embed_dim=1024, depth=24, num_heads=16, global_attn_indexes=[5, 11, 17, 23],
-        window_size=14, use_rel_pos=True, img_size=1024,
-    )
-    model = _create_vision_transformer(
-        'samvit_large_patch16', pretrained=pretrained, **dict(model_args, **kwargs))
+    """ViT-L/16 for Segment-Anything."""
+    model_args = {
+        "patch_size": 16,
+        "embed_dim": 1024,
+        "depth": 24,
+        "num_heads": 16,
+        "global_attn_indexes": [5, 11, 17, 23],
+        "window_size": 14,
+        "use_rel_pos": True,
+        "img_size": 1024,
+    }
+    model = _create_vision_transformer("samvit_large_patch16", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def samvit_huge_patch16(pretrained=False, **kwargs) -> VisionTransformerSAM:
-    """ ViT-H/16 for Segment-Anything
-    """
-    model_args = dict(
-        patch_size=16, embed_dim=1280, depth=32, num_heads=16, global_attn_indexes=[7, 15, 23, 31],
-        window_size=14, use_rel_pos=True, img_size=1024,
-    )
-    model = _create_vision_transformer(
-        'samvit_huge_patch16', pretrained=pretrained, **dict(model_args, **kwargs))
+    """ViT-H/16 for Segment-Anything."""
+    model_args = {
+        "patch_size": 16,
+        "embed_dim": 1280,
+        "depth": 32,
+        "num_heads": 16,
+        "global_attn_indexes": [7, 15, 23, 31],
+        "window_size": 14,
+        "use_rel_pos": True,
+        "img_size": 1024,
+    }
+    model = _create_vision_transformer("samvit_huge_patch16", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def samvit_base_patch16_224(pretrained=False, **kwargs) -> VisionTransformerSAM:
-    """ ViT-B/16 based on samvit arch
-    """
-    model_args = dict(
-        patch_size=16, embed_dim=768, depth=12, num_heads=12, global_attn_indexes=[2, 5, 8, 11],
-        window_size=14, use_rel_pos=True, use_abs_pos=False, img_size=224, neck_chans=None,
-    )
-    model = _create_vision_transformer(
-        'samvit_base_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+    """ViT-B/16 based on samvit arch."""
+    model_args = {
+        "patch_size": 16,
+        "embed_dim": 768,
+        "depth": 12,
+        "num_heads": 12,
+        "global_attn_indexes": [2, 5, 8, 11],
+        "window_size": 14,
+        "use_rel_pos": True,
+        "use_abs_pos": False,
+        "img_size": 224,
+        "neck_chans": None,
+    }
+    model = _create_vision_transformer("samvit_base_patch16_224", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
-

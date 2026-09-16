@@ -1,35 +1,34 @@
-""" Step Scheduler
+"""Step Scheduler.
 
 Basic step LR schedule with warmup, noise.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-import math
-import torch
-from typing import List, Tuple, Union
 
+from __future__ import annotations
+
+import torch
 
 from .scheduler import Scheduler
 
 
 class StepLRScheduler(Scheduler):
-    """
-    """
+    """"""
 
     def __init__(
-            self,
-            optimizer: torch.optim.Optimizer,
-            decay_t: float,
-            decay_rate: float = 1.,
-            warmup_t: int = 0,
-            warmup_lr_init: float = 0.,
-            warmup_prefix: bool = True,
-            t_in_epochs: bool = True,
-            noise_range_t: Union[List[int], Tuple[int, int], int, None] = None,
-            noise_pct: float = 0.67,
-            noise_std: float = 1.0,
-            noise_seed: int = 42,
-            initialize: bool = True,
+        self,
+        optimizer: torch.optim.Optimizer,
+        decay_t: float,
+        decay_rate: float = 1.0,
+        warmup_t: int = 0,
+        warmup_lr_init: float = 0.0,
+        warmup_prefix: bool = True,
+        t_in_epochs: bool = True,
+        noise_range_t: list[int] | tuple[int, int] | int | None = None,
+        noise_pct: float = 0.67,
+        noise_std: float = 1.0,
+        noise_seed: int = 42,
+        initialize: bool = True,
     ) -> None:
         super().__init__(
             optimizer,
@@ -53,7 +52,7 @@ class StepLRScheduler(Scheduler):
         else:
             self.warmup_steps = [1 for _ in self.base_values]
 
-    def _get_lr(self, t: int) -> List[float]:
+    def _get_lr(self, t: int) -> list[float]:
         if t < self.warmup_t:
             lrs = [self.warmup_lr_init + t * s for s in self.warmup_steps]
         else:

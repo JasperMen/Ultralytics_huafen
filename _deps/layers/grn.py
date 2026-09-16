@@ -1,4 +1,4 @@
-""" Global Response Normalization Module
+"""Global Response Normalization Module.
 
 Based on the GRN layer presented in
 `ConvNeXt-V2 - Co-designing and Scaling ConvNets with Masked Autoencoders` - https://arxiv.org/abs/2301.00808
@@ -12,21 +12,21 @@ Hacked together by / Copyright 2023 Ross Wightman
 """
 
 import torch
-from torch import nn as nn
+from torch import nn
 
 
 class GlobalResponseNorm(nn.Module):
-    """ Global Response Normalization layer
-    """
+    """Global Response Normalization layer."""
+
     def __init__(
-            self,
-            dim: int,
-            eps: float = 1e-6,
-            channels_last: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        eps: float = 1e-6,
+        channels_last: bool = True,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.eps = eps
         if channels_last:

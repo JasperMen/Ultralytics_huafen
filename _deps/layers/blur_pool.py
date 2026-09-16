@@ -1,26 +1,28 @@
 """
 BlurPool layer inspired by
  - Kornia's Max_BlurPool2d
- - Making Convolutional Networks Shift-Invariant Again :cite:`zhang2019shiftinvar`
+ - Making Convolutional Networks Shift-Invariant Again :cite:`zhang2019shiftinvar`.
 
 Hacked together by Chris Ha and Ross Wightman
 """
+
+from __future__ import annotations
+
 from functools import partial
 from math import comb  # Python 3.8
-from typing import Callable, Optional, Type, Union
+from typing import Callable
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from .padding import get_padding
 from .typing import LayerType
 
 
 class BlurPool2d(nn.Module):
-    r"""Creates a module that computes blurs and downsample a given feature map.
-    See :cite:`zhang2019shiftinvar` for more details.
-    Corresponds to the Downsample class, which does blurring and subsampling
+    r"""Creates a module that computes blurs and downsample a given feature map. See :cite:`zhang2019shiftinvar` for
+    more details. Corresponds to the Downsample class, which does blurring and subsampling.
 
     Args:
         channels = Number of input channels
@@ -30,14 +32,15 @@ class BlurPool2d(nn.Module):
     Returns:
         torch.Tensor: the transformed tensor.
     """
+
     def __init__(
-            self,
-            channels: Optional[int] = None,
-            filt_size: int = 3,
-            stride: int = 2,
-            pad_mode: str = 'reflect',
-            device=None,
-            dtype=None
+        self,
+        channels: int | None = None,
+        filt_size: int = 3,
+        stride: int = 2,
+        pad_mode: str = "reflect",
+        device=None,
+        dtype=None,
     ) -> None:
         super().__init__()
         assert filt_size > 1
@@ -49,7 +52,7 @@ class BlurPool2d(nn.Module):
 
         # Register empty buffer with correct shape
         filt_shape = (channels or 1, 1, filt_size, filt_size)
-        self.register_buffer('filt', torch.empty(filt_shape, device=device, dtype=dtype), persistent=False)
+        self.register_buffer("filt", torch.empty(filt_shape, device=device, dtype=dtype), persistent=False)
 
         # TODO: skip init when on meta device when safe to do so
         self.reset_parameters()
@@ -63,9 +66,9 @@ class BlurPool2d(nn.Module):
         # (0.5 + 0.5 x)^N => coefficients = C(N,k) / 2^N,  k = 0..N
         coeffs = torch.tensor(
             [comb(self.filt_size - 1, k) for k in range(self.filt_size)],
-            device='cpu',
+            device="cpu",
             dtype=torch.float32,
-        ) / (2 ** (self.filt_size - 1))  # normalise so coefficients sum to 1
+        ) / (2 ** (self.filt_size - 1))  # normalize so coefficients sum to 1
         blur_filter = (coeffs[:, None] * coeffs[None, :])[None, None, :, :]
         if self.channels is not None:
             blur_filter = blur_filter.repeat(self.channels, 1, 1, 1)
@@ -89,14 +92,14 @@ class BlurPool2d(nn.Module):
 def _normalize_aa_layer(aa_layer: LayerType) -> Callable[..., nn.Module]:
     """Map string shorthands to callables (class or partial)."""
     if isinstance(aa_layer, str):
-        key = aa_layer.lower().replace('_', '').replace('-', '')
-        if key in ('avg', 'avgpool'):
+        key = aa_layer.lower().replace("_", "").replace("-", "")
+        if key in ("avg", "avgpool"):
             return nn.AvgPool2d
-        if key in ('blur', 'blurpool'):
+        if key in ("blur", "blurpool"):
             return BlurPool2d
-        if key == 'blurpc':
+        if key == "blurpc":
             # preconfigure a constant-pad BlurPool2d
-            return partial(BlurPool2d, pad_mode='constant')
+            return partial(BlurPool2d, pad_mode="constant")
         raise AssertionError(f"Unknown anti-aliasing layer ({aa_layer}).")
     return aa_layer
 
@@ -120,15 +123,15 @@ def _is_blurpool(layer_callable: Callable[..., nn.Module]) -> bool:
 
 
 def create_aa(
-        aa_layer: LayerType,
-        channels: Optional[int] = None,
-        stride: int = 2,
-        enable: bool = True,
-        noop: Optional[Type[nn.Module]] = nn.Identity,
-        device=None,
-        dtype=None,
-) -> Optional[nn.Module]:
-    """ Anti-aliasing factory that supports strings, classes, and partials. """
+    aa_layer: LayerType,
+    channels: int | None = None,
+    stride: int = 2,
+    enable: bool = True,
+    noop: type[nn.Module] | None = nn.Identity,
+    device=None,
+    dtype=None,
+) -> nn.Module | None:
+    """Anti-aliasing factory that supports strings, classes, and partials."""
     if not aa_layer or not enable:
         return noop() if noop is not None else None
 
