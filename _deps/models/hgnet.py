@@ -1,4 +1,4 @@
-""" PP-HGNet (V1 & V2)
+"""PP-HGNet (V1 & V2).
 
 Reference:
 https://github.com/PaddlePaddle/PaddleClas/blob/develop/docs/zh_CN/models/ImageNet1k/PP-HGNetV2.md
@@ -6,31 +6,32 @@ The Paddle Implement of PP-HGNet (https://github.com/PaddlePaddle/PaddleClas/blo
 PP-HGNet: https://github.com/PaddlePaddle/PaddleClas/blob/release/2.5.1/ppcls/arch/backbone/legendary_models/pp_hgnet.py
 PP-HGNetv2: https://github.com/PaddlePaddle/PaddleClas/blob/release/2.5.1/ppcls/arch/backbone/legendary_models/pp_hgnet_v2.py
 """
-from typing import Dict, List, Optional, Tuple, Type, Union
+
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import SelectAdaptivePool2d, DropPath, calculate_drop_path_rates, create_conv2d
+from timm.layers import DropPath, SelectAdaptivePool2d, calculate_drop_path_rates, create_conv2d
+from torch import nn
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
-from ._registry import register_model, generate_default_cfgs
 from ._manipulate import checkpoint_seq
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['HighPerfGpuNet']
+__all__ = ["HighPerfGpuNet"]
 
 
 class LearnableAffineBlock(nn.Module):
     def __init__(
-            self,
-            scale_value: float = 1.0,
-            bias_value: float = 0.0,
-            device=None,
-            dtype=None,
+        self,
+        scale_value: float = 1.0,
+        bias_value: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.scale = nn.Parameter(torch.tensor([scale_value], **dd), requires_grad=True)
         self.bias = nn.Parameter(torch.tensor([bias_value], **dd), requires_grad=True)
@@ -41,19 +42,19 @@ class LearnableAffineBlock(nn.Module):
 
 class ConvBNAct(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            kernel_size: int,
-            stride: int = 1,
-            groups: int = 1,
-            padding: str = '',
-            use_act: bool = True,
-            use_lab: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        kernel_size: int,
+        stride: int = 1,
+        groups: int = 1,
+        padding: str = "",
+        use_act: bool = True,
+        use_lab: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.use_act = use_act
         self.use_lab = use_lab
@@ -86,16 +87,16 @@ class ConvBNAct(nn.Module):
 
 class LightConvBNAct(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            kernel_size: int,
-            groups: int = 1,
-            use_lab: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        kernel_size: int,
+        groups: int = 1,
+        use_lab: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv1 = ConvBNAct(
             in_chs,
@@ -123,7 +124,7 @@ class LightConvBNAct(nn.Module):
 
 class EseModule(nn.Module):
     def __init__(self, chs: int, device=None, dtype=None):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv = nn.Conv2d(
             chs,
@@ -145,18 +146,15 @@ class EseModule(nn.Module):
 
 class StemV1(nn.Module):
     # for PP-HGNet
-    def __init__(self, stem_chs: List[int], device=None, dtype=None):
-        dd = {'device': device, 'dtype': dtype}
+    def __init__(self, stem_chs: list[int], device=None, dtype=None):
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        self.stem = nn.Sequential(*[
-            ConvBNAct(
-                stem_chs[i],
-                stem_chs[i + 1],
-                kernel_size=3,
-                stride=2 if i == 0 else 1,
-                **dd) for i in range(
-                len(stem_chs) - 1)
-        ])
+        self.stem = nn.Sequential(
+            *[
+                ConvBNAct(stem_chs[i], stem_chs[i + 1], kernel_size=3, stride=2 if i == 0 else 1, **dd)
+                for i in range(len(stem_chs) - 1)
+            ]
+        )
         self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
     def forward(self, x):
@@ -168,15 +166,15 @@ class StemV1(nn.Module):
 class StemV2(nn.Module):
     # for PP-HGNetv2
     def __init__(
-            self,
-            in_chs: int,
-            mid_chs: int,
-            out_chs: int,
-            use_lab: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        mid_chs: int,
+        out_chs: int,
+        use_lab: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.stem1 = ConvBNAct(
             in_chs,
@@ -235,21 +233,21 @@ class StemV2(nn.Module):
 
 class HighPerfGpuBlock(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            mid_chs: int,
-            out_chs: int,
-            layer_num: int,
-            kernel_size: int = 3,
-            residual: bool = False,
-            light_block: bool = False,
-            use_lab: bool = False,
-            agg: str = 'ese',
-            drop_path: Union[List[float], float] = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        mid_chs: int,
+        out_chs: int,
+        layer_num: int,
+        kernel_size: int = 3,
+        residual: bool = False,
+        light_block: bool = False,
+        use_lab: bool = False,
+        agg: str = "ese",
+        drop_path: list[float] | float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.residual = residual
 
@@ -279,7 +277,7 @@ class HighPerfGpuBlock(nn.Module):
 
         # feature aggregation
         total_chs = in_chs + layer_num * mid_chs
-        if agg == 'se':
+        if agg == "se":
             aggregation_squeeze_conv = ConvBNAct(
                 total_chs,
                 out_chs // 2,
@@ -332,23 +330,23 @@ class HighPerfGpuBlock(nn.Module):
 
 class HighPerfGpuStage(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            mid_chs: int,
-            out_chs: int,
-            block_num: int,
-            layer_num: int,
-            downsample: bool = True,
-            stride: int = 2,
-            light_block: bool = False,
-            kernel_size: int = 3,
-            use_lab: bool = False,
-            agg: str = 'ese',
-            drop_path: Union[List[float], float] = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        mid_chs: int,
+        out_chs: int,
+        block_num: int,
+        layer_num: int,
+        downsample: bool = True,
+        stride: int = 2,
+        light_block: bool = False,
+        kernel_size: int = 3,
+        use_lab: bool = False,
+        agg: str = "ese",
+        drop_path: list[float] | float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.downsample = downsample
         if downsample:
@@ -373,7 +371,7 @@ class HighPerfGpuStage(nn.Module):
                     mid_chs,
                     out_chs,
                     layer_num,
-                    residual=False if i == 0 else True,
+                    residual=i != 0,
                     kernel_size=kernel_size,
                     light_block=light_block,
                     use_lab=use_lab,
@@ -383,7 +381,7 @@ class HighPerfGpuStage(nn.Module):
                 )
             )
         self.blocks = nn.Sequential(*blocks_list)
-        self.grad_checkpointing= False
+        self.grad_checkpointing = False
 
     def forward(self, x):
         x = self.downsample(x)
@@ -396,22 +394,21 @@ class HighPerfGpuStage(nn.Module):
 
 class ClassifierHead(nn.Module):
     def __init__(
-            self,
-            in_features: int,
-            num_classes: int,
-            pool_type: str = 'avg',
-            drop_rate: float = 0.,
-            hidden_size: Optional[int] = 2048,
-            use_lab: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        num_classes: int,
+        pool_type: str = "avg",
+        drop_rate: float = 0.0,
+        hidden_size: int | None = 2048,
+        use_lab: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_features = in_features
-        if pool_type is not None:
-            if not pool_type:
-                assert num_classes == 0, 'Classifier head must be removed if pooling is disabled'
+        if pool_type is not None and not pool_type:
+            assert num_classes == 0, "Classifier head must be removed if pooling is disabled"
 
         self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
         if hidden_size is not None:
@@ -438,11 +435,11 @@ class ClassifierHead(nn.Module):
         self.flatten = nn.Flatten(1) if pool_type else nn.Identity()  # don't flatten if pooling disabled
         self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else nn.Identity()
 
-    def reset(self, num_classes: int, pool_type: Optional[str] = None, device=None, dtype=None):
-        dd = {'device': device, 'dtype': dtype}
+    def reset(self, num_classes: int, pool_type: str | None = None, device=None, dtype=None):
+        dd = {"device": device, "dtype": dtype}
         if pool_type is not None:
             if not pool_type:
-                assert num_classes == 0, 'Classifier head must be removed if pooling is disabled'
+                assert num_classes == 0, "Classifier head must be removed if pooling is disabled"
             self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
             self.flatten = nn.Flatten(1) if pool_type else nn.Identity()  # don't flatten if pooling disabled
 
@@ -460,23 +457,22 @@ class ClassifierHead(nn.Module):
 
 
 class HighPerfGpuNet(nn.Module):
-
     def __init__(
-            self,
-            cfg: Dict,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            head_hidden_size: Optional[int] = 2048,
-            drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            use_lab: bool = False,
-            device=None,
-            dtype=None,
-            **kwargs,
+        self,
+        cfg: dict,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        head_hidden_size: int | None = 2048,
+        drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        use_lab: bool = False,
+        device=None,
+        dtype=None,
+        **kwargs,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         stem_type = cfg["stem_type"]
         stem_chs = cfg["stem_chs"]
         stages_cfg = [cfg["stage1"], cfg["stage2"], cfg["stage3"], cfg["stage4"]]
@@ -485,8 +481,8 @@ class HighPerfGpuNet(nn.Module):
         self.drop_rate = drop_rate
         self.use_lab = use_lab
 
-        assert stem_type in ['v1', 'v2']
-        if stem_type == 'v2':
+        assert stem_type in ["v1", "v2"]
+        if stem_type == "v2":
             self.stem = StemV2(
                 in_chs=in_chans,
                 mid_chs=stem_chs[0],
@@ -495,7 +491,7 @@ class HighPerfGpuNet(nn.Module):
                 **dd,
             )
         else:
-            self.stem = StemV1([in_chans] + stem_chs, **dd)
+            self.stem = StemV1([in_chans, *stem_chs], **dd)
 
         current_stride = 4
 
@@ -505,24 +501,26 @@ class HighPerfGpuNet(nn.Module):
         dpr = calculate_drop_path_rates(drop_path_rate, block_depths, stagewise=True)
         for i, stage_config in enumerate(stages_cfg):
             in_chs, mid_chs, out_chs, block_num, downsample, light_block, kernel_size, layer_num = stage_config
-            stages += [HighPerfGpuStage(
-                in_chs=in_chs,
-                mid_chs=mid_chs,
-                out_chs=out_chs,
-                block_num=block_num,
-                layer_num=layer_num,
-                downsample=downsample,
-                light_block=light_block,
-                kernel_size=kernel_size,
-                use_lab=use_lab,
-                agg='ese' if stem_type == 'v1' else 'se',
-                drop_path=dpr[i],
-                **dd,
-            )]
+            stages += [
+                HighPerfGpuStage(
+                    in_chs=in_chs,
+                    mid_chs=mid_chs,
+                    out_chs=out_chs,
+                    block_num=block_num,
+                    layer_num=layer_num,
+                    downsample=downsample,
+                    light_block=light_block,
+                    kernel_size=kernel_size,
+                    use_lab=use_lab,
+                    agg="ese" if stem_type == "v1" else "se",
+                    drop_path=dpr[i],
+                    **dd,
+                )
+            ]
             self.num_features = out_chs
             if downsample:
                 current_stride *= 2
-            self.feature_info += [dict(num_chs=self.num_features, reduction=current_stride, module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": self.num_features, "reduction": current_stride, "module": f"stages.{i}"}]
         self.stages = nn.Sequential(*stages)
 
         self.head = ClassifierHead(
@@ -538,7 +536,7 @@ class HighPerfGpuNet(nn.Module):
 
         for n, m in self.named_modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
@@ -547,10 +545,10 @@ class HighPerfGpuNet(nn.Module):
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^stem',
-            blocks=r'^stages\.(\d+)' if coarse else r'^stages\.(\d+).blocks\.(\d+)',
-        )
+        return {
+            "stem": r"^stem",
+            "blocks": r"^stages\.(\d+)" if coarse else r"^stages\.(\d+).blocks\.(\d+)",
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -561,20 +559,20 @@ class HighPerfGpuNet(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None, device=None, dtype=None):
         self.num_classes = num_classes
         self.head.reset(num_classes, global_pool, device=device, dtype=dtype)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -583,10 +581,8 @@ class HighPerfGpuNet(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
 
@@ -595,7 +591,7 @@ class HighPerfGpuNet(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x = stage(x)
@@ -608,17 +604,16 @@ class HighPerfGpuNet(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_head:
-            self.reset_classifier(0, 'avg')
+            self.reset_classifier(0, "avg")
         return take_indices
 
     def forward_features(self, x):
@@ -634,10 +629,10 @@ class HighPerfGpuNet(nn.Module):
         return x
 
 
-model_cfgs = dict(
+model_cfgs = {
     # PP-HGNet
-    hgnet_tiny={
-        "stem_type": 'v1',
+    "hgnet_tiny": {
+        "stem_type": "v1",
         "stem_chs": [48, 48, 96],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [96, 96, 224, 1, False, False, 3, 5],
@@ -645,8 +640,8 @@ model_cfgs = dict(
         "stage3": [448, 160, 512, 2, True, False, 3, 5],
         "stage4": [512, 192, 768, 1, True, False, 3, 5],
     },
-    hgnet_small={
-        "stem_type": 'v1',
+    "hgnet_small": {
+        "stem_type": "v1",
         "stem_chs": [64, 64, 128],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [128, 128, 256, 1, False, False, 3, 6],
@@ -654,8 +649,8 @@ model_cfgs = dict(
         "stage3": [512, 192, 768, 2, True, False, 3, 6],
         "stage4": [768, 224, 1024, 1, True, False, 3, 6],
     },
-    hgnet_base={
-        "stem_type": 'v1',
+    "hgnet_base": {
+        "stem_type": "v1",
         "stem_chs": [96, 96, 160],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [160, 192, 320, 1, False, False, 3, 7],
@@ -664,8 +659,8 @@ model_cfgs = dict(
         "stage4": [960, 288, 1280, 2, True, False, 3, 7],
     },
     # PP-HGNetv2
-    hgnetv2_b0={
-        "stem_type": 'v2',
+    "hgnetv2_b0": {
+        "stem_type": "v2",
         "stem_chs": [16, 16],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [16, 16, 64, 1, False, False, 3, 3],
@@ -673,8 +668,8 @@ model_cfgs = dict(
         "stage3": [256, 64, 512, 2, True, True, 5, 3],
         "stage4": [512, 128, 1024, 1, True, True, 5, 3],
     },
-    hgnetv2_b1={
-        "stem_type": 'v2',
+    "hgnetv2_b1": {
+        "stem_type": "v2",
         "stem_chs": [24, 32],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [32, 32, 64, 1, False, False, 3, 3],
@@ -682,8 +677,8 @@ model_cfgs = dict(
         "stage3": [256, 96, 512, 2, True, True, 5, 3],
         "stage4": [512, 192, 1024, 1, True, True, 5, 3],
     },
-    hgnetv2_b2={
-        "stem_type": 'v2',
+    "hgnetv2_b2": {
+        "stem_type": "v2",
         "stem_chs": [24, 32],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [32, 32, 96, 1, False, False, 3, 4],
@@ -691,8 +686,8 @@ model_cfgs = dict(
         "stage3": [384, 128, 768, 3, True, True, 5, 4],
         "stage4": [768, 256, 1536, 1, True, True, 5, 4],
     },
-    hgnetv2_b3={
-        "stem_type": 'v2',
+    "hgnetv2_b3": {
+        "stem_type": "v2",
         "stem_chs": [24, 32],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [32, 32, 128, 1, False, False, 3, 5],
@@ -700,8 +695,8 @@ model_cfgs = dict(
         "stage3": [512, 128, 1024, 3, True, True, 5, 5],
         "stage4": [1024, 256, 2048, 1, True, True, 5, 5],
     },
-    hgnetv2_b4={
-        "stem_type": 'v2',
+    "hgnetv2_b4": {
+        "stem_type": "v2",
         "stem_chs": [32, 48],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [48, 48, 128, 1, False, False, 3, 6],
@@ -709,8 +704,8 @@ model_cfgs = dict(
         "stage3": [512, 192, 1024, 3, True, True, 5, 6],
         "stage4": [1024, 384, 2048, 1, True, True, 5, 6],
     },
-    hgnetv2_b5={
-        "stem_type": 'v2',
+    "hgnetv2_b5": {
+        "stem_type": "v2",
         "stem_chs": [32, 64],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [64, 64, 128, 1, False, False, 3, 6],
@@ -718,8 +713,8 @@ model_cfgs = dict(
         "stage3": [512, 256, 1024, 5, True, True, 5, 6],
         "stage4": [1024, 512, 2048, 2, True, True, 5, 6],
     },
-    hgnetv2_b6={
-        "stem_type": 'v2',
+    "hgnetv2_b6": {
+        "stem_type": "v2",
         "stem_chs": [48, 96],
         # in_chs, mid_chs, out_chs, blocks, downsample, light_block, kernel_size, layer_num
         "stage1": [96, 96, 192, 2, False, False, 3, 6],
@@ -727,126 +722,110 @@ model_cfgs = dict(
         "stage3": [512, 384, 1024, 6, True, True, 5, 6],
         "stage4": [1024, 768, 2048, 3, True, True, 5, 6],
     },
-)
+}
 
 
 def _create_hgnet(variant, pretrained=False, **kwargs):
-    out_indices = kwargs.pop('out_indices', (0, 1, 2, 3))
+    out_indices = kwargs.pop("out_indices", (0, 1, 2, 3))
     return build_model_with_cfg(
         HighPerfGpuNet,
         variant,
         pretrained,
         model_cfg=model_cfgs[variant],
-        feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
+        feature_cfg={"flatten_sequential": True, "out_indices": out_indices},
         **kwargs,
     )
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.965, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'classifier': 'head.fc', 'first_conv': 'stem.stem1.conv',
-        'test_crop_pct': 1.0, 'test_input_size': (3, 288, 288),
-        'license': 'apache-2.0',
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.965,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "classifier": "head.fc",
+        "first_conv": "stem.stem1.conv",
+        "test_crop_pct": 1.0,
+        "test_input_size": (3, 288, 288),
+        "license": "apache-2.0",
         **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'hgnet_tiny.paddle_in1k': _cfg(
-        first_conv='stem.stem.0.conv',
-        hf_hub_id='timm/'),
-    'hgnet_tiny.ssld_in1k': _cfg(
-        first_conv='stem.stem.0.conv',
-        hf_hub_id='timm/'),
-    'hgnet_small.paddle_in1k': _cfg(
-        first_conv='stem.stem.0.conv',
-        hf_hub_id='timm/'),
-    'hgnet_small.ssld_in1k': _cfg(
-        first_conv='stem.stem.0.conv',
-        hf_hub_id='timm/'),
-    'hgnet_base.ssld_in1k': _cfg(
-        first_conv='stem.stem.0.conv',
-        hf_hub_id='timm/'),
-    'hgnetv2_b0.ssld_stage2_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b0.ssld_stage1_in22k_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b1.ssld_stage2_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b1.ssld_stage1_in22k_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b2.ssld_stage2_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b2.ssld_stage1_in22k_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b3.ssld_stage2_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b3.ssld_stage1_in22k_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b4.ssld_stage2_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b4.ssld_stage1_in22k_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b5.ssld_stage2_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b5.ssld_stage1_in22k_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b6.ssld_stage2_ft_in1k': _cfg(
-        hf_hub_id='timm/'),
-    'hgnetv2_b6.ssld_stage1_in22k_in1k': _cfg(
-        hf_hub_id='timm/'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "hgnet_tiny.paddle_in1k": _cfg(first_conv="stem.stem.0.conv", hf_hub_id="timm/"),
+        "hgnet_tiny.ssld_in1k": _cfg(first_conv="stem.stem.0.conv", hf_hub_id="timm/"),
+        "hgnet_small.paddle_in1k": _cfg(first_conv="stem.stem.0.conv", hf_hub_id="timm/"),
+        "hgnet_small.ssld_in1k": _cfg(first_conv="stem.stem.0.conv", hf_hub_id="timm/"),
+        "hgnet_base.ssld_in1k": _cfg(first_conv="stem.stem.0.conv", hf_hub_id="timm/"),
+        "hgnetv2_b0.ssld_stage2_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b0.ssld_stage1_in22k_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b1.ssld_stage2_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b1.ssld_stage1_in22k_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b2.ssld_stage2_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b2.ssld_stage1_in22k_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b3.ssld_stage2_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b3.ssld_stage1_in22k_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b4.ssld_stage2_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b4.ssld_stage1_in22k_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b5.ssld_stage2_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b5.ssld_stage1_in22k_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b6.ssld_stage2_ft_in1k": _cfg(hf_hub_id="timm/"),
+        "hgnetv2_b6.ssld_stage1_in22k_in1k": _cfg(hf_hub_id="timm/"),
+    }
+)
 
 
 @register_model
 def hgnet_tiny(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnet_tiny', pretrained=pretrained, **kwargs)
+    return _create_hgnet("hgnet_tiny", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def hgnet_small(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnet_small', pretrained=pretrained, **kwargs)
+    return _create_hgnet("hgnet_small", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def hgnet_base(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnet_base', pretrained=pretrained, **kwargs)
+    return _create_hgnet("hgnet_base", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def hgnetv2_b0(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b0', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet("hgnetv2_b0", pretrained=pretrained, use_lab=True, **kwargs)
 
 
 @register_model
 def hgnetv2_b1(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b1', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet("hgnetv2_b1", pretrained=pretrained, use_lab=True, **kwargs)
 
 
 @register_model
 def hgnetv2_b2(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b2', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet("hgnetv2_b2", pretrained=pretrained, use_lab=True, **kwargs)
 
 
 @register_model
 def hgnetv2_b3(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b3', pretrained=pretrained, use_lab=True, **kwargs)
+    return _create_hgnet("hgnetv2_b3", pretrained=pretrained, use_lab=True, **kwargs)
 
 
 @register_model
 def hgnetv2_b4(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b4', pretrained=pretrained, **kwargs)
+    return _create_hgnet("hgnetv2_b4", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def hgnetv2_b5(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b5', pretrained=pretrained, **kwargs)
+    return _create_hgnet("hgnetv2_b5", pretrained=pretrained, **kwargs)
 
 
 @register_model
 def hgnetv2_b6(pretrained=False, **kwargs) -> HighPerfGpuNet:
-    return _create_hgnet('hgnetv2_b6', pretrained=pretrained, **kwargs)
+    return _create_hgnet("hgnetv2_b6", pretrained=pretrained, **kwargs)

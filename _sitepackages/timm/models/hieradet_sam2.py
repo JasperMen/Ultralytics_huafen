@@ -1,22 +1,23 @@
+from __future__ import annotations
+
 import math
 from copy import deepcopy
 from functools import partial
-from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import (
-    PatchEmbed,
-    Mlp,
-    DropPath,
-    calculate_drop_path_rates,
     ClNormMlpClassifierHead,
+    DropPath,
     LayerScale,
-    get_norm_layer,
+    Mlp,
+    PatchEmbed,
+    calculate_drop_path_rates,
     get_act_layer,
+    get_norm_layer,
     init_weight_jax,
     init_weight_vit,
     to_2tuple,
@@ -25,19 +26,20 @@ from timm.layers import (
 
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
-from ._manipulate import named_apply, checkpoint
+from ._manipulate import checkpoint, named_apply
 from ._registry import generate_default_cfgs, register_model
 
 
-def window_partition(x, window_size: Tuple[int, int]):
-    """
-    Partition into non-overlapping windows with padding if needed.
+def window_partition(x, window_size: tuple[int, int]):
+    """Partition into non-overlapping windows with padding if needed.
+
     Args:
         x (tensor): input tokens with [B, H, W, C].
         window_size (int): window size.
+
     Returns:
         windows: windows after partition with [B * num_windows, window_size, window_size, C].
-        (Hp, Wp): padded height and width before partition
+        (Hp, Wp): padded height and width before partition.
     """
     B, H, W, C = x.shape
     x = x.view(B, H // window_size[0], window_size[0], W // window_size[1], window_size[1], C)
@@ -45,13 +47,14 @@ def window_partition(x, window_size: Tuple[int, int]):
     return windows
 
 
-def window_unpartition(windows: torch.Tensor, window_size: Tuple[int, int], hw: Tuple[int, int]):
-    """
-    Window unpartition into original sequences and removing padding.
+def window_unpartition(windows: torch.Tensor, window_size: tuple[int, int], hw: tuple[int, int]):
+    """Window unpartition into original sequences and removing padding.
+
     Args:
         x (tensor): input tokens with [B * num_windows, window_size, window_size, C].
         window_size (int): window size.
         hw (Tuple): original height and width (H, W) before padding.
+
     Returns:
         x: unpartitioned sequences with [B, H, W, C].
     """
@@ -62,7 +65,7 @@ def window_unpartition(windows: torch.Tensor, window_size: Tuple[int, int], hw: 
     return x
 
 
-def _calc_pad(H: int, W: int, window_size: Tuple[int, int]) -> Tuple[int, int, int, int]:
+def _calc_pad(H: int, W: int, window_size: tuple[int, int]) -> tuple[int, int, int, int]:
     pad_h = (window_size[0] - H % window_size[0]) % window_size[0]
     pad_w = (window_size[1] - W % window_size[1]) % window_size[1]
     Hp, Wp = H + pad_h, W + pad_w
@@ -73,21 +76,21 @@ class MultiScaleAttention(nn.Module):
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: int,
-            num_heads: int,
-            q_pool: nn.Module = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int,
+        num_heads: int,
+        q_pool: nn.Module = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dim = dim
         self.dim_out = dim_out
         self.num_heads = num_heads
         head_dim = dim_out // num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         self.q_pool = q_pool
@@ -131,21 +134,21 @@ class MultiScaleAttention(nn.Module):
 
 class MultiScaleBlock(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            dim_out: int,
-            num_heads: int,
-            mlp_ratio: float = 4.0,
-            q_stride: Optional[Tuple[int, int]] = None,
-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
-            act_layer: Union[Type[nn.Module], str] = "GELU",
-            window_size: int = 0,
-            init_values: Optional[float] = None,
-            drop_path: float = 0.0,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        q_stride: tuple[int, int] | None = None,
+        norm_layer: type[nn.Module] | str = "LayerNorm",
+        act_layer: type[nn.Module] | str = "GELU",
+        window_size: int = 0,
+        init_values: float | None = None,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         norm_layer = get_norm_layer(norm_layer)
         act_layer = get_act_layer(act_layer)
@@ -228,15 +231,13 @@ class MultiScaleBlock(nn.Module):
 
 
 class HieraPatchEmbed(nn.Module):
-    """
-    Image to Patch Embedding.
-    """
+    """Image to Patch Embedding."""
 
     def __init__(
         self,
-        kernel_size: Union[int, Tuple[int, int]] = (7, 7),
-        stride: Union[int, Tuple[int, int]] = (4, 4),
-        padding: Union[str, int, Tuple[int, int]] = (3, 3),
+        kernel_size: int | tuple[int, int] = (7, 7),
+        stride: int | tuple[int, int] = (4, 4),
+        padding: str | int | tuple[int, int] = (3, 3),
         in_chans: int = 3,
         embed_dim: int = 768,
         device=None,
@@ -251,7 +252,7 @@ class HieraPatchEmbed(nn.Module):
             embed_dim: Patch embedding dimension.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.proj = nn.Conv2d(
             in_chans,
             embed_dim,
@@ -269,53 +270,51 @@ class HieraPatchEmbed(nn.Module):
 
 
 class HieraDet(nn.Module):
-    """
-    Reference: https://arxiv.org/abs/2306.00989
-    """
+    """Reference: https://arxiv.org/abs/2306.00989."""
 
     def __init__(
-            self,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            embed_dim: int = 96,  # initial embed dim
-            num_heads: int = 1,  # initial number of heads
-            patch_kernel: Tuple[int, int] = (7, 7),
-            patch_stride: Tuple[int, int] = (4, 4),
-            patch_padding: Tuple[int, int] = (3, 3),
-            patch_size: Optional[Tuple[int, int]] = None,
-            q_pool: int = 3,  # number of q_pool stages
-            q_stride: Tuple[int, int] = (2, 2),  # downsample stride bet. stages
-            stages: Tuple[int, ...] = (2, 3, 16, 3),  # blocks per stage
-            dim_mul: float = 2.0,  # dim_mul factor at stage shift
-            head_mul: float = 2.0,  # head_mul factor at stage shift
-            global_pos_size: Tuple[int, int] = (7, 7),
-            # window size per stage, when not using global att.
-            window_spec: Tuple[int, ...] = (
-                8,
-                4,
-                14,
-                7,
-            ),
-            # global attn in these blocks
-            global_att_blocks: Tuple[int, ...] = (
-                12,
-                16,
-                20,
-            ),
-            init_values: Optional[float] = None,
-            weight_init: str = '',
-            fix_init: bool = True,
-            head_init_scale: float = 0.001,
-            drop_rate: float = 0.0,
-            drop_path_rate: float = 0.0,  # stochastic depth
-            norm_layer: Union[Type[nn.Module], str] = "LayerNorm",
-            act_layer: Union[Type[nn.Module], str] = "GELU",
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        embed_dim: int = 96,  # initial embed dim
+        num_heads: int = 1,  # initial number of heads
+        patch_kernel: tuple[int, int] = (7, 7),
+        patch_stride: tuple[int, int] = (4, 4),
+        patch_padding: tuple[int, int] = (3, 3),
+        patch_size: tuple[int, int] | None = None,
+        q_pool: int = 3,  # number of q_pool stages
+        q_stride: tuple[int, int] = (2, 2),  # downsample stride bet. stages
+        stages: tuple[int, ...] = (2, 3, 16, 3),  # blocks per stage
+        dim_mul: float = 2.0,  # dim_mul factor at stage shift
+        head_mul: float = 2.0,  # head_mul factor at stage shift
+        global_pos_size: tuple[int, int] = (7, 7),
+        # window size per stage, when not using global att.
+        window_spec: tuple[int, ...] = (
+            8,
+            4,
+            14,
+            7,
+        ),
+        # global attn in these blocks
+        global_att_blocks: tuple[int, ...] = (
+            12,
+            16,
+            20,
+        ),
+        init_values: float | None = None,
+        weight_init: str = "",
+        fix_init: bool = True,
+        head_init_scale: float = 0.001,
+        drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,  # stochastic depth
+        norm_layer: type[nn.Module] | str = "LayerNorm",
+        act_layer: type[nn.Module] | str = "GELU",
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         norm_layer = get_norm_layer(norm_layer)
         act_layer = get_act_layer(act_layer)
         assert len(stages) == len(window_spec)
@@ -323,7 +322,7 @@ class HieraDet(nn.Module):
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.window_spec = window_spec
-        self.output_fmt = 'NHWC'
+        self.output_fmt = "NHWC"
 
         depth = sum(stages)
         self.q_stride = q_stride
@@ -338,7 +337,7 @@ class HieraDet(nn.Module):
                 patch_size=patch_size,
                 in_chans=in_chans,
                 embed_dim=embed_dim,
-                output_fmt='NHWC',
+                output_fmt="NHWC",
                 dynamic_img_pad=True,
                 **dd,
             )
@@ -395,7 +394,12 @@ class HieraDet(nn.Module):
             self.blocks.append(block)
             if i in self.stage_ends:
                 self.feature_info += [
-                    dict(num_chs=dim_out, reduction=2**(cur_stage+2), module=f'blocks.{self.stage_ends[cur_stage]}')]
+                    {
+                        "num_chs": dim_out,
+                        "reduction": 2 ** (cur_stage + 2),
+                        "module": f"blocks.{self.stage_ends[cur_stage]}",
+                    }
+                ]
 
         self.num_features = self.head_hidden_size = embed_dim
         self.head = ClNormMlpClassifierHead(
@@ -414,9 +418,9 @@ class HieraDet(nn.Module):
         if self.pos_embed_window is not None:
             nn.init.trunc_normal_(self.pos_embed_window, std=0.02)
 
-        if weight_init != 'skip':
-            init_fn = init_weight_jax if weight_init == 'jax' else init_weight_vit
-            init_fn = partial(init_fn, classifier_name='head.fc')
+        if weight_init != "skip":
+            init_fn = init_weight_jax if weight_init == "jax" else init_weight_vit
+            init_fn = partial(init_fn, classifier_name="head.fc")
             named_apply(init_fn, self)
 
         if fix_init:
@@ -446,14 +450,11 @@ class HieraDet(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return ['pos_embed', 'pos_embed_window']
+        return ["pos_embed", "pos_embed_window"]
 
     @torch.jit.ignore
-    def group_matcher(self, coarse: bool = False) -> Dict:
-        return dict(
-            stem=r'^pos_embed|pos_embed_window|patch_embed',
-            blocks=[(r'^blocks\.(\d+)', None)]
-        )
+    def group_matcher(self, coarse: bool = False) -> dict:
+        return {"stem": r"^pos_embed|pos_embed_window|patch_embed", "blocks": [(r"^blocks\.(\d+)", None)]}
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable: bool = True) -> None:
@@ -463,21 +464,21 @@ class HieraDet(nn.Module):
     def get_classifier(self):
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, reset_other: bool = False):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None, reset_other: bool = False):
         self.num_classes = num_classes
         self.head.reset(num_classes, pool_type=global_pool, reset_other=reset_other)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = True,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-            coarse: bool = True,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = True,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+        coarse: bool = True,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -487,11 +488,9 @@ class HieraDet(nn.Module):
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
             coarse: Take coarse features (stage ends) if true, otherwise all block featrures
-        Returns:
-
         """
-        assert not norm, 'normalization of features not supported'
-        assert output_fmt in ('NCHW', 'NHWC'), 'Output format must be one of NCHW, NHWC.'
+        assert not norm, "normalization of features not supported"
+        assert output_fmt in ("NCHW", "NHWC"), "Output format must be one of NCHW, NHWC."
         if coarse:
             take_indices, max_index = feature_take_indices(len(self.stage_ends), indices)
             take_indices = [self.stage_ends[i] for i in take_indices]
@@ -506,14 +505,14 @@ class HieraDet(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             blocks = self.blocks
         else:
-            blocks = self.blocks[:max_index + 1]
+            blocks = self.blocks[: max_index + 1]
         for i, blk in enumerate(blocks):
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 x = checkpoint(blk, x)
             else:
                 x = blk(x)
             if i in take_indices:
-                x_out = x.permute(0, 3, 1, 2) if output_fmt == 'NCHW' else x
+                x_out = x.permute(0, 3, 1, 2) if output_fmt == "NCHW" else x
                 intermediates.append(x_out)
 
         if intermediates_only:
@@ -522,20 +521,19 @@ class HieraDet(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
-            coarse: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
+        coarse: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         if coarse:
             take_indices, max_index = feature_take_indices(len(self.stage_ends), indices)
             max_index = self.stage_ends[max_index]
         else:
             take_indices, max_index = feature_take_indices(len(self.blocks), indices)
-        self.blocks = self.blocks[:max_index + 1]  # truncate blocks
+        self.blocks = self.blocks[: max_index + 1]  # truncate blocks
         if prune_head:
             self.head.reset(0, reset_other=prune_norm)
         return take_indices
@@ -561,88 +559,99 @@ class HieraDet(nn.Module):
 
 
 # NOTE sam2 appears to use 1024x1024 for all models, but T, S, & B+ have windows that fit multiples of 224.
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 0, 'input_size': (3, 896, 896), 'pool_size': (28, 28),
-        'crop_pct': 1.0, 'interpolation': 'bicubic', 'min_input_size': (3, 224, 224),
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'patch_embed.proj', 'classifier': 'head.fc',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 0,
+        "input_size": (3, 896, 896),
+        "pool_size": (28, 28),
+        "crop_pct": 1.0,
+        "interpolation": "bicubic",
+        "min_input_size": (3, 224, 224),
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "patch_embed.proj",
+        "classifier": "head.fc",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    "sam2_hiera_tiny.fb_r896": _cfg(
-        # hf_hub_id='facebook/sam2-hiera-tiny',
-        # hf_hub_filename='sam2_hiera_tiny.pt',
-        hf_hub_id='timm/',
-    ),
-    "sam2_hiera_tiny.fb_r896_2pt1": _cfg(
-        # hf_hub_id='facebook/sam2.1-hiera-tiny',
-        # hf_hub_filename='sam2.1_hiera_tiny.pt',
-        hf_hub_id='timm/',
-    ),
-    "sam2_hiera_small.fb_r896": _cfg(
-        # hf_hub_id='facebook/sam2-hiera-small',
-        # hf_hub_filename='sam2_hiera_small.pt',
-        hf_hub_id='timm/',
-    ),
-    "sam2_hiera_small.fb_r896_2pt1": _cfg(
-        # hf_hub_id='facebook/sam2.1-hiera-small',
-        # hf_hub_filename='sam2.1_hiera_small.pt',
-        hf_hub_id='timm/',
-    ),
-    "sam2_hiera_base_plus.fb_r896": _cfg(
-        # hf_hub_id='facebook/sam2-hiera-base-plus',
-        # hf_hub_filename='sam2_hiera_base_plus.pt',
-        hf_hub_id='timm/',
-    ),
-    "sam2_hiera_base_plus.fb_r896_2pt1": _cfg(
-        # hf_hub_id='facebook/sam2.1-hiera-base-plus',
-        # hf_hub_filename='sam2.1_hiera_base_plus.pt',
-        hf_hub_id='timm/',
-    ),
-    "sam2_hiera_large.fb_r1024": _cfg(
-        # hf_hub_id='facebook/sam2-hiera-large',
-        # hf_hub_filename='sam2_hiera_large.pt',
-        hf_hub_id='timm/',
-        min_input_size=(3, 256, 256),
-        input_size=(3, 1024, 1024), pool_size=(32, 32),
-    ),
-    "sam2_hiera_large.fb_r1024_2pt1": _cfg(
-        # hf_hub_id='facebook/sam2.1-hiera-large',
-        # hf_hub_filename='sam2.1_hiera_large.pt',
-        hf_hub_id='timm/',
-        min_input_size=(3, 256, 256),
-        input_size=(3, 1024, 1024), pool_size=(32, 32),
-    ),
-    "hieradet_small.untrained": _cfg(
-        num_classes=1000,
-        input_size=(3, 256, 256), pool_size=(8, 8),
-    ),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "sam2_hiera_tiny.fb_r896": _cfg(
+            # hf_hub_id='facebook/sam2-hiera-tiny',
+            # hf_hub_filename='sam2_hiera_tiny.pt',
+            hf_hub_id="timm/",
+        ),
+        "sam2_hiera_tiny.fb_r896_2pt1": _cfg(
+            # hf_hub_id='facebook/sam2.1-hiera-tiny',
+            # hf_hub_filename='sam2.1_hiera_tiny.pt',
+            hf_hub_id="timm/",
+        ),
+        "sam2_hiera_small.fb_r896": _cfg(
+            # hf_hub_id='facebook/sam2-hiera-small',
+            # hf_hub_filename='sam2_hiera_small.pt',
+            hf_hub_id="timm/",
+        ),
+        "sam2_hiera_small.fb_r896_2pt1": _cfg(
+            # hf_hub_id='facebook/sam2.1-hiera-small',
+            # hf_hub_filename='sam2.1_hiera_small.pt',
+            hf_hub_id="timm/",
+        ),
+        "sam2_hiera_base_plus.fb_r896": _cfg(
+            # hf_hub_id='facebook/sam2-hiera-base-plus',
+            # hf_hub_filename='sam2_hiera_base_plus.pt',
+            hf_hub_id="timm/",
+        ),
+        "sam2_hiera_base_plus.fb_r896_2pt1": _cfg(
+            # hf_hub_id='facebook/sam2.1-hiera-base-plus',
+            # hf_hub_filename='sam2.1_hiera_base_plus.pt',
+            hf_hub_id="timm/",
+        ),
+        "sam2_hiera_large.fb_r1024": _cfg(
+            # hf_hub_id='facebook/sam2-hiera-large',
+            # hf_hub_filename='sam2_hiera_large.pt',
+            hf_hub_id="timm/",
+            min_input_size=(3, 256, 256),
+            input_size=(3, 1024, 1024),
+            pool_size=(32, 32),
+        ),
+        "sam2_hiera_large.fb_r1024_2pt1": _cfg(
+            # hf_hub_id='facebook/sam2.1-hiera-large',
+            # hf_hub_filename='sam2.1_hiera_large.pt',
+            hf_hub_id="timm/",
+            min_input_size=(3, 256, 256),
+            input_size=(3, 1024, 1024),
+            pool_size=(32, 32),
+        ),
+        "hieradet_small.untrained": _cfg(
+            num_classes=1000,
+            input_size=(3, 256, 256),
+            pool_size=(8, 8),
+        ),
+    }
+)
 
 
-def checkpoint_filter_fn(state_dict, model=None, prefix=''):
-    state_dict = state_dict.get('model', state_dict)
+def checkpoint_filter_fn(state_dict, model=None, prefix=""):
+    state_dict = state_dict.get("model", state_dict)
 
     output = {}
     for k, v in state_dict.items():
         if k.startswith(prefix):
-            k = k.replace(prefix, '')
+            k = k.replace(prefix, "")
         else:
             continue
-        k = k.replace('mlp.layers.0', 'mlp.fc1')
-        k = k.replace('mlp.layers.1', 'mlp.fc2')
+        k = k.replace("mlp.layers.0", "mlp.fc1")
+        k = k.replace("mlp.layers.1", "mlp.fc2")
         output[k] = v
     return output
 
 
 def _create_hiera_det(variant: str, pretrained: bool = False, **kwargs) -> HieraDet:
-    out_indices = kwargs.pop('out_indices', 4)
-    checkpoint_prefix = ''
+    out_indices = kwargs.pop("out_indices", 4)
+    checkpoint_prefix = ""
     # if 'sam2' in variant:
     #     # SAM2 pretrained weights have no classifier or final norm-layer (`head.norm`)
     #     # This is workaround loading with num_classes=0 w/o removing norm-layer.
@@ -653,45 +662,50 @@ def _create_hiera_det(variant: str, pretrained: bool = False, **kwargs) -> Hiera
         variant,
         pretrained,
         pretrained_filter_fn=partial(checkpoint_filter_fn, prefix=checkpoint_prefix),
-        feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+        feature_cfg={"out_indices": out_indices, "feature_cls": "getter"},
         **kwargs,
     )
 
 
 @register_model
 def sam2_hiera_tiny(pretrained=False, **kwargs):
-    model_args = dict(stages=(1, 2, 7, 2), global_att_blocks=(5, 7, 9))
-    return _create_hiera_det('sam2_hiera_tiny', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"stages": (1, 2, 7, 2), "global_att_blocks": (5, 7, 9)}
+    return _create_hiera_det("sam2_hiera_tiny", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def sam2_hiera_small(pretrained=False, **kwargs):
-    model_args = dict(stages=(1, 2, 11, 2), global_att_blocks=(7, 10, 13))
-    return _create_hiera_det('sam2_hiera_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"stages": (1, 2, 11, 2), "global_att_blocks": (7, 10, 13)}
+    return _create_hiera_det("sam2_hiera_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def sam2_hiera_base_plus(pretrained=False, **kwargs):
-    model_args = dict(embed_dim=112, num_heads=2, global_pos_size=(14, 14))
-    return _create_hiera_det('sam2_hiera_base_plus', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"embed_dim": 112, "num_heads": 2, "global_pos_size": (14, 14)}
+    return _create_hiera_det("sam2_hiera_base_plus", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def sam2_hiera_large(pretrained=False, **kwargs):
-    model_args = dict(
-        embed_dim=144,
-        num_heads=2,
-        stages=(2, 6, 36, 4),
-        global_att_blocks=(23, 33, 43),
-        window_spec=(8, 4, 16, 8),
-    )
-    return _create_hiera_det('sam2_hiera_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "embed_dim": 144,
+        "num_heads": 2,
+        "stages": (2, 6, 36, 4),
+        "global_att_blocks": (23, 33, 43),
+        "window_spec": (8, 4, 16, 8),
+    }
+    return _create_hiera_det("sam2_hiera_large", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def hieradet_small(pretrained=False, **kwargs):
-    model_args = dict(stages=(1, 2, 11, 2), global_att_blocks=(7, 10, 13), window_spec=(8, 4, 16, 8), init_values=1e-5)
-    return _create_hiera_det('hieradet_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "stages": (1, 2, 11, 2),
+        "global_att_blocks": (7, 10, 13),
+        "window_spec": (8, 4, 16, 8),
+        "init_values": 1e-5,
+    }
+    return _create_hiera_det("hieradet_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 # @register_model

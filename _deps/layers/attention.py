@@ -1,7 +1,9 @@
-from typing import Final, Optional, Type
+from __future__ import annotations
+
+from typing import Final
 
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.nn import functional as F
 
 from ._fx import register_notrace_function
@@ -11,35 +13,35 @@ from .pos_embed_sincos import apply_rot_embed_cat
 
 @torch.fx.wrap
 @register_notrace_function
-def maybe_add_mask(scores: torch.Tensor, attn_mask: Optional[torch.Tensor] = None):
+def maybe_add_mask(scores: torch.Tensor, attn_mask: torch.Tensor | None = None):
     return scores if attn_mask is None else scores + attn_mask
 
 
 class Attention(nn.Module):
     """Standard Multi-head Self Attention module with QKV projection.
 
-    This module implements the standard multi-head attention mechanism used in transformers.
-    It supports both the fused attention implementation (scaled_dot_product_attention) for
-    efficiency when available, and a manual implementation otherwise. The module includes
-    options for QK normalization, attention dropout, and projection dropout.
+    This module implements the standard multi-head attention mechanism used in transformers. It supports both the fused
+    attention implementation (scaled_dot_product_attention) for efficiency when available, and a manual implementation
+    otherwise. The module includes options for QK normalization, attention dropout, and projection dropout.
     """
+
     fused_attn: Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            attn_head_dim: Optional[int] = None,
-            dim_out: Optional[int] = None,
-            qkv_bias: bool = False,
-            qk_norm: bool = False,
-            scale_norm: bool = False,
-            proj_bias: bool = True,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        attn_head_dim: int | None = None,
+        dim_out: int | None = None,
+        qkv_bias: bool = False,
+        qk_norm: bool = False,
+        scale_norm: bool = False,
+        proj_bias: bool = True,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        norm_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ) -> None:
         """Initialize the Attention module.
 
@@ -57,19 +59,19 @@ class Attention(nn.Module):
             norm_layer: Normalization layer constructor for QK normalization if enabled.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         dim_out = dim_out or dim
         head_dim = attn_head_dim
         if head_dim is None:
-            assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+            assert dim % num_heads == 0, "dim should be divisible by num_heads"
             head_dim = dim // num_heads
         if qk_norm or scale_norm:
-            assert norm_layer is not None, 'norm_layer must be provided if qk_norm or scale_norm is True'
+            assert norm_layer is not None, "norm_layer must be provided if qk_norm or scale_norm is True"
 
         self.num_heads = num_heads
         self.head_dim = head_dim
         self.attn_dim = num_heads * head_dim
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         self.qkv = nn.Linear(dim, self.attn_dim * 3, bias=qkv_bias, **dd)
@@ -81,20 +83,22 @@ class Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(
-            self,
-            x: torch.Tensor,
-            attn_mask: Optional[torch.Tensor] = None,
+        self,
+        x: torch.Tensor,
+        attn_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        B, N, C = x.shape
+        B, N, _C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)
         q, k = self.q_norm(q), self.k_norm(k)
 
         if self.fused_attn:
             x = F.scaled_dot_product_attention(
-                q, k, v,
+                q,
+                k,
+                v,
                 attn_mask=attn_mask,
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
@@ -112,33 +116,34 @@ class Attention(nn.Module):
 
 
 class AttentionRope(nn.Module):
-    """ A Self Attention module with ROPE support.
+    """A Self Attention module with ROPE support.
 
     Includes options for:
-     * QK normalization option
-     * Attention output (scale) normalization
-     * Fused or unfused QKV projection support
+    * QK normalization option
+    * Attention output (scale) normalization
+    * Fused or unfused QKV projection support
     """
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            dim_out: Optional[int] = None,
-            qkv_bias: bool = True,
-            qkv_fused: bool = True,
-            num_prefix_tokens: int = 1,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            attn_head_dim: Optional[int] = None,
-            norm_layer: Type[nn.Module] = None,
-            qk_norm: bool = False,
-            scale_norm: bool = False,
-            proj_bias: bool = True,
-            rotate_half: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        dim_out: int | None = None,
+        qkv_bias: bool = True,
+        qkv_fused: bool = True,
+        num_prefix_tokens: int = 1,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        attn_head_dim: int | None = None,
+        norm_layer: type[nn.Module] | None = None,
+        qk_norm: bool = False,
+        scale_norm: bool = False,
+        proj_bias: bool = True,
+        rotate_half: bool = False,
+        device=None,
+        dtype=None,
     ):
         """Initialize the Attention module.
 
@@ -148,8 +153,8 @@ class AttentionRope(nn.Module):
             dim_out: Output dimension. If None, same as dim.
             qkv_bias: Whether to add a bias term to the query, key, and value projections
             qkv_fused: Whether to use fused QKV projection (single linear) or separate projections
-            num_prefix_tokens: Number of reg/cls tokens at the beginning of the sequence that
-                should not have position embeddings applied
+            num_prefix_tokens: Number of reg/cls tokens at the beginning of the sequence that should not have position
+                embeddings applied
             attn_drop: Dropout rate for attention weights
             proj_drop: Dropout rate for the output projection
             attn_head_dim: Dimension of each attention head. If None, computed as dim // num_heads.
@@ -160,19 +165,19 @@ class AttentionRope(nn.Module):
             rotate_half: Use 'half' ROPE layout instead of default 'interleaved'
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         dim_out = dim_out or dim
         head_dim = attn_head_dim
         if head_dim is None:
-            assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+            assert dim % num_heads == 0, "dim should be divisible by num_heads"
             head_dim = dim // num_heads
         if scale_norm or qk_norm:
-            assert norm_layer is not None, 'norm_layer must be provided if qk_norm or scale_norm is True'
+            assert norm_layer is not None, "norm_layer must be provided if qk_norm or scale_norm is True"
 
         self.num_heads = num_heads
         self.head_dim = head_dim
         self.attn_dim = head_dim * num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.num_prefix_tokens = num_prefix_tokens
         self.fused_attn = use_fused_attn()
         self.rotate_half = rotate_half
@@ -194,10 +199,10 @@ class AttentionRope(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(
-            self,
-            x,
-            rope: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
+        self,
+        x,
+        rope: torch.Tensor | None = None,
+        attn_mask: torch.Tensor | None = None,
     ):
         """Forward pass for the attention module.
 
@@ -209,7 +214,7 @@ class AttentionRope(nn.Module):
         Returns:
             Tensor of shape (batch_size, sequence_length, dim_out)
         """
-        B, N, C = x.shape
+        B, N, _C = x.shape
 
         if self.qkv is not None:
             qkv = self.qkv(x)
@@ -224,19 +229,21 @@ class AttentionRope(nn.Module):
 
         if rope is not None:
             npt = self.num_prefix_tokens
-            half = getattr(self, 'rotate_half', False)
+            half = getattr(self, "rotate_half", False)
             q = torch.cat([q[:, :, :npt, :], apply_rot_embed_cat(q[:, :, npt:, :], rope, half=half)], dim=2).type_as(v)
             k = torch.cat([k[:, :, :npt, :], apply_rot_embed_cat(k[:, :, npt:, :], rope, half=half)], dim=2).type_as(v)
 
         if self.fused_attn:
             x = F.scaled_dot_product_attention(
-                q, k, v,
+                q,
+                k,
+                v,
                 attn_mask=attn_mask,
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
-            attn = (q @ k.transpose(-2, -1))
+            attn = q @ k.transpose(-2, -1)
             attn = maybe_add_mask(attn, attn_mask)
             attn = attn.softmax(dim=-1)
 

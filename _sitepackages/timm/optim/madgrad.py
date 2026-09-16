@@ -1,4 +1,4 @@
-""" PyTorch MADGRAD optimizer
+"""PyTorch MADGRAD optimizer.
 
 MADGRAD: https://arxiv.org/abs/2101.11075
 
@@ -9,8 +9,10 @@ Code from: https://github.com/facebookresearch/madgrad
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+from __future__ import annotations
+
 import math
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 import torch
 import torch.optim
@@ -22,44 +24,39 @@ else:
 
 
 class MADGRAD(torch.optim.Optimizer):
-    """
-    MADGRAD_: A Momentumized, Adaptive, Dual Averaged Gradient Method for Stochastic
-    Optimization.
+    """MADGRAD_: A Momentumized, Adaptive, Dual Averaged Gradient Method for Stochastic Optimization.
 
     .. _MADGRAD: https://arxiv.org/abs/2101.11075
 
-    MADGRAD is a general purpose optimizer that can be used in place of SGD or
-    Adam may converge faster and generalize better. Currently GPU-only.
-    Typically, the same learning rate schedule that is used for SGD or Adam may
-    be used. The overall learning rate is not comparable to either method and
-    should be determined by a hyper-parameter sweep.
+    MADGRAD is a general purpose optimizer that can be used in place of SGD or Adam may converge faster and generalize
+    better. Currently GPU-only. Typically, the same learning rate schedule that is used for SGD or Adam may be used. The
+    overall learning rate is not comparable to either method and should be determined by a hyper-parameter sweep.
 
     MADGRAD requires less weight decay than other methods, often as little as
     zero. Momentum values used for SGD or Adam's beta1 should work here also.
 
     On sparse problems both weight_decay and momentum should be set to 0.
 
-    Arguments:
-        params (iterable):
-            Iterable of parameters to optimize or dicts defining parameter groups.
+    Args:
+        params (iterable): Iterable of parameters to optimize or dicts defining parameter groups.
         lr (float):
-            Learning rate (default: 1e-2).
+        Learning rate (default: 1e-2).
         momentum (float):
-            Momentum value in  the range [0,1) (default: 0.9).
+        Momentum value in  the range [0,1) (default: 0.9).
         weight_decay (float):
-            Weight decay, i.e. a L2 penalty (default: 0).
+        Weight decay, i.e. a L2 penalty (default: 0).
         eps (float):
-            Term added to the denominator outside of the root operation to improve numerical stability. (default: 1e-6).
+        Term added to the denominator outside of the root operation to improve numerical stability. (default: 1e-6).
     """
 
     def __init__(
-            self,
-            params: _params_t,
-            lr: float = 1e-2,
-            momentum: float = 0.9,
-            weight_decay: float = 0,
-            eps: float = 1e-6,
-            decoupled_decay: bool = False,
+        self,
+        params: _params_t,
+        lr: float = 1e-2,
+        momentum: float = 0.9,
+        weight_decay: float = 0,
+        eps: float = 1e-6,
+        decoupled_decay: bool = False,
     ):
         if momentum < 0 or momentum >= 1:
             raise ValueError(f"Momentum {momentum} must be in the range [0,1]")
@@ -68,15 +65,15 @@ class MADGRAD(torch.optim.Optimizer):
         if weight_decay < 0:
             raise ValueError(f"Weight decay {weight_decay} must be non-negative")
         if eps < 0:
-            raise ValueError(f"Eps must be non-negative")
+            raise ValueError("Eps must be non-negative")
 
-        defaults = dict(
-            lr=lr,
-            eps=eps,
-            momentum=momentum,
-            weight_decay=weight_decay,
-            decoupled_decay=decoupled_decay,
-        )
+        defaults = {
+            "lr": lr,
+            "eps": eps,
+            "momentum": momentum,
+            "weight_decay": weight_decay,
+            "decoupled_decay": decoupled_decay,
+        }
         super().__init__(params, defaults)
 
     @property
@@ -88,10 +85,10 @@ class MADGRAD(torch.optim.Optimizer):
         return True
 
     @torch.no_grad()
-    def step(self, closure: Optional[Callable[[], float]] = None) -> Optional[float]:
+    def step(self, closure: Callable[[], float] | None = None) -> float | None:
         """Performs a single optimization step.
 
-        Arguments:
+        Args:
             closure (callable, optional): A closure that reevaluates the model and returns the loss.
         """
         loss = None
@@ -100,10 +97,10 @@ class MADGRAD(torch.optim.Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            eps = group['eps']
-            lr = group['lr'] + eps
-            weight_decay = group['weight_decay']
-            momentum = group['momentum']
+            eps = group["eps"]
+            lr = group["lr"] + eps
+            weight_decay = group["weight_decay"]
+            momentum = group["momentum"]
             ck = 1 - momentum
 
             for p in group["params"]:
@@ -115,21 +112,21 @@ class MADGRAD(torch.optim.Optimizer):
 
                 state = self.state[p]
                 if len(state) == 0:
-                    state['step'] = 0
-                    state['grad_sum_sq'] = torch.zeros_like(p)
-                    state['s'] = torch.zeros_like(p)
+                    state["step"] = 0
+                    state["grad_sum_sq"] = torch.zeros_like(p)
+                    state["s"] = torch.zeros_like(p)
                     if momentum != 0:
-                        state['x0'] = torch.clone(p).detach()
+                        state["x0"] = torch.clone(p).detach()
 
-                state['step'] += 1
-                grad_sum_sq = state['grad_sum_sq']
-                s = state['s']
-                lamb = lr * math.sqrt(state['step'])
+                state["step"] += 1
+                grad_sum_sq = state["grad_sum_sq"]
+                s = state["s"]
+                lamb = lr * math.sqrt(state["step"])
 
                 # Apply weight decay
                 if weight_decay != 0:
-                    if group['decoupled_decay']:
-                        p.mul_(1.0 - group['lr'] * weight_decay)
+                    if group["decoupled_decay"]:
+                        p.mul_(1.0 - group["lr"] * weight_decay)
                     else:
                         if grad.is_sparse:
                             raise RuntimeError("weight_decay option is not compatible with sparse gradients")
@@ -168,7 +165,7 @@ class MADGRAD(torch.optim.Optimizer):
                         rms = grad_sum_sq.pow(1 / 3).add_(eps)
                         x0 = p.addcdiv(s, rms, value=1)
                     else:
-                        x0 = state['x0']
+                        x0 = state["x0"]
 
                     # Accumulate second moments
                     grad_sum_sq.addcmul_(grad, grad, value=lamb)

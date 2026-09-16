@@ -1,18 +1,18 @@
-""" ConvMixer
+"""ConvMixer."""
 
-"""
-from typing import Optional, Type
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import SelectAdaptivePool2d
-from ._registry import register_model, generate_default_cfgs
+
 from ._builder import build_model_with_cfg
 from ._manipulate import checkpoint_seq
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['ConvMixer']
+__all__ = ["ConvMixer"]
 
 
 class Residual(nn.Module):
@@ -26,22 +26,22 @@ class Residual(nn.Module):
 
 class ConvMixer(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            depth: int,
-            kernel_size: int = 9,
-            patch_size: int = 7,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            drop_rate: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            device=None,
-            dtype=None,
-            **kwargs,
+        self,
+        dim: int,
+        depth: int,
+        kernel_size: int = 9,
+        patch_size: int = 7,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        drop_rate: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        device=None,
+        dtype=None,
+        **kwargs,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.num_features = self.head_hidden_size = dim
@@ -50,19 +50,24 @@ class ConvMixer(nn.Module):
         self.stem = nn.Sequential(
             nn.Conv2d(in_chans, dim, kernel_size=patch_size, stride=patch_size, **dd),
             act_layer(),
-            nn.BatchNorm2d(dim, **dd)
+            nn.BatchNorm2d(dim, **dd),
         )
         self.blocks = nn.Sequential(
-            *[nn.Sequential(
-                    Residual(nn.Sequential(
-                        nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same", **dd),
-                        act_layer(),
-                        nn.BatchNorm2d(dim, **dd)
-                    )),
+            *[
+                nn.Sequential(
+                    Residual(
+                        nn.Sequential(
+                            nn.Conv2d(dim, dim, kernel_size, groups=dim, padding="same", **dd),
+                            act_layer(),
+                            nn.BatchNorm2d(dim, **dd),
+                        )
+                    ),
                     nn.Conv2d(dim, dim, kernel_size=1, **dd),
                     act_layer(),
-                    nn.BatchNorm2d(dim, **dd)
-            ) for i in range(depth)]
+                    nn.BatchNorm2d(dim, **dd),
+                )
+                for i in range(depth)
+            ]
         )
         self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
         self.head_drop = nn.Dropout(drop_rate)
@@ -70,7 +75,7 @@ class ConvMixer(nn.Module):
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        matcher = dict(stem=r'^stem', blocks=r'^blocks\.(\d+)')
+        matcher = {"stem": r"^stem", "blocks": r"^blocks\.(\d+)"}
         return matcher
 
     @torch.jit.ignore
@@ -81,7 +86,7 @@ class ConvMixer(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
             self.pooling = SelectAdaptivePool2d(pool_type=global_pool, flatten=True)
@@ -107,44 +112,51 @@ class ConvMixer(nn.Module):
 
 
 def _create_convmixer(variant, pretrained=False, **kwargs):
-    if kwargs.get('features_only', None):
-        raise RuntimeError('features_only not implemented for ConvMixer models.')
+    if kwargs.get("features_only", None):
+        raise RuntimeError("features_only not implemented for ConvMixer models.")
 
     return build_model_with_cfg(ConvMixer, variant, pretrained, **kwargs)
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
-        'crop_pct': .96, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD, 'classifier': 'head',
-        'first_conv': 'stem.0', 'license': 'mit',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "crop_pct": 0.96,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "classifier": "head",
+        "first_conv": "stem.0",
+        "license": "mit",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'convmixer_1536_20.in1k': _cfg(hf_hub_id='timm/'),
-    'convmixer_768_32.in1k': _cfg(hf_hub_id='timm/'),
-    'convmixer_1024_20_ks9_p14.in1k': _cfg(hf_hub_id='timm/')
-})
-
+default_cfgs = generate_default_cfgs(
+    {
+        "convmixer_1536_20.in1k": _cfg(hf_hub_id="timm/"),
+        "convmixer_768_32.in1k": _cfg(hf_hub_id="timm/"),
+        "convmixer_1024_20_ks9_p14.in1k": _cfg(hf_hub_id="timm/"),
+    }
+)
 
 
 @register_model
 def convmixer_1536_20(pretrained=False, **kwargs) -> ConvMixer:
     model_args = dict(dim=1536, depth=20, kernel_size=9, patch_size=7, **kwargs)
-    return _create_convmixer('convmixer_1536_20', pretrained, **model_args)
+    return _create_convmixer("convmixer_1536_20", pretrained, **model_args)
 
 
 @register_model
 def convmixer_768_32(pretrained=False, **kwargs) -> ConvMixer:
     model_args = dict(dim=768, depth=32, kernel_size=7, patch_size=7, act_layer=nn.ReLU, **kwargs)
-    return _create_convmixer('convmixer_768_32', pretrained, **model_args)
+    return _create_convmixer("convmixer_768_32", pretrained, **model_args)
 
 
 @register_model
 def convmixer_1024_20_ks9_p14(pretrained=False, **kwargs) -> ConvMixer:
     model_args = dict(dim=1024, depth=20, kernel_size=9, patch_size=14, **kwargs)
-    return _create_convmixer('convmixer_1024_20_ks9_p14', pretrained, **model_args)
+    return _create_convmixer("convmixer_1024_20_ks9_p14", pretrained, **model_args)

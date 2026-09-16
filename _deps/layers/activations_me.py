@@ -1,4 +1,4 @@
-""" Activations (memory-efficient w/ custom autograd)
+"""Activations (memory-efficient w/ custom autograd).
 
 A collection of activations fn and modules with a common interface so that they can
 easily be swapped. All have an `inplace` arg even if not used.
@@ -10,7 +10,7 @@ Hacked together by / Copyright 2020 Ross Wightman
 """
 
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.nn import functional as F
 
 
@@ -24,10 +24,10 @@ def swish_bwd(x, grad_output):
 
 
 class SwishAutoFn(torch.autograd.Function):
-    """ optimised Swish w/ memory-efficient checkpoint
-    Inspired by conversation btw Jeremy Howard & Adam Pazske
-    https://twitter.com/jeremyphoward/status/1188251041835315200
+    """optimized Swish w/ memory-efficient checkpoint Inspired by conversation btw Jeremy Howard & Adam Pazske
+    https://twitter.com/jeremyphoward/status/1188251041835315200.
     """
+
     @staticmethod
     def symbolic(g, x):
         return g.op("Mul", x, g.op("Sigmoid", x))
@@ -66,9 +66,10 @@ def mish_bwd(x, grad_output):
 
 
 class MishAutoFn(torch.autograd.Function):
-    """ Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681
-    A memory efficient variant of Mish
+    """Mish: A Self Regularized Non-Monotonic Neural Activation Function - https://arxiv.org/abs/1908.08681 A memory
+    efficient variant of Mish.
     """
+
     @staticmethod
     def forward(ctx, x):
         ctx.save_for_backward(x)
@@ -93,11 +94,11 @@ class MishMe(nn.Module):
 
 
 def hard_sigmoid_fwd(x, inplace: bool = False):
-    return (x + 3).clamp(min=0, max=6).div(6.)
+    return (x + 3).clamp(min=0, max=6).div(6.0)
 
 
 def hard_sigmoid_bwd(x, grad_output):
-    m = torch.ones_like(x) * ((x >= -3.) & (x <= 3.)) / 6.
+    m = torch.ones_like(x) * ((x >= -3.0) & (x <= 3.0)) / 6.0
     return grad_output * m
 
 
@@ -126,17 +127,18 @@ class HardSigmoidMe(nn.Module):
 
 
 def hard_swish_fwd(x):
-    return x * (x + 3).clamp(min=0, max=6).div(6.)
+    return x * (x + 3).clamp(min=0, max=6).div(6.0)
 
 
 def hard_swish_bwd(x, grad_output):
-    m = torch.ones_like(x) * (x >= 3.)
-    m = torch.where((x >= -3.) & (x <= 3.),  x / 3. + .5, m)
+    m = torch.ones_like(x) * (x >= 3.0)
+    m = torch.where((x >= -3.0) & (x <= 3.0), x / 3.0 + 0.5, m)
     return grad_output * m
 
 
 class HardSwishAutoFn(torch.autograd.Function):
-    """A memory efficient HardSwish activation"""
+    """A memory efficient HardSwish activation."""
+
     @staticmethod
     def forward(ctx, x):
         ctx.save_for_backward(x)
@@ -149,9 +151,14 @@ class HardSwishAutoFn(torch.autograd.Function):
 
     @staticmethod
     def symbolic(g, self):
-        input = g.op("Add", self, g.op('Constant', value_t=torch.tensor(3, dtype=torch.float)))
-        hardtanh_ = g.op("Clip", input, g.op('Constant', value_t=torch.tensor(0, dtype=torch.float)), g.op('Constant', value_t=torch.tensor(6, dtype=torch.float)))
-        hardtanh_ = g.op("Div", hardtanh_, g.op('Constant', value_t=torch.tensor(6, dtype=torch.float)))
+        input = g.op("Add", self, g.op("Constant", value_t=torch.tensor(3, dtype=torch.float)))
+        hardtanh_ = g.op(
+            "Clip",
+            input,
+            g.op("Constant", value_t=torch.tensor(0, dtype=torch.float)),
+            g.op("Constant", value_t=torch.tensor(6, dtype=torch.float)),
+        )
+        hardtanh_ = g.op("Div", hardtanh_, g.op("Constant", value_t=torch.tensor(6, dtype=torch.float)))
         return g.op("Mul", self, hardtanh_)
 
 
@@ -172,16 +179,16 @@ def hard_mish_fwd(x):
 
 
 def hard_mish_bwd(x, grad_output):
-    m = torch.ones_like(x) * (x >= -2.)
-    m = torch.where((x >= -2.) & (x <= 0.), x + 1., m)
+    m = torch.ones_like(x) * (x >= -2.0)
+    m = torch.where((x >= -2.0) & (x <= 0.0), x + 1.0, m)
     return grad_output * m
 
 
 class HardMishAutoFn(torch.autograd.Function):
-    """ A memory efficient variant of Hard Mish
-    Experimental, based on notes by Mish author Diganta Misra at
-      https://github.com/digantamisra98/H-Mish/blob/0da20d4bc58e696b6803f2523c58d3c8a82782d0/README.md
+    """A memory efficient variant of Hard Mish Experimental, based on notes by Mish author Diganta Misra at
+    https://github.com/digantamisra98/H-Mish/blob/0da20d4bc58e696b6803f2523c58d3c8a82782d0/README.md.
     """
+
     @staticmethod
     def forward(ctx, x):
         ctx.save_for_backward(x)
@@ -203,6 +210,3 @@ class HardMishMe(nn.Module):
 
     def forward(self, x):
         return HardMishAutoFn.apply(x)
-
-
-

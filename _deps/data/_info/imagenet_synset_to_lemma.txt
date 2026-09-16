@@ -6,7 +6,7 @@ n00007846	person, individual, someone, somebody, mortal, soul
 n00015388	animal, animate being, beast, brute, creature, fauna
 n00017222	plant, flora, plant life
 n00021265	food, nutrient
-n00021939	artifact, artefact
+n00021939	artifact, artifact
 n00120010	hop
 n00141669	check-in
 n00288000	dressage
@@ -305,7 +305,7 @@ n01389507	protozoan, protozoon
 n01390123	sarcodinian, sarcodine
 n01390763	heliozoan
 n01392275	endameba
-n01392380	ameba, amoeba
+n01392380	amoebae, amoeba
 n01393486	globigerina
 n01394040	testacean
 n01394492	arcella
@@ -614,7 +614,7 @@ n01549053	grey kingbird, gray kingbird, petchary, Tyrannus domenicensis domenice
 n01549430	pewee, peewee, peewit, pewit, wood pewee, Contopus virens
 n01549641	western wood pewee, Contopus sordidulus
 n01549886	phoebe, phoebe bird, Sayornis phoebe
-n01550172	vermillion flycatcher, firebird, Pyrocephalus rubinus mexicanus
+n01550172	vermilion flycatcher, firebird, Pyrocephalus rubinus mexicanus
 n01550761	cotinga, chatterer
 n01551080	cock of the rock, Rupicola rupicola
 n01551300	cock of the rock, Rupicola peruviana
@@ -952,7 +952,7 @@ n01646292	bufo
 n01646388	agua, agua toad, Bufo marinus
 n01646555	European toad, Bufo bufo
 n01646648	natterjack, Bufo calamita
-n01646802	American toad, Bufo americanus
+n01646802	American toad, Bufo americans
 n01646902	Eurasian green toad, Bufo viridis
 n01647033	American green toad, Bufo debilis
 n01647180	Yosemite toad, Bufo canorus
@@ -1232,8 +1232,8 @@ n01751748	sea snake
 n01752165	viper
 n01752585	adder, common viper, Vipera berus
 n01752736	asp, asp viper, Vipera aspis
-n01753032	puff adder, Bitis arietans
-n01753180	gaboon viper, Bitis gabonica
+n01753032	puff adder, Bits arietans
+n01753180	gaboon viper, Bits gabonica
 n01753488	horned viper, cerastes, sand viper, horned asp, Cerastes cornutus
 n01753959	pit viper
 n01754370	copperhead, Agkistrodon contortrix
@@ -1303,7 +1303,7 @@ n01783706	garden centipede, garden symphilid, symphilid, Scutigerella immaculata
 n01784293	tardigrade
 n01784675	centipede
 n01785667	house centipede, Scutigera coleoptrata
-n01786646	millipede, millepede, milliped
+n01786646	millipede, millipede, milliped
 n01787006	sea spider, pycnogonid
 n01787191	Merostomata, class Merostomata
 n01787835	horseshoe crab, king crab, Limulus polyphemus, Xiphosurus polyphemus
@@ -1432,7 +1432,7 @@ n01818832	kea, Nestor notabilis
 n01819115	cockatoo
 n01819313	sulphur-crested cockatoo, Kakatoe galerita, Cacatua galerita
 n01819465	pink cockatoo, Kakatoe leadbeateri
-n01819734	cockateel, cockatiel, cockatoo parrot, Nymphicus hollandicus
+n01819734	cockatiel, cockatiel, cockatoo parrot, Nymphicus hollandicus
 n01820052	lovebird
 n01820348	lory
 n01820546	lorikeet
@@ -1493,8 +1493,8 @@ n01840120	red-shafted flicker, Colaptes caper collaris
 n01840412	ivorybill, ivory-billed woodpecker, Campephilus principalis
 n01840775	redheaded woodpecker, redhead, Melanerpes erythrocephalus
 n01841102	sapsucker
-n01841288	yellow-bellied sapsucker, Sphyrapicus varius
-n01841441	red-breasted sapsucker, Sphyrapicus varius ruber
+n01841288	yellow-bellied sapsucker, Sphyrapicus various
+n01841441	red-breasted sapsucker, Sphyrapicus various ruber
 n01841679	wryneck
 n01841943	piculet
 n01842235	barbet
@@ -1549,15 +1549,15 @@ n01853666	common scoter, Melanitta nigra
 n01853870	old squaw, oldwife, Clangula hyemalis
 n01854415	merganser, fish duck, sawbill, sheldrake
 n01854700	goosander, Mergus merganser
-n01854838	American merganser, Mergus merganser americanus
+n01854838	American merganser, Mergus merganser americans
 n01855032	red-breasted merganser, Mergus serrator
 n01855188	smew, Mergus albellus
 n01855476	hooded merganser, hooded sheldrake, Lophodytes cucullatus
 n01855672	goose
 n01856072	gosling
 n01856155	gander
-n01856380	Chinese goose, Anser cygnoides
-n01856553	greylag, graylag, greylag goose, graylag goose, Anser anser
+n01856380	Chinese goose, Answer cygnoides
+n01856553	greylag, graylag, greylag goose, graylag goose, Answer answer
 n01856890	blue goose, Chen caerulescens
 n01857079	snow goose
 n01857325	brant, brant goose, brent, brent goose
@@ -1854,7 +1854,7 @@ n01982068	European spider crab, king crab, Maja squinado
 n01982347	giant crab, Macrocheira kaempferi
 n01982650	lobster
 n01983048	true lobster
-n01983481	American lobster, Northern lobster, Maine lobster, Homarus americanus
+n01983481	American lobster, Northern lobster, Maine lobster, Homarus americans
 n01983674	European lobster, Homarus vulgaris
 n01983829	Cape lobster, Homarus capensis
 n01984245	Norway lobster, Nephrops norvegicus
@@ -2161,7 +2161,7 @@ n02081798	Atlantic walrus, Odobenus rosmarus
 n02081927	Pacific walrus, Odobenus divergens
 n02082056	Fissipedia
 n02082190	fissiped mammal, fissiped
-n02082791	aardvark, ant bear, anteater, Orycteropus afer
+n02082791	aardvark, ant bear, anteater, Orycteropus after
 n02083346	canine, canid
 n02083672	bitch
 n02083780	brood bitch
@@ -2448,7 +2448,7 @@ n02132320	bruin
 n02132466	Syrian bear, Ursus arctos syriacus
 n02132580	grizzly, grizzly bear, silvertip, silver-tip, Ursus horribilis, Ursus arctos horribilis
 n02132788	Alaskan brown bear, Kodiak bear, Kodiak, Ursus middendorffi, Ursus arctos middendorffi
-n02133161	American black bear, black bear, Ursus americanus, Euarctos americanus
+n02133161	American black bear, black bear, Ursus americans, Euarctos americans
 n02133400	cinnamon bear
 n02133704	Asiatic black bear, black bear, Ursus thibetanus, Selenarctos thibetanus
 n02134084	ice bear, polar bear, Ursus Maritimus, Thalarctos maritimus
@@ -2886,7 +2886,7 @@ n02280649	cabbage butterfly
 n02281015	small white, Pieris rapae
 n02281136	large white, Pieris brassicae
 n02281267	southern cabbage butterfly, Pieris protodice
-n02281406	sulphur butterfly, sulfur butterfly
+n02281406	sulfur butterfly, sulfur butterfly
 n02281787	lycaenid, lycaenid butterfly
 n02282257	blue
 n02282385	copper
@@ -3038,7 +3038,7 @@ n02327028	jackrabbit
 n02327175	white-tailed jackrabbit, whitetail jackrabbit, Lepus townsendi
 n02327435	blacktail jackrabbit, Lepus californicus
 n02327656	polar hare, Arctic hare, Lepus arcticus
-n02327842	snowshoe hare, snowshoe rabbit, varying hare, Lepus americanus
+n02327842	snowshoe hare, snowshoe rabbit, varying hare, Lepus americans
 n02328009	Belgian hare, leporide
 n02328150	Angora, Angora rabbit
 n02328429	pika, mouse hare, rock rabbit, coney, cony
@@ -3224,7 +3224,7 @@ n02379430	Tennessee walker, Tennessee walking horse, Walking horse, Plantation w
 n02379630	American saddle horse
 n02379743	Appaloosa
 n02379908	Arabian, Arab
-n02380052	Lippizan, Lipizzan, Lippizaner
+n02380052	Lippizan, Lipizzan, Lipizzaner
 n02380335	pony
 n02380464	polo pony
 n02380583	mustang
@@ -3419,7 +3419,7 @@ n02417663	bezoar goat, pasang, Capra aegagrus
 n02417785	markhor, markhoor, Capra falconeri
 n02417914	ibex, Capra ibex
 n02418064	goat antelope
-n02418465	mountain goat, Rocky Mountain goat, Oreamnos americanus
+n02418465	mountain goat, Rocky Mountain goat, Oreamnos americans
 n02418770	goral, Naemorhedus goral
 n02419056	serow
 n02419336	chamois, Rupicapra rupicapra
@@ -3681,8 +3681,8 @@ n02505998	mastodon, mastodont
 n02506947	plantigrade mammal, plantigrade
 n02507148	digitigrade mammal, digitigrade
 n02507649	procyonid
-n02508021	raccoon, racoon
-n02508213	common raccoon, common racoon, coon, ringtail, Procyon lotor
+n02508021	raccoon, raccoon
+n02508213	common raccoon, common raccoon, coon, ringtail, Procyon lotor
 n02508346	crab-eating raccoon, Procyon cancrivorus
 n02508742	bassarisk, cacomistle, cacomixle, coon cat, raccoon fox, ringtail, ring-tailed cat, civet cat, miner's cat, Bassariscus astutus
 n02509197	kinkajou, honey bear, potto, Potos flavus, Potos caudivolvulus
@@ -3796,7 +3796,7 @@ n02546331	ribbonfish
 n02546627	dealfish, Trachipterus arcticus
 n02547014	oarfish, king of the herring, ribbonfish, Regalecus glesne
 n02547733	batfish
-n02548247	goosefish, angler, anglerfish, angler fish, monkfish, lotte, allmouth, Lophius Americanus
+n02548247	goosefish, angler, anglerfish, angler fish, monkfish, lotte, allmouth, Lophius Americans
 n02548689	toadfish, Opsanus tau
 n02548884	oyster fish, oyster-fish, oysterfish
 n02549248	frogfish
@@ -3829,7 +3829,7 @@ n02561381	northern pike, Esox lucius
 n02561514	muskellunge, Esox masquinongy
 n02561661	pickerel
 n02561803	chain pickerel, chain pike, Esox niger
-n02561937	redfin pickerel, barred pickerel, Esox americanus
+n02561937	redfin pickerel, barred pickerel, Esox americans
 n02562315	sunfish, centrarchid
 n02562796	crappie
 n02562971	black crappie, Pomoxis nigromaculatus
@@ -3851,7 +3851,7 @@ n02566665	yellow bass, Morone interrupta
 n02567334	blackmouth bass, Synagrops bellus
 n02567633	rock sea bass, rock bass, Centropristis philadelphica
 n02568087	striped bass, striper, Roccus saxatilis, rockfish
-n02568447	stone bass, wreckfish, Polyprion americanus
+n02568447	stone bass, wreckfish, Polyprion americans
 n02568959	grouper
 n02569484	hind
 n02569631	rock hind, Epinephelus adscensionis
@@ -3942,7 +3942,7 @@ n02596720	Atlantic croaker, Micropogonias undulatus
 n02597004	yellowfin croaker, surffish, surf fish, Umbrina roncador
 n02597367	whiting
 n02597608	kingfish
-n02597818	king whiting, Menticirrhus americanus
+n02597818	king whiting, Menticirrhus americans
 n02597972	northern whiting, Menticirrhus saxatilis
 n02598134	corbina, Menticirrhus undulatus
 n02598573	white croaker, chenfish, kingfish, Genyonemus lineatus
@@ -4001,7 +4001,7 @@ n02616128	eelblenny
 n02616397	wrymouth, ghostfish, Cryptacanthodes maculatus
 n02616851	wolffish, wolf fish, catfish
 n02617537	viviparous eelpout, Zoarces viviparus
-n02618094	ocean pout, Macrozoarces americanus
+n02618094	ocean pout, Macrozoarces americans
 n02618513	sand lance, sand launce, sand eel, launce
 n02618827	dragonet
 n02619165	goby, gudgeon
@@ -4075,12 +4075,12 @@ n02643566	lionfish
 n02643836	stonefish, Synanceja verrucosa
 n02644113	rockfish
 n02644360	copper rockfish, Sebastodes caurinus
-n02644501	vermillion rockfish, rasher, Sebastodes miniatus
+n02644501	vermilion rockfish, rasher, Sebastodes miniatus
 n02644665	red rockfish, Sebastodes ruberrimus
 n02644817	rosefish, ocean perch, Sebastodes marinus
 n02645538	bullhead
 n02645691	miller's-thumb
-n02645953	sea raven, Hemitripterus americanus
+n02645953	sea raven, Hemitripterus americans
 n02646667	lumpfish, Cyclopterus lumpus
 n02646892	lumpsucker
 n02648035	pogge, armed bullhead, Agonus cataphractus
@@ -4113,7 +4113,7 @@ n02658079	righteye flounder, righteyed flounder
 n02658531	plaice, Pleuronectes platessa
 n02658811	European flatfish, Platichthys flesus
 n02659176	yellowtail flounder, Limanda ferruginea
-n02659478	winter flounder, blackback flounder, lemon sole, Pseudopleuronectes americanus
+n02659478	winter flounder, blackback flounder, lemon sole, Pseudopleuronectes americans
 n02659808	lemon sole, Microstomus kitt
 n02660091	American plaice, Hippoglossoides platessoides
 n02660208	halibut, holibut
@@ -4269,10 +4269,10 @@ n02705944	amplifier
 n02706221	ampulla
 n02706806	amusement arcade
 n02708093	analog clock
-n02708224	analog computer, analogue computer
+n02708224	analog computer, analog computer
 n02708433	analog watch
 n02708555	analytical balance, chemical balance
-n02708711	analyzer, analyser
+n02708711	analyzer, analyzer
 n02708885	anamorphosis, anamorphism
 n02709101	anastigmat
 n02709367	anchor, ground tackle
@@ -4282,7 +4282,7 @@ n02709908	AND circuit, AND gate
 n02710044	andiron, firedog, dog, dog-iron
 n02710201	android, humanoid, mechanical man
 n02710324	anechoic chamber
-n02710429	anemometer, wind gauge, wind gage
+n02710429	anemometer, wind gauge, wind gauge
 n02710600	aneroid barometer, aneroid
 n02711237	angiocardiogram
 n02711780	angioscope
@@ -4349,20 +4349,20 @@ n02738978	armhole
 n02739123	armilla
 n02739427	armlet, arm band
 n02739550	armoire
-n02739668	armor, armour
-n02739889	armored car, armoured car
-n02740061	armored car, armoured car
-n02740300	armored personnel carrier, armoured personnel carrier, APC
-n02740533	armored vehicle, armoured vehicle
-n02740764	armor plate, armour plate, armor plating, plate armor, plate armour
-n02741367	armory, armoury, arsenal
+n02739668	armor, armor
+n02739889	armored car, armored car
+n02740061	armored car, armored car
+n02740300	armored personnel carrier, armored personnel carrier, APC
+n02740533	armored vehicle, armored vehicle
+n02740764	armor plate, armor plate, armor plating, plate armor, plate armor
+n02741367	armory, armory, arsenal
 n02741475	armrest
 n02742070	arquebus, harquebus, hackbut, hagbut
 n02742194	array
 n02742322	array, raiment, regalia
 n02742468	arrester, arrester hook
 n02742753	arrow
-n02743426	arsenal, armory, armoury
+n02743426	arsenal, armory, armory
 n02744323	arterial road
 n02744844	arthrogram
 n02744961	arthroscope
@@ -4424,7 +4424,7 @@ n02757927	audiovisual, audiovisual aid
 n02758134	auditorium
 n02758490	auger, gimlet, screw auger, wimble
 n02758863	autobahn
-n02758960	autoclave, sterilizer, steriliser
+n02758960	autoclave, sterilizer, sterilizer
 n02759257	autofocus
 n02759387	autogiro, autogyro, gyroplane
 n02759700	autoinjector
@@ -4893,7 +4893,7 @@ n02861509	bodkin, threader
 n02861658	bodkin
 n02861777	bodkin
 n02861886	body
-n02862048	body armor, body armour, suit of armor, suit of armour, coat of mail, cataphract
+n02862048	body armor, body armor, suit of armor, suit of armor, coat of mail, cataphract
 n02862916	body lotion
 n02863014	body stocking
 n02863176	body plethysmograph
@@ -5134,7 +5134,7 @@ n02917067	bullet train, bullet
 n02917377	bullhorn, loud hailer, loud-hailer
 n02917521	bullion
 n02917607	bullnose, bullnosed plane
-n02917742	bullpen, detention cell, detention centre
+n02917742	bullpen, detention cell, detention center
 n02917964	bullpen
 n02918112	bullring
 n02918330	bulwark
@@ -5237,7 +5237,7 @@ n02939185	caldron, cauldron
 n02939763	calico
 n02939866	caliper, calliper
 n02940289	call-board
-n02940385	call center, call centre
+n02940385	call center, call center
 n02940570	caller ID
 n02940706	calliope, steam organ
 n02941095	calorimeter
@@ -5282,7 +5282,7 @@ n02948942	candy thermometer
 n02949084	cane
 n02949202	cane
 n02949356	cangue
-n02949542	canister, cannister, tin
+n02949542	canister, canister, tin
 n02950018	cannery
 n02950120	cannikin
 n02950186	cannikin
@@ -5342,7 +5342,7 @@ n02962414	car carrier
 n02962843	cardcase
 n02962938	cardiac monitor, heart monitor
 n02963159	cardigan
-n02963302	card index, card catalog, card catalogue
+n02963302	card index, card catalog, card catalog
 n02963503	cardiograph, electrocardiograph
 n02963692	cardioid microphone
 n02963821	car door
@@ -5462,7 +5462,7 @@ n02985828	cat's-paw
 n02985963	catsup bottle, ketchup bottle
 n02986066	cattle car
 n02986160	cattle guard, cattle grid
-n02986348	cattleship, cattle boat
+n02986348	battleship, cattle boat
 n02987047	cautery, cauterant
 n02987379	cavalier hat, slouch hat
 n02987492	cavalry sword, saber, sabre
@@ -5488,7 +5488,7 @@ n02992529	cellular telephone, cellular phone, cellphone, cell, mobile phone
 n02992795	cellulose tape, Scotch tape, Sellotape
 n02993194	cenotaph, empty tomb
 n02993368	censer, thurible
-n02993546	center, centre
+n02993546	center, center
 n02994573	center punch
 n02994743	Centigrade thermometer
 n02995345	central processing unit, CPU, C.P.U., central processor, processor, mainframe
@@ -5506,7 +5506,7 @@ n02999138	chafing dish
 n02999410	chain
 n02999936	chain
 n03000134	chainlink fence
-n03000247	chain mail, ring mail, mail, chain armor, chain armour, ring armor, ring armour
+n03000247	chain mail, ring mail, mail, chain armor, chain armor, ring armor, ring armor
 n03000530	chain printer
 n03000684	chain saw, chainsaw
 n03001115	chain store
@@ -5671,7 +5671,7 @@ n03041114	cleat
 n03041265	cleat
 n03041449	cleats
 n03041632	cleaver, meat cleaver, chopper
-n03041810	clerestory, clearstory
+n03041810	clerestory, clerestory
 n03042139	clevis
 n03042384	clews
 n03042490	cliff dwelling
@@ -5790,7 +5790,7 @@ n03067518	cold frame
 n03068181	collar, neckband
 n03068998	collar
 n03069752	college
-n03070059	collet, collet chuck
+n03070059	collect, collect chuck
 n03070193	collider
 n03070396	colliery, pit
 n03070587	collimator
@@ -5799,10 +5799,10 @@ n03071021	cologne, cologne water, eau de cologne
 n03071160	colonnade
 n03071288	colonoscope
 n03071552	colorimeter, tintometer
-n03072056	colors, colours
-n03072201	color television, colour television, color television system, colour television system, color TV, colour TV
-n03072440	color tube, colour tube, color television tube, colour television tube, color TV tube, colour TV tube
-n03072682	color wash, colour wash
+n03072056	colors, colors
+n03072201	color television, color television, color television system, color television system, color TV, color TV
+n03072440	color tube, color tube, color television tube, color television tube, color TV tube, color TV tube
+n03072682	color wash, color wash
 n03073296	Colt
 n03073384	colter, coulter
 n03073545	columbarium
@@ -5879,7 +5879,7 @@ n03090710	congress boot, congress shoe, congress gaiter
 n03090856	conic projection, conical projection
 n03091044	connecting rod
 n03091223	connecting room
-n03091374	connection, connexion, connector, connecter, connective
+n03091374	connection, connection, connector, connecter, connective
 n03091907	conning tower
 n03092053	conning tower
 n03092166	conservatory, hothouse, indoor garden
@@ -5912,7 +5912,7 @@ n03099945	converter, convertor
 n03100240	convertible
 n03100346	convertible, sofa bed
 n03100490	conveyance, transport
-n03100897	conveyer belt, conveyor belt, conveyer, conveyor, transporter
+n03100897	conveyor belt, conveyor belt, conveyor, conveyor, transporter
 n03101156	cooker
 n03101302	cookfire
 n03101375	cookhouse
@@ -6201,8 +6201,8 @@ n03170292	decoupage
 n03170459	dedicated file server
 n03170635	deep-freeze, Deepfreeze, deep freezer, freezer
 n03170872	deerstalker
-n03171228	defense system, defence system
-n03171356	defensive structure, defense, defence
+n03171228	defense system, defense system
+n03171356	defensive structure, defense, defense
 n03171635	defibrillator
 n03171910	defilade
 n03172038	deflector
@@ -6229,7 +6229,7 @@ n03177059	departure lounge
 n03177165	depilatory, depilator, epilator
 n03177708	depressor
 n03178000	depth finder
-n03178173	depth gauge, depth gage
+n03178173	depth gauge, depth gauge
 n03178430	derrick
 n03178538	derrick
 n03178674	derringer
@@ -6689,7 +6689,7 @@ n03292603	epergne
 n03292736	epicyclic train, epicyclic gear train
 n03292960	epidiascope
 n03293095	epilating wax
-n03293741	equalizer, equaliser
+n03293741	equalizer, equalizer
 n03293863	equatorial
 n03294048	equipment
 n03294604	erasable programmable read-only memory, EPROM
@@ -6812,7 +6812,7 @@ n03327691	fencing sword
 n03327841	fender, wing
 n03328201	fender, buffer, cowcatcher, pilot
 n03329302	Ferris wheel
-n03329536	ferrule, collet
+n03329536	ferrule, collect
 n03329663	ferry, ferryboat
 n03330002	ferule
 n03330665	festoon
@@ -6959,7 +6959,7 @@ n03364937	floating dock, floating dry dock
 n03365231	floatplane, pontoon plane
 n03365374	flood, floodlight, flood lamp, photoflood
 n03365592	floor, flooring
-n03365991	floor, level, storey, story
+n03365991	floor, level, story, story
 n03366464	floor
 n03366721	floorboard
 n03366823	floor cover, floor covering
@@ -7199,7 +7199,7 @@ n03424204	gas maser
 n03424325	gasmask, respirator, gas helmet
 n03424489	gas meter, gasometer
 n03424630	gasoline engine, petrol engine
-n03424862	gasoline gauge, gasoline gage, gas gauge, gas gage, petrol gauge, petrol gage
+n03424862	gasoline gauge, gasoline gauge, gas gauge, gas gauge, petrol gauge, petrol gauge
 n03425241	gas oven
 n03425325	gas oven
 n03425413	gas pump, gasoline pump, petrol pump, island dispenser
@@ -7217,7 +7217,7 @@ n03428226	gateleg table
 n03428349	gatepost
 n03429003	gathered skirt
 n03429137	Gatling gun
-n03429288	gauge, gage
+n03429288	gauge, gauge
 n03429682	gauntlet, gantlet
 n03429771	gauntlet, gantlet, metal glove
 n03429914	gauze, netting, veiling
@@ -8593,9 +8593,9 @@ n03772584	minute hand, big hand
 n03772674	Minuteman
 n03773035	mirror
 n03773504	missile
-n03773835	missile defense system, missile defence system
-n03774327	miter box, mitre box
-n03774461	miter joint, mitre joint, miter, mitre
+n03773835	missile defense system, missile defense system
+n03774327	miter box, miter box
+n03774461	miter joint, miter joint, miter, miter
 n03775071	mitten
 n03775199	mixer
 n03775388	mixer
@@ -8615,7 +8615,7 @@ n03778817	module
 n03779000	module
 n03779128	mohair
 n03779246	moire, watered-silk
-n03779370	mold, mould, cast
+n03779370	mold, mold, cast
 n03779884	moldboard, mouldboard
 n03780047	moldboard plow, mouldboard plough
 n03780799	moleskin
@@ -8853,7 +8853,7 @@ n03842377	off-line equipment, auxiliary equipment
 n03842585	ogee, cyma reversa
 n03842754	ogee arch, keel arch
 n03842986	ohmmeter
-n03843092	oil, oil color, oil colour
+n03843092	oil, oil color, oil color
 n03843316	oilcan
 n03843438	oilcloth
 n03843555	oil filter
@@ -9001,7 +9001,7 @@ n03878674	palette, pallet
 n03878828	palette knife
 n03878963	palisade
 n03879456	pallet
-n03879705	pallette, palette
+n03879705	palette, palette
 n03880032	pallium
 n03880129	pallium
 n03880323	pan
@@ -9164,7 +9164,7 @@ n03917327	periwig, peruke
 n03917814	permanent press, durable press
 n03918074	perpetual motion machine
 n03918480	personal computer, PC, microcomputer
-n03918737	personal digital assistant, PDA, personal organizer, personal organiser, organizer, organiser
+n03918737	personal digital assistant, PDA, personal organizer, personal organizer, organizer, organizer
 n03919096	personnel carrier
 n03919289	pestle
 n03919430	pestle, muller, pounder
@@ -9334,7 +9334,7 @@ n03963483	playbox, play-box
 n03963645	playground
 n03964495	playpen, pen
 n03964611	playsuit
-n03965456	plaza, mall, center, shopping mall, shopping center, shopping centre
+n03965456	plaza, mall, center, shopping mall, shopping center, shopping center
 n03965907	pleat, plait
 n03966206	plenum
 n03966325	plethysmograph
@@ -9488,7 +9488,7 @@ n04000998	press of sail, press of canvas
 n04001132	pressure cabin
 n04001265	pressure cooker
 n04001397	pressure dome
-n04001499	pressure gauge, pressure gage
+n04001499	pressure gauge, pressure gauge
 n04001661	pressurized water reactor, PWR
 n04001845	pressure suit
 n04002262	pricket
@@ -9674,7 +9674,7 @@ n04047834	railroad bed
 n04048441	railroad tunnel
 n04049303	rain barrel
 n04049405	raincoat, waterproof
-n04049585	rain gauge, rain gage, pluviometer, udometer
+n04049585	rain gauge, rain gauge, pluviometer, udometer
 n04049753	rain stick
 n04050066	rake
 n04050313	rake handle
@@ -10975,7 +10975,7 @@ n04360914	support hose, support stocking
 n04361095	supporting structure
 n04361260	supporting tower
 n04361937	surcoat
-n04362624	surface gauge, surface gage, scribing block
+n04362624	surface gauge, surface gauge, scribing block
 n04362821	surface lift
 n04362972	surface search radar
 n04363082	surface ship
@@ -11041,8 +11041,8 @@ n04375241	synchromesh
 n04375405	synchronous converter, rotary, rotary converter
 n04375615	synchronous motor
 n04375775	synchrotron
-n04375926	synchroscope, synchronoscope, synchronizer, synchroniser
-n04376400	synthesizer, synthesiser
+n04375926	synchroscope, synchronoscope, synchronizer, synchronizer
+n04376400	synthesizer, synthesizer
 n04376876	syringe
 n04377057	system
 n04378489	tabard
@@ -11093,7 +11093,7 @@ n04388162	tampon
 n04388473	tandoor
 n04388574	tangram
 n04388743	tank, storage tank
-n04389033	tank, army tank, armored combat vehicle, armoured combat vehicle
+n04389033	tank, army tank, armored combat vehicle, armored combat vehicle
 n04389430	tankard
 n04389521	tank car, tank
 n04389718	tank destroyer
@@ -11177,7 +11177,7 @@ n04406239	television room, tv room
 n04406552	television transmitter
 n04406687	telpher, telfer
 n04406817	telpherage, telferage
-n04407257	tempera, poster paint, poster color, poster colour
+n04407257	tempera, poster paint, poster color, poster color
 n04407435	temple
 n04407686	temple
 n04408871	temporary hookup, patch
@@ -11596,7 +11596,7 @@ n04517408	vacation home
 n04517823	vacuum, vacuum cleaner
 n04517999	vacuum chamber
 n04518132	vacuum flask, vacuum bottle
-n04518343	vacuum gauge, vacuum gage
+n04518343	vacuum gauge, vacuum gauge
 n04518643	Valenciennes, Valenciennes lace
 n04518764	valise
 n04519153	valve
@@ -11752,7 +11752,7 @@ n04559023	water-cooled reactor
 n04559166	water cooler
 n04559451	water faucet, water tap, tap, hydrant
 n04559620	water filter
-n04559730	water gauge, water gage, water glass
+n04559730	water gauge, water gauge, water glass
 n04559910	water glass
 n04559994	water hazard
 n04560113	water heater, hot-water heater, hot-water tank
@@ -11907,7 +11907,7 @@ n04594218	wire
 n04594489	wire, conducting wire
 n04594742	wire cloth
 n04594828	wire cutter
-n04594919	wire gauge, wire gage
+n04594919	wire gauge, wire gauge
 n04595028	wireless local area network, WLAN, wireless fidelity, WiFi
 n04595285	wire matrix printer, wire printer, stylus printer
 n04595501	wire recorder
@@ -12002,13 +12002,13 @@ n04951875	sunniness
 n04953296	glint
 n04953678	opalescence, iridescence
 n04955160	polish, gloss, glossiness, burnish
-n04957356	primary color for pigments, primary colour for pigments
-n04957589	primary color for light, primary colour for light
+n04957356	primary color for pigments, primary color for pigments
+n04957589	primary color for light, primary color for light
 n04958634	colorlessness, colourlessness, achromatism, achromaticity
 n04958865	mottle
 n04959061	achromia
 n04959230	shade, tint, tincture, tone
-n04959672	chromatic color, chromatic colour, spectral color, spectral colour
+n04959672	chromatic color, chromatic color, spectral color, spectral color
 n04960277	black, blackness, inkiness
 n04960582	coal black, ebony, jet black, pitch black, sable, soot black
 n04961062	alabaster
@@ -12021,7 +12021,7 @@ n04963307	Turkey red, alizarine red
 n04963588	crimson, ruby, deep red
 n04963740	dark red
 n04964001	claret
-n04964799	fuschia
+n04964799	fuchsia
 n04964878	maroon
 n04965179	orange, orangeness
 n04965451	reddish orange
@@ -12063,13 +12063,13 @@ n04974340	olive
 n04974859	ultramarine
 n04975739	complementary color, complementary
 n04976319	pigmentation
-n04976952	complexion, skin color, skin colour
+n04976952	complexion, skin color, skin color
 n04977412	ruddiness, rosiness
-n04978561	nonsolid color, nonsolid colour, dithered color, dithered colour
+n04978561	nonsolid color, nonsolid color, dithered color, dithered color
 n04979002	aposematic coloration, warning coloration
 n04979307	cryptic coloration
 n04981658	ring
-n05102764	center of curvature, centre of curvature
+n05102764	center of curvature, center of curvature
 n05218119	cadaver, corpse, stiff, clay, remains
 n05233741	mandibular notch
 n05235879	rib
@@ -12227,7 +12227,7 @@ n06592078	concept album
 n06592281	rock opera
 n06592421	tribute album, benefit album
 n06595351	magazine, mag
-n06596179	colour supplement
+n06596179	color supplement
 n06596364	comic book
 n06596474	news magazine
 n06596607	pulp, pulp magazine
@@ -12293,7 +12293,7 @@ n07566231	C-ration
 n07566340	foodstuff, food product
 n07566863	starches
 n07567039	breadstuff
-n07567139	coloring, colouring, food coloring, food colouring, food color, food colour
+n07567139	coloring, coloring, food coloring, food coloring, food color, food color
 n07567390	concentrate
 n07567611	tomato concentrate
 n07567707	meal
@@ -12449,7 +12449,7 @@ n07593972	brownie mix
 n07594066	cake mix
 n07594155	lemonade mix
 n07594250	self-rising flour, self-raising flour
-n07594737	choice morsel, tidbit, titbit
+n07594737	choice morsel, tidbit, tidbit
 n07594840	savory, savoury
 n07595051	calf's-foot jelly
 n07595180	caramel, caramelized sugar
@@ -12495,7 +12495,7 @@ n07601407	candied citrus peel
 n07601572	candy cane
 n07601686	candy corn
 n07601809	caramel
-n07602650	center, centre
+n07602650	center, center
 n07604956	comfit
 n07605040	cotton candy, spun sugar, candyfloss
 n07605198	dragee
@@ -12625,7 +12625,7 @@ n07627931	puff paste, pate feuillete
 n07628068	phyllo
 n07628181	puff batter, pouf paste, pate a choux
 n07631926	ice-cream cake, icebox cake
-n07639069	doughnut, donut, sinker
+n07639069	donut, donut, sinker
 n07641928	fish cake, fish ball
 n07642361	fish stick, fish finger
 n07642471	conserve, preserve, conserves, preserves
@@ -14068,7 +14068,7 @@ n07933154	tea bag
 n07933274	tea
 n07933530	tea-like drink
 n07933652	cambric tea
-n07933799	cuppa, cupper
+n07933799	cup of, cupper
 n07933891	herb tea, herbal tea, herbal
 n07934032	tisane
 n07934152	camomile tea
@@ -14099,7 +14099,7 @@ n07937621	ramekin, ramequin
 n07938007	multivitamin, multivitamin pill
 n07938149	vitamin pill
 n07938313	soul food
-n07938594	mold, mould
+n07938594	mold, mold
 n07942152	people
 n07951464	collection, aggregation, accumulation, assemblage
 n07954211	book, rule book
@@ -14682,7 +14682,7 @@ n09718811	Jordanian
 n09718936	Korean
 n09719309	Kenyan
 n09719794	Lao, Laotian
-n09720033	Lapp, Lapplander, Sami, Saami, Same, Saame
+n09720033	Lapp, Lapplander, Sami, Saami, Same, Same
 n09720256	Latin American, Latino
 n09720595	Lebanese
 n09720702	Levantine
@@ -14731,7 +14731,7 @@ n09735654	Chuvash
 n09736485	Turkoman, Turkmen, Turcoman
 n09736798	Uzbek, Uzbeg, Uzbak, Usbek, Usbeg
 n09736945	Ugandan
-n09737050	Ukranian
+n09737050	Ukrainian
 n09737161	Yakut
 n09737453	Tungus, Evenk
 n09738121	Igbo
@@ -15149,7 +15149,7 @@ n09904837	centrist, middle of the roader, moderate, moderationist
 n09905050	centurion
 n09905185	certified public accountant, CPA
 n09905530	chachka, tsatske, tshatshke, tchotchke, tchotchkeleh
-n09906293	chambermaid, fille de chambre
+n09906293	chambermaid, fille de chamber
 n09906449	chameleon
 n09906704	champion, champ, title-holder
 n09907804	chandler
@@ -15296,7 +15296,7 @@ n09967967	co-star
 n09968259	costumier, costumer, costume designer
 n09968652	cotter, cottier
 n09968741	cotter, cottar
-n09968845	counselor, counsellor
+n09968845	counselor, counselor
 n09970088	counterterrorist
 n09970192	counterspy, mole
 n09970402	countess
@@ -15348,12 +15348,12 @@ n09990415	dancer, social dancer
 n09990690	clog dancer
 n09990777	dancing-master, dance master
 n09991740	dark horse
-n09991867	darling, favorite, favourite, pet, dearie, deary, ducky
+n09991867	darling, favorite, favorite, pet, dearie, deary, ducky
 n09992538	date, escort
 n09992837	daughter, girl
 n09993252	dawdler, drone, laggard, lagger, trailer, poke
 n09993651	day boarder
-n09994400	day laborer, day labourer
+n09994400	day laborer, day laborer
 n09994673	deacon, Protestant deacon
 n09994808	deaconess
 n09994878	deadeye
@@ -15368,7 +15368,7 @@ n10000294	defense contractor
 n10000459	deist, freethinker
 n10000787	delegate
 n10001217	deliveryman, delivery boy, deliverer
-n10001481	demagogue, demagog, rabble-rouser
+n10001481	demagogue, demagogue, rabble-rouser
 n10001764	demigod, superman, Ubermensch
 n10002257	demographer, demographist, population scientist
 n10002760	demonstrator, protester
@@ -15809,7 +15809,7 @@ n10174589	highflier, highflyer
 n10174695	Highlander, Scottish Highlander, Highland Scot
 n10174971	high-muck-a-muck, pooh-bah
 n10175248	high priest
-n10175725	highjacker, hijacker
+n10175725	hijacker, hijacker
 n10176913	hireling, pensionary
 n10177150	historian, historiographer
 n10178077	hitchhiker
@@ -15958,7 +15958,7 @@ n10240235	know-it-all, know-all
 n10240417	kolkhoznik
 n10240821	Kshatriya
 n10241024	labor coach, birthing coach, doula, monitrice
-n10241300	laborer, manual laborer, labourer, jack
+n10241300	laborer, manual laborer, laborer, jack
 n10242328	Labourite
 n10243137	lady
 n10243273	lady-in-waiting
@@ -16173,7 +16173,7 @@ n10323752	mistress, kept woman, fancy woman
 n10323999	mixed-blood
 n10324560	model, poser
 n10325549	class act
-n10325774	modeler, modeller
+n10325774	modeler, modeler
 n10326776	modifier
 n10327143	molecular biologist
 n10327987	Monegasque, Monacan
@@ -16336,8 +16336,8 @@ n10382480	ordinary
 n10382710	organ-grinder
 n10382825	organist
 n10383094	organization man
-n10383237	organizer, organiser, arranger
-n10383505	organizer, organiser, labor organizer
+n10383237	organizer, organizer, arranger
+n10383505	organizer, organizer, labor organizer
 n10383816	originator, conceiver, mastermind
 n10384214	ornithologist, bird watcher
 n10384392	orphan
@@ -16435,7 +16435,7 @@ n10427764	physical therapist, physiotherapist
 n10428004	physicist
 n10431122	piano maker
 n10431625	picker, chooser, selector
-n10432189	picnicker, picknicker
+n10432189	picnicker, picnicker
 n10432441	pilgrim
 n10432875	pill
 n10432957	pillar, mainstay
@@ -16671,7 +16671,7 @@ n10529231	rich person, wealthy person, have
 n10530150	rider
 n10530383	riding master
 n10530571	rifleman
-n10530959	right-hander, right hander, righthander
+n10530959	right-handler, right handler, righthander
 n10531109	right-hand man, chief assistant, man Friday
 n10531445	ringer
 n10531838	ringleader
@@ -16773,7 +16773,7 @@ n10576676	selectman
 n10576818	selectwoman
 n10576962	selfish person
 n10577182	self-starter
-n10577284	seller, marketer, vender, vendor, trafficker
+n10577284	seller, marketer, vendor, vendor, trafficker
 n10577710	selling agent
 n10577820	semanticist, semiotician
 n10578021	semifinalist
@@ -16858,7 +16858,7 @@ n10613996	smasher, stunner, knockout, beauty, ravisher, sweetheart, peach, lulu,
 n10614507	smirker
 n10614629	smith, metalworker
 n10615179	smoothie, smoothy, sweet talker, charmer
-n10615334	smuggler, runner, contrabandist, moon curser, moon-curser
+n10615334	smuggler, runner, contrabandist, moon cursor, moon-cursor
 n10616578	sneezer
 n10617024	snob, prig, snot, snoot
 n10617193	snoop, snooper
@@ -17118,7 +17118,7 @@ n10728998	trier, attempter, essayer
 n10729330	trifler
 n10730542	trooper
 n10730728	trooper, state trooper
-n10731013	Trotskyite, Trotskyist, Trot
+n10731013	Trotskyist, Trotskyist, Trot
 n10731732	truant, hooky player
 n10732010	trumpeter, cornetist
 n10732521	trusty
@@ -17192,7 +17192,7 @@ n10756261	Visigoth
 n10756641	visionary
 n10756837	visiting fireman
 n10757050	visiting professor
-n10757492	visualizer, visualiser
+n10757492	visualizer, visualizer
 n10758337	vixen, harpy, hellcat
 n10758445	vizier
 n10758949	voicer
@@ -19244,7 +19244,7 @@ n12308112	Amur privet, Ligustrum amurense
 n12308447	Japanese privet, Ligustrum japonicum
 n12308907	Ligustrum obtusifolium
 n12309277	common privet, Ligustrum vulgare
-n12309630	devilwood, American olive, Osmanthus americanus
+n12309630	devilwood, American olive, Osmanthus americans
 n12310021	mock privet
 n12310349	lilac
 n12310638	Himalayan lilac, Syringa emodi
@@ -19831,7 +19831,7 @@ n12543639	Korean lespedeza, Lespedeza stipulacea
 n12543826	sericea lespedeza, Lespedeza sericea, Lespedeza cuneata
 n12544240	lentil, lentil plant, Lens culinaris
 n12544539	lentil
-n12545232	prairie bird's-foot trefoil, compass plant, prairie lotus, prairie trefoil, Lotus americanus
+n12545232	prairie bird's-foot trefoil, compass plant, prairie lotus, prairie trefoil, Lotus americans
 n12545635	bird's foot trefoil, bird's foot clover, babies' slippers, bacon and eggs, Lotus corniculatus
 n12545865	winged pea, asparagus pea, Lotus tetragonolobus
 n12546183	lupine, lupin
@@ -19848,7 +19848,7 @@ n12549192	black medick, hop clover, yellow trefoil, nonesuch clover, Medicago lu
 n12549420	alfalfa, lucerne, Medicago sativa
 n12549799	millettia
 n12550210	mucuna
-n12550408	cowage, velvet bean, Bengal bean, Benghal bean, Florida bean, Mucuna pruriens utilis, Mucuna deeringiana, Mucuna aterrima, Stizolobium deeringiana
+n12550408	cowage, velvet bean, Bengal bean, Benghal bean, Florida bean, Mucuna pruriens utilise, Mucuna deeringiana, Mucuna aterrima, Stizolobium deeringiana
 n12551173	tolu tree, tolu balsam tree, Myroxylon balsamum, Myroxylon toluiferum
 n12551457	Peruvian balsam, Myroxylon pereirae, Myroxylon balsamum pereirae
 n12552309	sainfoin, sanfoin, holy clover, esparcet, Onobrychis viciifolia, Onobrychis viciaefolia
@@ -20012,7 +20012,7 @@ n12614625	Canadian pondweed, Elodea canadensis
 n12615232	tape grass, eelgrass, wild celery, Vallisneria spiralis
 n12615710	pondweed
 n12616248	curled leaf pondweed, curly pondweed, Potamogeton crispus
-n12616630	loddon pondweed, Potamogeton nodosus, Potamogeton americanus
+n12616630	loddon pondweed, Potamogeton nodosus, Potamogeton americans
 n12616996	frog's lettuce
 n12617559	arrow grass, Triglochin maritima
 n12618146	horned pondweed, Zannichellia palustris
@@ -20399,7 +20399,7 @@ n12748248	bittersweet, American bittersweet, climbing bittersweet, false bitters
 n12749049	spindle tree, spindleberry, spindleberry tree
 n12749456	winged spindle tree, Euonymous alatus
 n12749679	wahoo, burning bush, Euonymus atropurpureus
-n12749852	strawberry bush, wahoo, Euonymus americanus
+n12749852	strawberry bush, wahoo, Euonymus americans
 n12750076	evergreen bittersweet, Euonymus fortunei radicans, Euonymus radicans vegetus
 n12750767	cyrilla, leatherwood, white titi, Cyrilla racemiflora
 n12751172	titi, buckwheat tree, Cliftonia monophylla
@@ -20674,7 +20674,7 @@ n12851094	lion's-ear, Leonotis nepetaefolia, Leonotis nepetifolia
 n12851469	motherwort, Leonurus cardiaca
 n12851860	pitcher sage, Lepechinia calycina, Sphacele calycina
 n12852234	bugleweed, Lycopus virginicus
-n12852428	water horehound, Lycopus americanus
+n12852428	water horehound, Lycopus americans
 n12852570	gipsywort, gypsywort, Lycopus europaeus
 n12853080	origanum
 n12853287	oregano, marjoram, pot marjoram, wild marjoram, winter sweet, Origanum vulgare
@@ -20884,7 +20884,7 @@ n12926689	bitter cassava, manioc, mandioc, mandioca, tapioca plant, gari, Maniho
 n12927013	cassava, manioc
 n12927194	sweet cassava, Manihot dulcis
 n12927494	candlenut, varnish tree, Aleurites moluccana
-n12927758	tung tree, tung, tung-oil tree, Aleurites fordii
+n12927758	tongue tree, tongue, tongue-oil tree, Aleurites fordii
 n12928071	slipper spurge, slipper plant
 n12928307	candelilla, Pedilanthus bracteatus, Pedilanthus pavonis
 n12928491	Jewbush, Jew-bush, Jew bush, redbird cactus, redbird flower, Pedilanthus tithymaloides
@@ -20935,13 +20935,13 @@ n12944095	European sanicle, Sanicula Europaea
 n12945177	water parsnip, Sium suave
 n12945366	greater water parsnip, Sium latifolium
 n12945549	skirret, Sium sisarum
-n12946849	dogwood, dogwood tree, cornel
+n12946849	dogwood, dogwood tree, colonel
 n12947313	common white dogwood, eastern flowering dogwood, Cornus florida
 n12947544	red osier, red osier dogwood, red dogwood, American dogwood, redbrush, Cornus stolonifera
 n12947756	silky dogwood, Cornus obliqua
-n12947895	silky cornel, silky dogwood, Cornus amomum
+n12947895	silky colonel, silky dogwood, Cornus amomum
 n12948053	common European dogwood, red dogwood, blood-twig, pedwood, Cornus sanguinea
-n12948251	bunchberry, dwarf cornel, crackerberry, pudding berry, Cornus canadensis
+n12948251	bunchberry, dwarf colonel, crackerberry, pudding berry, Cornus canadensis
 n12948495	cornelian cherry, Cornus mas
 n12949160	puka, Griselinia lucida
 n12949361	kapuka, Griselinia littoralis
@@ -21000,7 +21000,7 @@ n12972136	Truncocolumella citrina
 n12973443	mucor
 n12973791	rhizopus
 n12973937	bread mold, Rhizopus nigricans
-n12974987	slime mold, slime mould
+n12974987	slime mold, slime mold
 n12975804	true slime mold, acellular slime mold, plasmodial slime mold, myxomycete
 n12976198	cellular slime mold
 n12976554	dictostylium
@@ -21187,7 +21187,7 @@ n13045975	Astreus pteridis
 n13046130	Astreus hygrometricus
 n13046669	bird's-nest fungus
 n13047862	Gastrocybe lateritia
-n13048447	Macowanites americanus
+n13048447	Macowanites americans
 n13049953	polypore, pore fungus, pore mushroom
 n13050397	bracket fungus, shelf fungus
 n13050705	Albatrellus dispansus
@@ -21267,7 +21267,7 @@ n13076041	Cortinarius violaceus
 n13076405	Gymnopilus spectabilis
 n13076643	Gymnopilus validipes
 n13076831	Gymnopilus ventricosus
-n13077033	mold, mould
+n13077033	mold, mold
 n13077295	mildew
 n13078021	verticillium
 n13079073	monilia
@@ -21671,7 +21671,7 @@ n13873502	circle
 n13873917	circle
 n13874073	equator
 n13874558	scallop, crenation, crenature, crenel, crenelle
-n13875392	ring, halo, annulus, doughnut, anchor ring
+n13875392	ring, halo, annulus, donut, anchor ring
 n13875571	loop
 n13875884	bight
 n13876561	helix, spiral
