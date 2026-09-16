@@ -1,4 +1,4 @@
-""" Global Context Attention Block
+"""Global Context Attention Block.
 
 Paper: `GCNet: Non-local Networks Meet Squeeze-Excitation Networks and Beyond`
     - https://arxiv.org/abs/1904.11492
@@ -7,10 +7,11 @@ Official code consulted as reference: https://github.com/xvjiarui/GCNet
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import Optional, Tuple, Type, Union
 
-from torch import nn as nn
+from __future__ import annotations
+
 import torch.nn.functional as F
+from torch import nn
 
 from .create_act import create_act_layer, get_act_layer
 from .helpers import make_divisible
@@ -19,30 +20,29 @@ from .norm import LayerNorm2d
 
 
 class GlobalContext(nn.Module):
-
     def __init__(
-            self,
-            channels: int,
-            use_attn: bool = True,
-            fuse_add: bool = False,
-            fuse_scale: bool = True,
-            init_last_zero: bool = False,
-            rd_ratio: float = 1./8,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 1,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            device=None,
-            dtype=None
+        self,
+        channels: int,
+        use_attn: bool = True,
+        fuse_add: bool = False,
+        fuse_scale: bool = True,
+        init_last_zero: bool = False,
+        rd_ratio: float = 1.0 / 8,
+        rd_channels: int | None = None,
+        rd_divisor: int = 1,
+        act_layer: type[nn.Module] = nn.ReLU,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         act_layer = get_act_layer(act_layer)
 
         self.conv_attn = nn.Conv2d(channels, 1, kernel_size=1, bias=True, **dd) if use_attn else None
 
         if rd_channels is None:
-            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
+            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.0)
         if fuse_add:
             self.mlp_add = ConvMlp(channels, rd_channels, act_layer=act_layer, norm_layer=LayerNorm2d, **dd)
         else:
@@ -59,7 +59,7 @@ class GlobalContext(nn.Module):
 
     def reset_parameters(self):
         if self.conv_attn is not None:
-            nn.init.kaiming_normal_(self.conv_attn.weight, mode='fan_in', nonlinearity='relu')
+            nn.init.kaiming_normal_(self.conv_attn.weight, mode="fan_in", nonlinearity="relu")
         if self.mlp_add is not None:
             nn.init.zeros_(self.mlp_add.fc2.weight)
 

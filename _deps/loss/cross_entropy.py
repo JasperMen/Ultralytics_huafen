@@ -1,21 +1,21 @@
-""" Cross Entropy w/ smoothing or soft targets
+"""Cross Entropy w/ smoothing or soft targets.
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class LabelSmoothingCrossEntropy(nn.Module):
-    """ NLL loss with label smoothing.
-    """
+    """NLL loss with label smoothing."""
+
     def __init__(self, smoothing=0.1):
-        super(LabelSmoothingCrossEntropy, self).__init__()
+        super().__init__()
         assert smoothing < 1.0
         self.smoothing = smoothing
-        self.confidence = 1. - smoothing
+        self.confidence = 1.0 - smoothing
 
     def forward(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         logprobs = F.log_softmax(x, dim=-1)
@@ -27,9 +27,8 @@ class LabelSmoothingCrossEntropy(nn.Module):
 
 
 class SoftTargetCrossEntropy(nn.Module):
-
     def __init__(self):
-        super(SoftTargetCrossEntropy, self).__init__()
+        super().__init__()
 
     def forward(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)

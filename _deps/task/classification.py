@@ -1,9 +1,12 @@
 """Classification training task."""
+
+from __future__ import annotations
+
 import logging
-from typing import Callable, Dict, Optional, Union
+from typing import Callable
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .task import TrainingTask
 
@@ -13,8 +16,7 @@ _logger = logging.getLogger(__name__)
 class ClassificationTask(TrainingTask):
     """Standard supervised classification task.
 
-    Simple task that performs a forward pass through the model and computes
-    the classification loss.
+    Simple task that performs a forward pass through the model and computes the classification loss.
 
     Args:
         model: The model to train
@@ -23,33 +25,29 @@ class ClassificationTask(TrainingTask):
         dtype: Dtype for task tensors/buffers
         verbose: Enable info logging
 
-    Example:
-        >>> task = ClassificationTask(model, nn.CrossEntropyLoss(), device=torch.device('cuda'))
+    Examples:
+        >>> task = ClassificationTask(model, nn.CrossEntropyLoss(), device=torch.device("cuda"))
         >>> result = task(input, target)
-        >>> result['loss'].backward()
+        >>> result["loss"].backward()
     """
 
     def __init__(
-            self,
-            model: nn.Module,
-            criterion: Union[nn.Module, Callable],
-            device: Optional[torch.device] = None,
-            dtype: Optional[torch.dtype] = None,
-            verbose: bool = True,
+        self,
+        model: nn.Module,
+        criterion: nn.Module | Callable,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+        verbose: bool = True,
     ):
         super().__init__(device=device, dtype=dtype, verbose=verbose)
         self.model = model
         self.criterion = criterion
 
         if self.verbose:
-            loss_name = getattr(criterion, '__name__', None) or type(criterion).__name__
+            loss_name = getattr(criterion, "__name__", None) or type(criterion).__name__
             _logger.info(f"ClassificationTask: criterion={loss_name}")
 
-    def prepare_distributed(
-            self,
-            device_ids: Optional[list] = None,
-            **ddp_kwargs
-    ) -> 'ClassificationTask':
+    def prepare_distributed(self, device_ids: list | None = None, **ddp_kwargs) -> ClassificationTask:
         """Prepare task for distributed training.
 
         Wraps the model in DistributedDataParallel (DDP).
@@ -62,14 +60,15 @@ class ClassificationTask(TrainingTask):
             self (for method chaining)
         """
         from torch.nn.parallel import DistributedDataParallel as DDP
+
         self.model = DDP(self.model, device_ids=device_ids, **ddp_kwargs)
         return self
 
     def forward(
-            self,
-            input: torch.Tensor,
-            target: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+        self,
+        input: torch.Tensor,
+        target: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
         """Forward pass through model and compute classification loss.
 
         Args:
@@ -85,6 +84,6 @@ class ClassificationTask(TrainingTask):
         loss = self.criterion(output, target)
 
         return {
-            'loss': loss,
-            'output': output,
+            "loss": loss,
+            "output": output,
         }

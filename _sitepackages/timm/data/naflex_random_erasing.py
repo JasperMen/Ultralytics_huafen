@@ -11,9 +11,10 @@ variable patch sizes in NaFlex training.
 Hacked together by / Copyright 2025, Ross Wightman, Hugging Face
 """
 
-import random
+from __future__ import annotations
+
 import math
-from typing import Optional, Union, Tuple
+import random
 
 import torch
 
@@ -27,20 +28,20 @@ class PatchRandomErasing:
     """
 
     def __init__(
-            self,
-            erase_prob: float = 0.5,
-            patch_drop_prob: float = 0.0,
-            min_count: int = 1,
-            max_count: Optional[int] = None,
-            min_area: float = 0.02,
-            max_area: float = 1 / 3,
-            min_aspect: float = 0.3,
-            max_aspect: Optional[float] = None,
-            mode: str = 'const',
-            value: float = 0.,
-            spatial_mode: str = 'region',
-            num_splits: int = 0,
-            device: Union[str, torch.device] = 'cuda',
+        self,
+        erase_prob: float = 0.5,
+        patch_drop_prob: float = 0.0,
+        min_count: int = 1,
+        max_count: int | None = None,
+        min_area: float = 0.02,
+        max_area: float = 1 / 3,
+        min_aspect: float = 0.3,
+        max_aspect: float | None = None,
+        mode: str = "const",
+        value: float = 0.0,
+        spatial_mode: str = "region",
+        num_splits: int = 0,
+        device: str | torch.device = "cuda",
     ) -> None:
         """Initialize PatchRandomErasing.
 
@@ -76,20 +77,20 @@ class PatchRandomErasing:
 
         # Strategy mode
         self.spatial_mode = spatial_mode
-        assert self.spatial_mode in ('patch', 'region')
+        assert self.spatial_mode in ("patch", "region")
 
         # Value generation mode flags
         self.erase_mode = mode.lower()
-        assert self.erase_mode in ('rand', 'pixel', 'const')
+        assert self.erase_mode in ("rand", "pixel", "const")
         self.const_value = value
         self.unique_noise_per_patch = True
 
     def _get_values(
-            self,
-            shape: Union[Tuple[int, ...], torch.Size],
-            value: Optional[torch.Tensor] = None,
-            dtype: torch.dtype = torch.float32,
-            device: Optional[Union[str, torch.device]] = None
+        self,
+        shape: tuple[int, ...] | torch.Size,
+        value: torch.Tensor | None = None,
+        dtype: torch.dtype = torch.float32,
+        device: str | torch.device | None = None,
     ) -> torch.Tensor:
         """Generate values for erased patches based on the specified mode.
 
@@ -103,12 +104,12 @@ class PatchRandomErasing:
             Tensor with values for erasing patches.
         """
         device = device or self.device
-        if self.erase_mode == 'pixel':
+        if self.erase_mode == "pixel":
             # only mode with erase shape that includes pixels
             return torch.empty(shape, dtype=dtype, device=device).normal_()
         else:
             shape = (1, 1, shape[-1]) if len(shape) == 3 else (1, shape[-1])
-            if self.erase_mode == 'const' or value is not None:
+            if self.erase_mode == "const" or value is not None:
                 erase_value = value or self.const_value
                 if isinstance(erase_value, (int, float)):
                     values = torch.full(shape, erase_value, dtype=dtype, device=device)
@@ -120,11 +121,11 @@ class PatchRandomErasing:
             return values
 
     def _drop_patches(
-            self,
-            patches: torch.Tensor,
-            patch_coord: torch.Tensor,
-            patch_valid: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        self,
+        patches: torch.Tensor,
+        patch_coord: torch.Tensor,
+        patch_valid: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Patch Dropout.
 
         Fully drops patches from datastream. Only mode that saves compute BUT requires support
@@ -152,21 +153,21 @@ class PatchRandomErasing:
         num_valid = len(valid_indices)
         if self.patch_drop_prob:
             # patch dropout mode, completely remove dropped patches (FIXME needs downstream support in model)
-            num_keep = max(1, int(num_valid * (1. - self.patch_drop_prob)))
+            num_keep = max(1, int(num_valid * (1.0 - self.patch_drop_prob)))
             keep_indices = torch.argsort(torch.randn(1, num_valid, device=self.device), dim=-1)[:, :num_keep]
             # maintain patch order, possibly useful for debug / visualization
             keep_indices = keep_indices.sort(dim=-1)[0]
-            patches = patches.gather(1, keep_indices.unsqueeze(-1).expand((-1, -1) + patches.shape[2:]))
+            patches = patches.gather(1, keep_indices.unsqueeze(-1).expand((-1, -1, *patches.shape[2:])))
 
         return patches, patch_coord, patch_valid
 
     def _erase_patches(
-            self,
-            patches: torch.Tensor,
-            patch_coord: torch.Tensor,
-            patch_valid: torch.Tensor,
-            patch_shape: torch.Size,
-            dtype: torch.dtype = torch.float32,
+        self,
+        patches: torch.Tensor,
+        patch_coord: torch.Tensor,
+        patch_valid: torch.Tensor,
+        patch_shape: torch.Size,
+        dtype: torch.dtype = torch.float32,
     ) -> None:
         """Apply erasing by selecting individual patches randomly.
 
@@ -198,21 +199,21 @@ class PatchRandomErasing:
         # Randomly select valid patches to erase
         erase_idx = valid_indices[torch.randperm(num_valid, device=patches.device)[:num_erase]]
 
-        if self.unique_noise_per_patch and self.erase_mode == 'pixel':
+        if self.unique_noise_per_patch and self.erase_mode == "pixel":
             # generate unique noise for the whole selection of patches
-            fill_shape = (num_erase,) + patch_shape
+            fill_shape = (num_erase, *patch_shape)
         else:
             fill_shape = patch_shape
 
         patches[erase_idx] = self._get_values(fill_shape, dtype=dtype)
 
     def _erase_region(
-            self,
-            patches: torch.Tensor,
-            patch_coord: torch.Tensor,
-            patch_valid: torch.Tensor,
-            patch_shape: torch.Size,
-            dtype: torch.dtype = torch.float32,
+        self,
+        patches: torch.Tensor,
+        patch_coord: torch.Tensor,
+        patch_valid: torch.Tensor,
+        patch_shape: torch.Size,
+        dtype: torch.dtype = torch.float32,
     ) -> None:
         """Apply erasing by selecting rectangular regions of patches randomly.
 
@@ -248,8 +249,8 @@ class PatchRandomErasing:
                 aspect_ratio = math.exp(random.uniform(*self.log_aspect_ratio))
 
                 # Calculate region height and width
-                h = int(round(math.sqrt(target_area * aspect_ratio)))
-                w = int(round(math.sqrt(target_area / aspect_ratio)))
+                h = round(math.sqrt(target_area * aspect_ratio))
+                w = round(math.sqrt(target_area / aspect_ratio))
 
                 if h > grid_h or w > grid_w:
                     continue  # try again
@@ -260,18 +261,14 @@ class PatchRandomErasing:
                 bottom, right = top + h, left + w
 
                 # Region test
-                region_mask = (
-                        (ys >= top) & (ys < bottom) &
-                        (xs >= left) & (xs < right) &
-                        patch_valid
-                )
+                region_mask = (ys >= top) & (ys < bottom) & (xs >= left) & (xs < right) & patch_valid
                 num_selected = int(region_mask.sum().item())
                 if not num_selected:
                     continue  # no patch actually falls inside – try again
 
-                if self.unique_noise_per_patch and self.erase_mode == 'pixel':
+                if self.unique_noise_per_patch and self.erase_mode == "pixel":
                     # generate unique noise for the whole region
-                    fill_shape = (num_selected,) + patch_shape
+                    fill_shape = (num_selected, *patch_shape)
                 else:
                     fill_shape = patch_shape
 
@@ -280,10 +277,10 @@ class PatchRandomErasing:
                 break
 
     def __call__(
-            self,
-            patches: torch.Tensor,
-            patch_coord: torch.Tensor,
-            patch_valid: Optional[torch.Tensor] = None,
+        self,
+        patches: torch.Tensor,
+        patch_coord: torch.Tensor,
+        patch_valid: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Apply random patch erasing.
 
@@ -296,9 +293,9 @@ class PatchRandomErasing:
             Erased patches tensor of same shape as input.
         """
         if patches.ndim == 4:
-            batch_size, num_patches, patch_dim, channels = patches.shape
+            batch_size, num_patches, _patch_dim, channels = patches.shape
         elif patches.ndim == 5:
-            batch_size, num_patches, patch_h, patch_w, channels = patches.shape
+            batch_size, num_patches, _patch_h, _patch_w, _channels = patches.shape
         else:
             assert False
         patch_shape = patches.shape[2:]
@@ -320,23 +317,11 @@ class PatchRandomErasing:
                     patch_coord[i],
                     patch_valid[i],
                 )
-            elif self.spatial_mode == 'patch':
+            elif self.spatial_mode == "patch":
                 # FIXME we could vectorize patch mode across batch, worth the effort?
-                self._erase_patches(
-                    patches[i],
-                    patch_coord[i],
-                    patch_valid[i],
-                    patch_shape,
-                    patches.dtype
-                )
-            elif self.spatial_mode == 'region':
-                self._erase_region(
-                    patches[i],
-                    patch_coord[i],
-                    patch_valid[i],
-                    patch_shape,
-                    patches.dtype
-                )
+                self._erase_patches(patches[i], patch_coord[i], patch_valid[i], patch_shape, patches.dtype)
+            elif self.spatial_mode == "region":
+                self._erase_region(patches[i], patch_coord[i], patch_valid[i], patch_shape, patches.dtype)
             else:
                 assert False
 
@@ -348,7 +333,7 @@ class PatchRandomErasing:
         Returns:
             String representation of the object.
         """
-        fs = self.__class__.__name__ + f'(p={self.erase_prob}, mode={self.erase_mode}'
-        fs += f', spatial={self.spatial_mode}, area=({self.min_area}, {self.max_area}))'
-        fs += f', count=({self.min_count}, {self.max_count}))'
+        fs = self.__class__.__name__ + f"(p={self.erase_prob}, mode={self.erase_mode}"
+        fs += f", spatial={self.spatial_mode}, area=({self.min_area}, {self.max_area}))"
+        fs += f", count=({self.min_count}, {self.max_count}))"
         return fs

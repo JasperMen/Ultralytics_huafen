@@ -1,4 +1,4 @@
-""" PyTorch Implementation of the Kron (PSGD) optimizer
+"""PyTorch Implementation of the Kron (PSGD) optimizer.
 
 This is a PSGD optimizer using a Kronecker-factored preconditioner.
 
@@ -23,18 +23,23 @@ This `timm` impl
 * warning about not having opt_einsum (unusable without)
 
 """
+
+from __future__ import annotations
+
 import logging
-import string
 import random
+import string
 import warnings
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable
 
 import numpy as np
 import torch
+
 try:
     # NOTE opt_einsum needed to avoid blowing up memory with einsum ops
     import opt_einsum
     import torch.backends.opt_einsum
+
     torch.backends.opt_einsum.enabled = True
     torch.backends.opt_einsum.strategy = "auto-hq"
     has_opt_einsum = True
@@ -53,23 +58,21 @@ _logger = logging.getLogger(__name__)
 
 
 def precond_update_prob_schedule(
-        n: float,
-        max_prob: float = 1.0,
-        min_prob: float = 0.03,
-        decay: float = 0.001,
-        flat_start: float = 500,
+    n: float,
+    max_prob: float = 1.0,
+    min_prob: float = 0.03,
+    decay: float = 0.001,
+    flat_start: float = 500,
 ) -> torch.Tensor:
     """Anneal preconditioner update probability during beginning of training.
 
-    PSGD benefits from more preconditioner updates at the beginning of training,
-    but once the preconditioner is learned the update probability can drop low.
+    PSGD benefits from more preconditioner updates at the beginning of training, but once the preconditioner is learned
+    the update probability can drop low.
 
-    This schedule is an exponential anneal with a flat start. Default settings keep
-    update probability at 1.0 for 200 steps then exponentially anneal down to
-    `min_prob` by 4000 steps. Default settings work very well for most models and
-    training regimes.
+    This schedule is an exponential anneal with a flat start. Default settings keep update probability at 1.0 for 200
+    steps then exponentially anneal down to `min_prob` by 4000 steps. Default settings work very well for most models
+    and training regimes.
     """
-
     """Exponential anneal with flat start."""
     n = torch.tensor(n, dtype=torch.float32)
     prob = max_prob * torch.exp(-decay * (n - flat_start))
@@ -86,15 +89,14 @@ class Kron(torch.optim.Optimizer):
         lr: Learning rate.
         momentum: Momentum parameter.
         weight_decay: Weight decay.
-        preconditioner_update_probability: Probability of updating the preconditioner.
-            If None, defaults to a schedule that anneals from 1.0 to 0.03 by 4000 steps.
+        preconditioner_update_probability: Probability of updating the preconditioner. If None, defaults to a schedule
+            that anneals from 1.0 to 0.03 by 4000 steps.
         max_size_triangular: Max size for dim's preconditioner to be triangular.
         min_ndim_triangular: Minimum number of dimensions a layer needs to have triangular preconditioners.
-        memory_save_mode: 'one_diag', 'smart_one_diag', or 'all_diag', None is default
-            to set all preconditioners to be triangular, 'one_diag' sets the largest
-            or last dim to be diagonal per layer, and 'all_diag' sets all preconditioners to be diagonal.
-        momentum_into_precond_update: whether to send momentum into preconditioner
-            update instead of raw gradients.
+        memory_save_mode: 'one_diag', 'smart_one_diag', or 'all_diag', None is default to set all preconditioners to be
+            triangular, 'one_diag' sets the largest or last dim to be diagonal per layer, and 'all_diag' sets all
+            preconditioners to be diagonal.
+        momentum_into_precond_update: whether to send momentum into preconditioner update instead of raw gradients.
         mu_dtype: Dtype of the momentum accumulator.
         precond_dtype: Dtype of the preconditioner.
         decoupled_decay: AdamW style decoupled weight decay
@@ -103,7 +105,7 @@ class Kron(torch.optim.Optimizer):
         flatten_start_dim: Start of flatten range, defaults to 2. Seems good tradeoff for ConvNets.
         flatten_end_dim: End of flatten range, defaults to -1.
         stochastic_weight_decay: Enable random modulation of weight decay
-        deterministic: Deterministic behaviour across save / load (resume). FIXME slow, needs work
+        deterministic: Deterministic behavior across save / load (resume). FIXME slow, needs work
     """
 
     def __init__(
@@ -112,15 +114,15 @@ class Kron(torch.optim.Optimizer):
         lr: float = 0.001,
         momentum: float = 0.9,
         weight_decay: float = 0.0,
-        preconditioner_update_probability: Optional[Union[Callable, float]] = None,
+        preconditioner_update_probability: Callable | float | None = None,
         max_size_triangular: int = 2048,
         min_ndim_triangular: int = 2,
-        memory_save_mode: Optional[str] = None,
+        memory_save_mode: str | None = None,
         momentum_into_precond_update: bool = True,
         precond_lr: float = 0.1,
         precond_init_scale: float = 1.0,
-        mu_dtype: Optional[torch.dtype] = None,
-        precond_dtype: Optional[torch.dtype] = None,
+        mu_dtype: torch.dtype | None = None,
+        precond_dtype: torch.dtype | None = None,
         decoupled_decay: bool = False,
         corrected_weight_decay: bool = False,
         flatten: bool = False,
@@ -139,27 +141,27 @@ class Kron(torch.optim.Optimizer):
         if not 0.0 <= weight_decay:
             raise ValueError(f"Invalid weight_decay value: {weight_decay}")
 
-        defaults = dict(
-            lr=lr,
-            momentum=momentum,
-            weight_decay=weight_decay,
-            preconditioner_update_probability=preconditioner_update_probability,
-            max_size_triangular=max_size_triangular,
-            min_ndim_triangular=min_ndim_triangular,
-            memory_save_mode=memory_save_mode,
-            momentum_into_precond_update=momentum_into_precond_update,
-            precond_lr=precond_lr,
-            precond_init_scale=precond_init_scale,
-            mu_dtype=mu_dtype,
-            precond_dtype=precond_dtype,
-            decoupled_decay=decoupled_decay,
-            corrected_weight_decay=corrected_weight_decay,
-            flatten=flatten,
-            flatten_start_dim=flatten_start_dim,
-            flatten_end_dim=flatten_end_dim,
-            stochastic_weight_decay=stochastic_weight_decay,
-        )
-        super(Kron, self).__init__(params, defaults)
+        defaults = {
+            "lr": lr,
+            "momentum": momentum,
+            "weight_decay": weight_decay,
+            "preconditioner_update_probability": preconditioner_update_probability,
+            "max_size_triangular": max_size_triangular,
+            "min_ndim_triangular": min_ndim_triangular,
+            "memory_save_mode": memory_save_mode,
+            "momentum_into_precond_update": momentum_into_precond_update,
+            "precond_lr": precond_lr,
+            "precond_init_scale": precond_init_scale,
+            "mu_dtype": mu_dtype,
+            "precond_dtype": precond_dtype,
+            "decoupled_decay": decoupled_decay,
+            "corrected_weight_decay": corrected_weight_decay,
+            "flatten": flatten,
+            "flatten_start_dim": flatten_start_dim,
+            "flatten_end_dim": flatten_end_dim,
+            "stochastic_weight_decay": stochastic_weight_decay,
+        }
+        super().__init__(params, defaults)
 
         self._param_exprs = {}  # cache for einsum expr
         self._tiny = torch.finfo(torch.bfloat16).tiny
@@ -181,34 +183,34 @@ class Kron(torch.optim.Optimizer):
     def __setstate__(self, state):
         super().__setstate__(state)
         for group in self.param_groups:
-            group.setdefault('corrected_weight_decay', False)
+            group.setdefault("corrected_weight_decay", False)
 
     def __getstate__(self):
         _dict = super().__getstate__()
         _dict["rng"] = self.rng
         return _dict
 
-    def state_dict(self) -> Dict[str, Any]:
+    def state_dict(self) -> dict[str, Any]:
         # Get the optimizer's state dict
         optimizer_state = super().state_dict()
 
         # Add the generator state
-        optimizer_state['rng_state'] = self.rng.getstate()
+        optimizer_state["rng_state"] = self.rng.getstate()
         return optimizer_state
 
-    def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
         # Extract and remove the RNG state from the state dict
         rng_states = {}
-        if 'rng_state' in state_dict:
-            rng_states['rng_state'] = state_dict.pop('rng_state')
-            
+        if "rng_state" in state_dict:
+            rng_states["rng_state"] = state_dict.pop("rng_state")
+
         # Load the optimizer state
         super().load_state_dict(state_dict)
         state_dict.update(rng_states)  # add back
 
         # Restore the RNG state if it exists
-        if 'rng_state' in rng_states:
-            self.rng.setstate(rng_states['rng_state'])
+        if "rng_state" in rng_states:
+            self.rng.setstate(rng_states["rng_state"])
 
     def __setstate__(self, state):
         super().__setstate__(state)
@@ -240,7 +242,7 @@ class Kron(torch.optim.Optimizer):
                 state = self.state[p]
 
                 flattened = False
-                if group['flatten']:
+                if group["flatten"]:
                     grad = safe_flatten(grad, group["flatten_start_dim"], group["flatten_end_dim"])
                     flattened = True
 
@@ -319,7 +321,7 @@ class Kron(torch.optim.Optimizer):
                     Q = state["Q"]
                     if self.deterministic:
                         torch_rng = torch.Generator(device=debiased_momentum.device)
-                        torch_rng.manual_seed(self.rng.randint(0, 2 ** 31))
+                        torch_rng.manual_seed(self.rng.randint(0, 2**31))
                     else:
                         torch_rng = None
                     V = torch.randn(
@@ -365,11 +367,11 @@ class Kron(torch.optim.Optimizer):
                         weight_decay = 2 * self.rng.random() * weight_decay
 
                     if group["decoupled_decay"]:
-                        if group['corrected_weight_decay']:
-                            wd_scale = group["lr"] ** 2 / self.defaults['lr']
+                        if group["corrected_weight_decay"]:
+                            wd_scale = group["lr"] ** 2 / self.defaults["lr"]
                         else:
                             wd_scale = group["lr"]
-                        p.mul_(1. - wd_scale * weight_decay)
+                        p.mul_(1.0 - wd_scale * weight_decay)
                     else:
                         pre_grad.add_(p, alpha=weight_decay)
 
@@ -398,16 +400,16 @@ def safe_flatten(tensor, start_dim=0, end_dim=-1):
 
 
 def _init_Q_exprs(
-        t,
-        scale,
-        max_size,
-        min_ndim_triangular,
-        memory_save_mode,
-        dtype=None,
-        init_q=True,
+    t,
+    scale,
+    max_size,
+    min_ndim_triangular,
+    memory_save_mode,
+    dtype=None,
+    init_q=True,
 ):
-    """For a scalar or tensor t, we initialize its preconditioner Q and
-    reusable einsum expressions for updating Q and preconditioning gradient.
+    """For a scalar or tensor t, we initialize its preconditioner Q and reusable einsum expressions for updating Q and
+    preconditioning gradient.
     """
     letters = string.ascii_lowercase + string.ascii_uppercase
 
@@ -443,18 +445,14 @@ def _init_Q_exprs(
             dim_diag = [True for _ in shape]
         else:
             raise ValueError(
-                f"Invalid memory_save_mode: {memory_save_mode}, must be one of [None, 'one_diag', 'all_diag']")
+                f"Invalid memory_save_mode: {memory_save_mode}, must be one of [None, 'one_diag', 'all_diag']"
+            )
 
         piece1A, piece2A, piece3A = ([], "", "")
         exprGs = []
         piece1P, piece2P, piece3P, piece4P = ([], [], "", "")
         for i, (size, dim_d) in enumerate(zip(shape, dim_diag)):
-            if (
-                size == 1
-                or size > max_size
-                or len(shape) < min_ndim_triangular
-                or dim_d
-            ):
+            if size == 1 or size > max_size or len(shape) < min_ndim_triangular or dim_d:
                 # use diagonal matrix as preconditioner for this dim
                 if init_q:
                     Q.append(scale * torch.ones(size, dtype=dtype, device=t.device))
@@ -521,7 +519,7 @@ def _norm_lower_bound(A):
 
 
 def _solve_triangular_right(X, A):
-    """X @ inv(A)"""
+    """X @ inv(A)."""
     orig_dtype = X.dtype
     X = X.to(dtype=torch.float32)
     A = A.to(dtype=torch.float32)
