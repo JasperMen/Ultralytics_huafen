@@ -1,26 +1,23 @@
-""" Dataset reader that wraps Hugging Face datasets
+"""Dataset reader that wraps Hugging Face datasets.
 
 Hacked together by / Copyright 2022 Ross Wightman
 """
-import io
-import math
-from typing import Optional
 
-import torch
-import torch.distributed as dist
-from PIL import Image
+from __future__ import annotations
+
+import io
 
 try:
     import datasets
-except ImportError as e:
+except ImportError:
     print("Please install Hugging Face datasets package `pip install datasets`.")
-    raise e
+    raise
 from .class_map import load_class_map
 from .reader import Reader
 
 
-def get_class_labels(info, label_key='label'):
-    if 'label' not in info.features:
+def get_class_labels(info, label_key="label"):
+    if "label" not in info.features:
         return {}
     class_label = info.features[label_key]
     class_to_idx = {n: class_label.str2int(n) for n in class_label.names}
@@ -28,21 +25,19 @@ def get_class_labels(info, label_key='label'):
 
 
 class ReaderHfds(Reader):
-
     def __init__(
-            self,
-            name: str,
-            root: Optional[str] = None,
-            split: str = 'train',
-            class_map: dict = None,
-            input_key: str = 'image',
-            target_key: str = 'label',
-            additional_features: Optional[list[str]] = None,
-            download: bool = False,
-            trust_remote_code: bool = False
+        self,
+        name: str,
+        root: str | None = None,
+        split: str = "train",
+        class_map: dict | None = None,
+        input_key: str = "image",
+        target_key: str = "label",
+        additional_features: list[str] | None = None,
+        download: bool = False,
+        trust_remote_code: bool = False,
     ):
-        """
-        """
+        """"""
         super().__init__()
         self.root = root
         self.split = split
@@ -50,7 +45,7 @@ class ReaderHfds(Reader):
             name,  # 'name' maps to path arg in hf datasets
             split=split,
             cache_dir=self.root,  # timm doesn't expect hidden cache dir for datasets, specify a path if root set
-            trust_remote_code=trust_remote_code
+            trust_remote_code=trust_remote_code,
         )
         # leave decode for caller, plus we want easy access to original path names...
         self.dataset = self.dataset.cast_column(input_key, datasets.Image(decode=False))
@@ -78,11 +73,11 @@ class ReaderHfds(Reader):
         item = self.dataset[index]
         image = item[self.image_key]
 
-        if 'bytes' in image and image['bytes']:
-            image = io.BytesIO(image['bytes'])
+        if image.get("bytes"):
+            image = io.BytesIO(image["bytes"])
         else:
-            assert 'path' in image and image['path']
-            image = open(image['path'], 'rb')
+            assert image.get("path")
+            image = open(image["path"], "rb")
 
         label = item[self.label_key]
         if self.remap_class:
@@ -99,4 +94,4 @@ class ReaderHfds(Reader):
 
     def _filename(self, index, basename=False, absolute=False):
         item = self.dataset[index]
-        return item[self.image_key]['path']
+        return item[self.image_key]["path"]

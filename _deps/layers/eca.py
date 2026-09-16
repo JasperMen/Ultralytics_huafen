@@ -1,5 +1,5 @@
 """
-ECA module from ECAnet
+ECA module from ECAnet.
 
 paper: ECA-Net: Efficient Channel Attention for Deep Convolutional Neural Networks
 https://arxiv.org/abs/1910.03151
@@ -33,11 +33,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from typing import Optional, Tuple, Type, Union
+
+from __future__ import annotations
+
 import math
 
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from .create_act import create_act_layer
 from .helpers import make_divisible
@@ -47,8 +49,8 @@ class EcaModule(nn.Module):
     """Constructs an ECA module.
 
     Args:
-        channels: Number of channels of the input feature map for use in adaptive kernel sizes
-            for actual calculations according to channel.
+        channels: Number of channels of the input feature map for use in adaptive kernel sizes for actual calculations
+            according to channel.
             gamma, beta: when channel is given parameters of mapping function
             refer to original paper https://arxiv.org/pdf/1910.03151.pdf
             (default=None. if channel size not given, use k_size given for kernel size.)
@@ -58,25 +60,26 @@ class EcaModule(nn.Module):
         act_layer: optional non-linearity after conv, enables conv bias, this is an experiment
         gate_layer: gating non-linearity to use
     """
+
     def __init__(
-            self,
-            channels: Optional[int] = None,
-            kernel_size: int = 3,
-            gamma: float = 2,
-            beta: float = 1,
-            act_layer: Optional[Type[nn.Module]] = None,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            rd_ratio: float = 1/8,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            use_mlp: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        channels: int | None = None,
+        kernel_size: int = 3,
+        gamma: float = 2,
+        beta: float = 1,
+        act_layer: type[nn.Module] | None = None,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        rd_ratio: float = 1 / 8,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        use_mlp: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if channels is not None:
-            t = int(abs(math.log(channels, 2) + beta) / gamma)
+            t = int(abs(math.log2(channels) + beta) / gamma)
             kernel_size = max(t if t % 2 else t + 1, 3)
         assert kernel_size % 2 == 1
         padding = (kernel_size - 1) // 2
@@ -111,17 +114,16 @@ EfficientChannelAttn = EcaModule  # alias
 class CecaModule(nn.Module):
     """Constructs a circular ECA module.
 
-    ECA module where the conv uses circular padding rather than zero padding.
-    Unlike the spatial dimension, the channels do not have inherent ordering nor
+    ECA module where the conv uses circular padding rather than zero padding. Unlike the spatial dimension, the channels
+    do not have inherent ordering nor
     locality. Although this module in essence, applies such an assumption, it is unnecessary
-    to limit the channels on either "edge" from being circularly adapted to each other.
-    This will fundamentally increase connectivity and possibly increase performance metrics
-    (accuracy, robustness), without significantly impacting resource metrics
-    (parameter size, throughput,latency, etc)
+    to limit the channels on either "edge" from being circularly adapted to each other. This will fundamentally increase
+    connectivity and possibly increase performance metrics (accuracy, robustness), without significantly impacting
+    resource metrics (parameter size, throughput,latency, etc)
 
     Args:
-        channels: Number of channels of the input feature map for use in adaptive kernel sizes
-            for actual calculations according to channel.
+        channels: Number of channels of the input feature map for use in adaptive kernel sizes for actual calculations
+            according to channel.
             gamma, beta: when channel is given parameters of mapping function
             refer to original paper https://arxiv.org/pdf/1910.03151.pdf
             (default=None. if channel size not given, use k_size given for kernel size.)
@@ -133,20 +135,20 @@ class CecaModule(nn.Module):
     """
 
     def __init__(
-            self,
-            channels: Optional[int] = None,
-            kernel_size: int = 3,
-            gamma: float = 2,
-            beta: float = 1,
-            act_layer: Optional[nn.Module] = None,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            device=None,
-            dtype=None,
+        self,
+        channels: int | None = None,
+        kernel_size: int = 3,
+        gamma: float = 2,
+        beta: float = 1,
+        act_layer: nn.Module | None = None,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if channels is not None:
-            t = int(abs(math.log(channels, 2) + beta) / gamma)
+            t = int(abs(math.log2(channels) + beta) / gamma)
             kernel_size = max(t if t % 2 else t + 1, 3)
         has_act = act_layer is not None
         assert kernel_size % 2 == 1
@@ -161,7 +163,7 @@ class CecaModule(nn.Module):
     def forward(self, x):
         y = x.mean((2, 3)).view(x.shape[0], 1, -1)
         # Manually implement circular padding, F.pad does not seemed to be bugged
-        y = F.pad(y, (self.padding, self.padding), mode='circular')
+        y = F.pad(y, (self.padding, self.padding), mode="circular")
         y = self.conv(y)
         y = self.gate(y).view(x.shape[0], -1, 1, 1)
         return x * y.expand_as(x)

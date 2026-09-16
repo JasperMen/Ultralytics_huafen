@@ -1,4 +1,4 @@
-""" Split BatchNorm
+"""Split BatchNorm.
 
 A PyTorch BatchNorm layer that splits input batch into N equal parts and passes each through
 a separate BN layer. The first split is passed through the parent BN layers with weight/bias
@@ -11,31 +11,33 @@ achieve the 'Auxiliary BatchNorm' as described in the AdvProp Paper, section 4.2
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
+
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class SplitBatchNorm2d(torch.nn.BatchNorm2d):
-
     def __init__(
-            self,
-            num_features,
-            eps=1e-5,
-            momentum=0.1,
-            affine=True,
-            track_running_stats=True,
-            num_splits=2,
-            device=None,
-            dtype=None,
+        self,
+        num_features,
+        eps=1e-5,
+        momentum=0.1,
+        affine=True,
+        track_running_stats=True,
+        num_splits=2,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__(num_features, eps, momentum, affine, track_running_stats)
-        assert num_splits > 1, 'Should have at least one aux BN layer (num_splits at least 2)'
+        assert num_splits > 1, "Should have at least one aux BN layer (num_splits at least 2)"
         self.num_splits = num_splits
-        self.aux_bn = nn.ModuleList([
-            nn.BatchNorm2d(num_features, eps, momentum, affine, track_running_stats, **dd)
-            for _ in range(num_splits - 1)
-        ])
+        self.aux_bn = nn.ModuleList(
+            [
+                nn.BatchNorm2d(num_features, eps, momentum, affine, track_running_stats, **dd)
+                for _ in range(num_splits - 1)
+            ]
+        )
 
     def forward(self, input: torch.Tensor):
         if self.training:  # aux BN only relevant while training
@@ -51,23 +53,27 @@ class SplitBatchNorm2d(torch.nn.BatchNorm2d):
 
 
 def convert_splitbn_model(module, num_splits=2):
-    """
-    Recursively traverse module and its children to replace all instances of
+    """Recursively traverse module and its children to replace all instances of
     ``torch.nn.modules.batchnorm._BatchNorm`` with `SplitBatchnorm2d`.
+
     Args:
         module (torch.nn.Module): input module
         num_splits: number of separate batchnorm layers to split input across
-    Example::
-        >>> # model is an instance of torch.nn.Module
-        >>> model = timm.models.convert_splitbn_model(model, num_splits=2)
+        Example: : >>> # model is an instance of torch.nn.Module >>> model = timm.models.convert_splitbn_model(model,
+            num_splits=2).
     """
     mod = module
     if isinstance(module, torch.nn.modules.instancenorm._InstanceNorm):
         return module
     if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
         mod = SplitBatchNorm2d(
-            module.num_features, module.eps, module.momentum, module.affine,
-            module.track_running_stats, num_splits=num_splits)
+            module.num_features,
+            module.eps,
+            module.momentum,
+            module.affine,
+            module.track_running_stats,
+            num_splits=num_splits,
+        )
         mod.running_mean = module.running_mean
         mod.running_var = module.running_var
         mod.num_batches_tracked = module.num_batches_tracked
