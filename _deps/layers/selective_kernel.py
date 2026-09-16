@@ -1,13 +1,14 @@
-""" Selective Kernel Convolution/Attention
+"""Selective Kernel Convolution/Attention.
 
 Paper: Selective Kernel Networks (https://arxiv.org/abs/1903.06586)
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-from typing import List, Optional, Tuple, Type, Union
+
+from __future__ import annotations
 
 import torch
-from torch import nn as nn
+from torch import nn
 
 from .conv_bn_act import ConvNormAct
 from .helpers import make_divisible
@@ -23,21 +24,20 @@ def _kernel_valid(k):
 
 class SelectiveKernelAttn(nn.Module):
     def __init__(
-            self,
-            channels: int,
-            num_paths: int = 2,
-            attn_channels: int = 32,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        channels: int,
+        num_paths: int = 2,
+        attn_channels: int = 32,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        """ Selective Kernel Attention Module
+        """Selective Kernel Attention Module.
 
         Selective Kernel attention mechanism factored out into its own module.
-
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_paths = num_paths
         self.fc_reduce = nn.Conv2d(channels, attn_channels, kernel_size=1, bias=False, **dd)
@@ -46,7 +46,7 @@ class SelectiveKernelAttn(nn.Module):
         self.fc_select = nn.Conv2d(attn_channels, channels * num_paths, kernel_size=1, bias=False, **dd)
 
     def forward(self, x):
-        _assert(x.shape[1] == self.num_paths, '')
+        _assert(x.shape[1] == self.num_paths, "")
         x = x.sum(1).mean((2, 3), keepdim=True)
         x = self.fc_reduce(x)
         x = self.bn(x)
@@ -59,28 +59,27 @@ class SelectiveKernelAttn(nn.Module):
 
 
 class SelectiveKernel(nn.Module):
-
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: Optional[int] = None,
-            kernel_size: Optional[Union[int, List[int]]] = None,
-            stride: int = 1,
-            dilation: int = 1,
-            groups: int = 1,
-            rd_ratio: float = 1./16,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            keep_3x3: bool = True,
-            split_input: bool = True,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module]= nn.BatchNorm2d,
-            aa_layer: Optional[Type[nn.Module]] = None,
-            drop_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int | None = None,
+        kernel_size: int | list[int] | None = None,
+        stride: int = 1,
+        dilation: int = 1,
+        groups: int = 1,
+        rd_ratio: float = 1.0 / 16,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        keep_3x3: bool = True,
+        split_input: bool = True,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        aa_layer: type[nn.Module] | None = None,
+        drop_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
-        """ Selective Kernel Convolution Module
+        """Selective Kernel Convolution Module.
 
         As described in Selective Kernel Networks (https://arxiv.org/abs/1903.06586) with some modifications.
 
@@ -90,22 +89,22 @@ class SelectiveKernel(nn.Module):
         a noteworthy increase in performance over similar param count models without this attention layer. -Ross W
 
         Args:
-            in_channels:  module input (feature) channel count
-            out_channels:  module output (feature) channel count
+            in_channels: module input (feature) channel count
+            out_channels: module output (feature) channel count
             kernel_size: kernel size for each convolution branch
             stride: stride for convolutions
             dilation: dilation for module as a whole, impacts dilation of each branch
             groups: number of groups for each branch
             rd_ratio: reduction factor for attention features
             keep_3x3: keep all branch convolution kernels as 3x3, changing larger kernels for dilations
-            split_input: split input channels evenly across each convolution branch, keeps param count lower,
-                can be viewed as grouping by path, output expands to module out_channels count
+            split_input: split input channels evenly across each convolution branch, keeps param count lower, can be
+                viewed as grouping by path, output expands to module out_channels count
             act_layer: activation layer to use
             norm_layer: batchnorm/norm layer to use
             aa_layer: anti-aliasing module
             drop_layer: spatial drop module in convs (drop block, etc)
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_channels = out_channels or in_channels
         kernel_size = kernel_size or [3, 5]  # default to one 3x3 and one 5x5 branch. 5x5 -> 3x3 + dilation
@@ -127,11 +126,20 @@ class SelectiveKernel(nn.Module):
         groups = min(out_channels, groups)
 
         conv_kwargs = dict(
-            stride=stride, groups=groups, act_layer=act_layer, norm_layer=norm_layer,
-            aa_layer=aa_layer, drop_layer=drop_layer, **dd)
-        self.paths = nn.ModuleList([
-            ConvNormAct(in_channels, out_channels, kernel_size=k, dilation=d, **conv_kwargs)
-            for k, d in zip(kernel_size, dilation)])
+            stride=stride,
+            groups=groups,
+            act_layer=act_layer,
+            norm_layer=norm_layer,
+            aa_layer=aa_layer,
+            drop_layer=drop_layer,
+            **dd,
+        )
+        self.paths = nn.ModuleList(
+            [
+                ConvNormAct(in_channels, out_channels, kernel_size=k, dilation=d, **conv_kwargs)
+                for k, d in zip(kernel_size, dilation)
+            ]
+        )
 
         attn_channels = rd_channels or make_divisible(out_channels * rd_ratio, divisor=rd_divisor)
         self.attn = SelectiveKernelAttn(out_channels, self.num_paths, attn_channels, **dd)

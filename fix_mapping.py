@@ -5,11 +5,10 @@
   原 ID 18(yb 圆柏)   → 新 ID 17
   原 ID 19(ych 油菜花) → 新 ID 18
 其余 0~15 保持不变。
-同时生成修正后的 huafen_data.yaml。
+同时生成修正后的 huafen_data.yaml。.
 """
 
 import os
-import yaml
 
 BASE = "/home/user/Men/Huafen_Dataset/YOLO_Dataset_Split5"
 YAML_PATH = os.path.join(BASE, "huafen_data.yaml")
@@ -21,8 +20,9 @@ REMAP = {
     19: 18,  # ych 油菜花
 }
 
+
 def remap_label_file(path):
-    with open(path, "r") as f:
+    with open(path) as f:
         lines = f.readlines()
 
     changed = False

@@ -1,54 +1,58 @@
-""" Twins
+"""Twins
 A PyTorch impl of : `Twins: Revisiting the Design of Spatial Attention in Vision Transformers`
-    - https://arxiv.org/pdf/2104.13840.pdf
+    - https://arxiv.org/pdf/2104.13840.pdf.
 
 Code/weights from https://github.com/Meituan-AutoML/Twins, original copyright/license info below
 
 """
+
 # --------------------------------------------------------
 # Twins
 # Copyright (c) 2021 Meituan
 # Licensed under The Apache 2.0 License [see LICENSE for details]
 # Written by Xinjie Li, Xiangxiang Chu
 # --------------------------------------------------------
+from __future__ import annotations
+
 import math
 from functools import partial
-from typing import List, Optional, Tuple, Union, Type, Any
+from typing import Any, Tuple
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import Mlp, DropPath, to_2tuple, trunc_normal_, use_fused_attn, calculate_drop_path_rates
+from timm.layers import DropPath, Mlp, calculate_drop_path_rates, to_2tuple, trunc_normal_, use_fused_attn
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._features_fx import register_notrace_module
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 from .vision_transformer import Attention
 
-__all__ = ['Twins']  # model_registry will add each entrypoint fn to this
+__all__ = ["Twins"]  # model_registry will add each entrypoint fn to this
 
 Size_ = Tuple[int, int]
 
 
 @register_notrace_module  # reason: FX can't symbolically trace control flow in forward method
 class LocallyGroupedAttn(nn.Module):
-    """ LSA: self attention within a group
-    """
+    """LSA: self attention within a group."""
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            ws: int = 1,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        ws: int = 1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         assert ws != 1
         super().__init__()
         assert dim % num_heads == 0, f"dim {dim} should be divided by num_heads {num_heads}."
@@ -56,7 +60,7 @@ class LocallyGroupedAttn(nn.Module):
         self.dim = dim
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         self.qkv = nn.Linear(dim, dim * 3, bias=True, **dd)
@@ -79,14 +83,19 @@ class LocallyGroupedAttn(nn.Module):
         _, Hp, Wp, _ = x.shape
         _h, _w = Hp // self.ws, Wp // self.ws
         x = x.reshape(B, _h, self.ws, _w, self.ws, C).transpose(2, 3)
-        qkv = self.qkv(x).reshape(
-            B, _h * _w, self.ws * self.ws, 3, self.num_heads, C // self.num_heads).permute(3, 0, 1, 4, 2, 5)
+        qkv = (
+            self.qkv(x)
+            .reshape(B, _h * _w, self.ws * self.ws, 3, self.num_heads, C // self.num_heads)
+            .permute(3, 0, 1, 4, 2, 5)
+        )
         q, k, v = qkv.unbind(0)
 
         if self.fused_attn:
             x = F.scaled_dot_product_attention(
-                q, k, v,
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                q,
+                k,
+                v,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
@@ -141,28 +150,28 @@ class LocallyGroupedAttn(nn.Module):
 
 
 class GlobalSubSampleAttn(nn.Module):
-    """ GSA: using a  key to summarize the information for a group to be efficient.
-    """
+    """GSA: using a key to summarize the information for a group to be efficient."""
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            sr_ratio: int = 1,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        sr_ratio: int = 1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         assert dim % num_heads == 0, f"dim {dim} should be divided by num_heads {num_heads}."
 
         self.dim = dim
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         self.q = nn.Linear(dim, dim, bias=True, **dd)
@@ -192,8 +201,10 @@ class GlobalSubSampleAttn(nn.Module):
 
         if self.fused_attn:
             x = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v,
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                q,
+                k,
+                v,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
@@ -210,24 +221,23 @@ class GlobalSubSampleAttn(nn.Module):
 
 
 class Block(nn.Module):
-
     def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            mlp_ratio: float = 4.,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            sr_ratio: int = 1,
-            ws: Optional[int] = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        sr_ratio: int = 1,
+        ws: int | None = None,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.norm1 = norm_layer(dim, **dd)
         if ws is None:
             self.attn = Attention(dim, num_heads, False, None, attn_drop, proj_drop, **dd)
@@ -235,7 +245,7 @@ class Block(nn.Module):
             self.attn = GlobalSubSampleAttn(dim, num_heads, attn_drop, proj_drop, sr_ratio, **dd)
         else:
             self.attn = LocallyGroupedAttn(dim, num_heads, attn_drop, proj_drop, ws, **dd)
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = Mlp(
@@ -245,7 +255,7 @@ class Block(nn.Module):
             drop=proj_drop,
             **dd,
         )
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x, size: Size_):
         x = x + self.drop_path1(self.attn(self.norm1(x), size))
@@ -256,14 +266,14 @@ class Block(nn.Module):
 class PosConv(nn.Module):
     # PEG  from https://arxiv.org/abs/2102.10882
     def __init__(
-            self,
-            in_chans: int,
-            embed_dim: int = 768,
-            stride: int = 1,
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int,
+        embed_dim: int = 768,
+        stride: int = 1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.proj = nn.Sequential(
             nn.Conv2d(in_chans, embed_dim, 3, stride, 1, bias=True, groups=embed_dim, **dd),
@@ -271,7 +281,7 @@ class PosConv(nn.Module):
         self.stride = stride
 
     def forward(self, x, size: Size_):
-        B, N, C = x.shape
+        B, _N, C = x.shape
         cnn_feat_token = x.transpose(1, 2).view(B, C, *size)
         x = self.proj(cnn_feat_token)
         if self.stride == 1:
@@ -280,38 +290,38 @@ class PosConv(nn.Module):
         return x
 
     def no_weight_decay(self):
-        return ['proj.%d.weight' % i for i in range(4)]
+        return ["proj.%d.weight" % i for i in range(4)]
 
 
 class PatchEmbed(nn.Module):
-    """ Image to Patch Embedding
-    """
+    """Image to Patch Embedding."""
 
     def __init__(
-            self,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            patch_size: Union[int, Tuple[int, int]] = 16,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int | tuple[int, int] = 16,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
 
         self.img_size = img_size
         self.patch_size = patch_size
-        assert img_size[0] % patch_size[0] == 0 and img_size[1] % patch_size[1] == 0, \
+        assert img_size[0] % patch_size[0] == 0 and img_size[1] % patch_size[1] == 0, (
             f"img_size {img_size} should be divided by patch_size {patch_size}."
+        )
         self.H, self.W = img_size[0] // patch_size[0], img_size[1] // patch_size[1]
         self.num_patches = self.H * self.W
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, **dd)
         self.norm = nn.LayerNorm(embed_dim, **dd)
 
-    def forward(self, x) -> Tuple[torch.Tensor, Size_]:
-        B, C, H, W = x.shape
+    def forward(self, x) -> tuple[torch.Tensor, Size_]:
+        _B, _C, H, W = x.shape
 
         x = self.proj(x).flatten(2).transpose(1, 2)
         x = self.norm(x)
@@ -321,35 +331,36 @@ class PatchEmbed(nn.Module):
 
 
 class Twins(nn.Module):
-    """ Twins Vision Transformer (Revisiting Spatial Attention)
+    """Twins Vision Transformer (Revisiting Spatial Attention).
 
     Adapted from PVT (PyramidVisionTransformer) class at https://github.com/whai362/PVT.git
     """
+
     def __init__(
-            self,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            patch_size: int = 4,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            embed_dims: Tuple[int, ...] = (64, 128, 256, 512),
-            num_heads: Tuple[int, ...] = (1, 2, 4, 8),
-            mlp_ratios: Tuple[float, ...] = (4, 4, 4, 4),
-            depths: Tuple[int, ...] = (3, 4, 6, 3),
-            sr_ratios: Tuple[int, ...] = (8, 4, 2, 1),
-            wss: Optional[Tuple[int, ...]] = None,
-            drop_rate: float = 0.,
-            pos_drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            attn_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            block_cls: Any = Block,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int = 4,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        embed_dims: tuple[int, ...] = (64, 128, 256, 512),
+        num_heads: tuple[int, ...] = (1, 2, 4, 8),
+        mlp_ratios: tuple[float, ...] = (4, 4, 4, 4),
+        depths: tuple[int, ...] = (3, 4, 6, 3),
+        sr_ratios: tuple[int, ...] = (8, 4, 2, 1),
+        wss: tuple[int, ...] | None = None,
+        drop_rate: float = 0.0,
+        pos_drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        norm_layer: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        block_cls: Any = Block,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.global_pool = global_pool
@@ -374,20 +385,25 @@ class Twins(nn.Module):
         dpr = calculate_drop_path_rates(drop_path_rate, sum(depths))  # stochastic depth decay rule
         cur = 0
         for k in range(len(depths)):
-            _block = nn.ModuleList([block_cls(
-                dim=embed_dims[k],
-                num_heads=num_heads[k],
-                mlp_ratio=mlp_ratios[k],
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[cur + i],
-                norm_layer=norm_layer,
-                sr_ratio=sr_ratios[k],
-                ws=1 if wss is None or i % 2 == 1 else wss[k],
-                **dd,
-            ) for i in range(depths[k])])
+            _block = nn.ModuleList(
+                [
+                    block_cls(
+                        dim=embed_dims[k],
+                        num_heads=num_heads[k],
+                        mlp_ratio=mlp_ratios[k],
+                        proj_drop=proj_drop_rate,
+                        attn_drop=attn_drop_rate,
+                        drop_path=dpr[cur + i],
+                        norm_layer=norm_layer,
+                        sr_ratio=sr_ratios[k],
+                        ws=1 if wss is None or i % 2 == 1 else wss[k],
+                        **dd,
+                    )
+                    for i in range(depths[k])
+                ]
+            )
             self.blocks.append(_block)
-            self.feature_info += [dict(module=f'block.{k}', num_chs=embed_dims[k], reduction=2**(2+k))]
+            self.feature_info += [{"module": f"block.{k}", "num_chs": embed_dims[k], "reduction": 2 ** (2 + k)}]
             cur += depths[k]
 
         self.pos_block = nn.ModuleList([PosConv(embed_dim, embed_dim, **dd) for embed_dim in embed_dims])
@@ -403,43 +419,44 @@ class Twins(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return set(['pos_block.' + n for n, p in self.pos_block.named_parameters()])
+        return {"pos_block." + n for n, p in self.pos_block.named_parameters()}
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        matcher = dict(
-            stem=r'^patch_embeds.0',  # stem and embed
-            blocks=[
-                (r'^(?:blocks|patch_embeds|pos_block)\.(\d+)', None),
-                ('^norm', (99999,))
-            ] if coarse else [
-                (r'^blocks\.(\d+)\.(\d+)', None),
-                (r'^(?:patch_embeds|pos_block)\.(\d+)', (0,)),
-                (r'^norm', (99999,))
-            ]
-        )
+        matcher = {
+            "stem": r"^patch_embeds.0",  # stem and embed
+            "blocks": [(r"^(?:blocks|patch_embeds|pos_block)\.(\d+)", None), ("^norm", (99999,))]
+            if coarse
+            else [
+                (r"^blocks\.(\d+)\.(\d+)", None),
+                (r"^(?:patch_embeds|pos_block)\.(\d+)", (0,)),
+                (r"^norm", (99999,)),
+            ],
+        }
         return matcher
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
-        assert not enable, 'gradient checkpointing not supported'
+        assert not enable, "gradient checkpointing not supported"
 
     @torch.jit.ignore
     def get_classifier(self) -> nn.Module:
         return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
-            assert global_pool in ('', 'avg')
+            assert global_pool in ("", "avg")
             self.global_pool = global_pool
-        device = self.head.weight.device if hasattr(self.head, 'weight') else None
-        dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
-        self.head = nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        device = self.head.weight.device if hasattr(self.head, "weight") else None
+        dtype = self.head.weight.dtype if hasattr(self.head, "weight") else None
+        self.head = (
+            nn.Linear(self.num_features, num_classes, device=device, dtype=dtype) if num_classes > 0 else nn.Identity()
+        )
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
@@ -453,15 +470,16 @@ class Twins(nn.Module):
                 m.bias.data.zero_()
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
+
         Args:
             x: Input image tensor
             indices: Take last n blocks if int, all if None, select matching indices if sequence
@@ -469,19 +487,17 @@ class Twins(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt == 'NCHW', 'Output shape for Twins must be NCHW.'
+        assert output_fmt == "NCHW", "Output shape for Twins must be NCHW."
         intermediates = []
-        take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+        take_indices, _max_index = feature_take_indices(len(self.blocks), indices)
 
         # FIXME slice block/pos_block if < max
 
         # forward pass
-        B, _, height, width = x.shape
-        for i, (embed, drop, blocks, pos_blk) in enumerate(zip(
-                self.patch_embeds, self.pos_drops, self.blocks, self.pos_block)
+        B, _, _height, _width = x.shape
+        for i, (embed, drop, blocks, pos_blk) in enumerate(
+            zip(self.patch_embeds, self.pos_drops, self.blocks, self.pos_block)
         ):
             x, size = embed(x)
             x = drop(x)
@@ -508,25 +524,25 @@ class Twins(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
-        take_indices, max_index = feature_take_indices(len(self.blocks), indices)
+        """Prune layers not required for specified intermediates."""
+        take_indices, _max_index = feature_take_indices(len(self.blocks), indices)
         # FIXME add block pruning
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
         B = x.shape[0]
         for i, (embed, drop, blocks, pos_blk) in enumerate(
-                zip(self.patch_embeds, self.pos_drops, self.blocks, self.pos_block)):
+            zip(self.patch_embeds, self.pos_drops, self.blocks, self.pos_block)
+        ):
             x, size = embed(x)
             x = drop(x)
             for j, blk in enumerate(blocks):
@@ -539,7 +555,7 @@ class Twins(nn.Module):
         return x
 
     def forward_head(self, x, pre_logits: bool = False):
-        if self.global_pool == 'avg':
+        if self.global_pool == "avg":
             x = x.mean(dim=1)
         x = self.head_drop(x)
         return x if pre_logits else self.head(x)
@@ -551,80 +567,123 @@ class Twins(nn.Module):
 
 
 def _create_twins(variant, pretrained=False, **kwargs):
-    out_indices = kwargs.pop('out_indices', 4)
+    out_indices = kwargs.pop("out_indices", 4)
     model = build_model_with_cfg(
-        Twins, variant, pretrained,
-        feature_cfg=dict(out_indices=out_indices, feature_cls='getter'),
+        Twins,
+        variant,
+        pretrained,
+        feature_cfg={"out_indices": out_indices, "feature_cls": "getter"},
         **kwargs,
     )
     return model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None,
-        'crop_pct': .9, 'interpolation': 'bicubic', 'fixed_input_size': True,
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'patch_embeds.0.proj', 'classifier': 'head',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "crop_pct": 0.9,
+        "interpolation": "bicubic",
+        "fixed_input_size": True,
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "patch_embeds.0.proj",
+        "classifier": "head",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'twins_pcpvt_small.in1k': _cfg(hf_hub_id='timm/'),
-    'twins_pcpvt_base.in1k': _cfg(hf_hub_id='timm/'),
-    'twins_pcpvt_large.in1k': _cfg(hf_hub_id='timm/'),
-    'twins_svt_small.in1k': _cfg(hf_hub_id='timm/'),
-    'twins_svt_base.in1k': _cfg(hf_hub_id='timm/'),
-    'twins_svt_large.in1k': _cfg(hf_hub_id='timm/'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "twins_pcpvt_small.in1k": _cfg(hf_hub_id="timm/"),
+        "twins_pcpvt_base.in1k": _cfg(hf_hub_id="timm/"),
+        "twins_pcpvt_large.in1k": _cfg(hf_hub_id="timm/"),
+        "twins_svt_small.in1k": _cfg(hf_hub_id="timm/"),
+        "twins_svt_base.in1k": _cfg(hf_hub_id="timm/"),
+        "twins_svt_large.in1k": _cfg(hf_hub_id="timm/"),
+    }
+)
 
 
 @register_model
 def twins_pcpvt_small(pretrained=False, **kwargs) -> Twins:
-    model_args = dict(
-        patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
-        depths=[3, 4, 6, 3], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_pcpvt_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 4,
+        "embed_dims": [64, 128, 320, 512],
+        "num_heads": [1, 2, 5, 8],
+        "mlp_ratios": [8, 8, 4, 4],
+        "depths": [3, 4, 6, 3],
+        "sr_ratios": [8, 4, 2, 1],
+    }
+    return _create_twins("twins_pcpvt_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def twins_pcpvt_base(pretrained=False, **kwargs) -> Twins:
-    model_args = dict(
-        patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
-        depths=[3, 4, 18, 3], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_pcpvt_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 4,
+        "embed_dims": [64, 128, 320, 512],
+        "num_heads": [1, 2, 5, 8],
+        "mlp_ratios": [8, 8, 4, 4],
+        "depths": [3, 4, 18, 3],
+        "sr_ratios": [8, 4, 2, 1],
+    }
+    return _create_twins("twins_pcpvt_base", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def twins_pcpvt_large(pretrained=False, **kwargs) -> Twins:
-    model_args = dict(
-        patch_size=4, embed_dims=[64, 128, 320, 512], num_heads=[1, 2, 5, 8], mlp_ratios=[8, 8, 4, 4],
-        depths=[3, 8, 27, 3], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_pcpvt_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 4,
+        "embed_dims": [64, 128, 320, 512],
+        "num_heads": [1, 2, 5, 8],
+        "mlp_ratios": [8, 8, 4, 4],
+        "depths": [3, 8, 27, 3],
+        "sr_ratios": [8, 4, 2, 1],
+    }
+    return _create_twins("twins_pcpvt_large", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def twins_svt_small(pretrained=False, **kwargs) -> Twins:
-    model_args = dict(
-        patch_size=4, embed_dims=[64, 128, 256, 512], num_heads=[2, 4, 8, 16], mlp_ratios=[4, 4, 4, 4],
-        depths=[2, 2, 10, 4], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_svt_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 4,
+        "embed_dims": [64, 128, 256, 512],
+        "num_heads": [2, 4, 8, 16],
+        "mlp_ratios": [4, 4, 4, 4],
+        "depths": [2, 2, 10, 4],
+        "wss": [7, 7, 7, 7],
+        "sr_ratios": [8, 4, 2, 1],
+    }
+    return _create_twins("twins_svt_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def twins_svt_base(pretrained=False, **kwargs) -> Twins:
-    model_args = dict(
-        patch_size=4, embed_dims=[96, 192, 384, 768], num_heads=[3, 6, 12, 24], mlp_ratios=[4, 4, 4, 4],
-        depths=[2, 2, 18, 2], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_svt_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 4,
+        "embed_dims": [96, 192, 384, 768],
+        "num_heads": [3, 6, 12, 24],
+        "mlp_ratios": [4, 4, 4, 4],
+        "depths": [2, 2, 18, 2],
+        "wss": [7, 7, 7, 7],
+        "sr_ratios": [8, 4, 2, 1],
+    }
+    return _create_twins("twins_svt_base", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def twins_svt_large(pretrained=False, **kwargs) -> Twins:
-    model_args = dict(
-        patch_size=4, embed_dims=[128, 256, 512, 1024], num_heads=[4, 8, 16, 32], mlp_ratios=[4, 4, 4, 4],
-        depths=[2, 2, 18, 2], wss=[7, 7, 7, 7], sr_ratios=[8, 4, 2, 1])
-    return _create_twins('twins_svt_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "patch_size": 4,
+        "embed_dims": [128, 256, 512, 1024],
+        "num_heads": [4, 8, 16, 32],
+        "mlp_ratios": [4, 4, 4, 4],
+        "depths": [2, 2, 18, 2],
+        "wss": [7, 7, 7, 7],
+        "sr_ratios": [8, 4, 2, 1],
+    }
+    return _create_twins("twins_svt_large", pretrained=pretrained, **dict(model_args, **kwargs))

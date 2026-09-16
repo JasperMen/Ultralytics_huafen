@@ -1,4 +1,4 @@
-""" ResNeSt Models
+"""ResNeSt Models.
 
 Paper: `ResNeSt: Split-Attention Networks` - https://arxiv.org/abs/2004.08955
 
@@ -6,54 +6,55 @@ Adapted from original PyTorch impl w/ weights at https://github.com/zhanghang198
 
 Modified for torchscript compat, and consistency with timm by Ross Wightman
 """
-from typing import Optional, Type
 
-from torch import nn
+from __future__ import annotations
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import SplitAttn
+from torch import nn
+
 from ._builder import build_model_with_cfg
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 from .resnet import ResNet
 
 
 class ResNestBottleneck(nn.Module):
-    """ResNet Bottleneck
-    """
+    """ResNet Bottleneck."""
+
     # pylint: disable=unused-argument
     expansion = 4
 
     def __init__(
-            self,
-            inplanes: int,
-            planes: int,
-            stride: int = 1,
-            downsample: Optional[nn.Module] = None,
-            radix: int = 1,
-            cardinality: int = 1,
-            base_width: int = 64,
-            avd: bool = False,
-            avd_first: bool = False,
-            is_first: bool = False,
-            reduce_first: int = 1,
-            dilation: int = 1,
-            first_dilation: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            attn_layer: Optional[Type[nn.Module]] = None,
-            aa_layer: Optional[Type[nn.Module]] = None,
-            drop_block: Optional[Type[nn.Module]] = None,
-            drop_path: Optional[nn.Module] = None,
-            device=None,
-            dtype=None,
+        self,
+        inplanes: int,
+        planes: int,
+        stride: int = 1,
+        downsample: nn.Module | None = None,
+        radix: int = 1,
+        cardinality: int = 1,
+        base_width: int = 64,
+        avd: bool = False,
+        avd_first: bool = False,
+        is_first: bool = False,
+        reduce_first: int = 1,
+        dilation: int = 1,
+        first_dilation: int | None = None,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        attn_layer: type[nn.Module] | None = None,
+        aa_layer: type[nn.Module] | None = None,
+        drop_block: type[nn.Module] | None = None,
+        drop_path: nn.Module | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         assert reduce_first == 1  # not supported
-        assert attn_layer is None, 'attn_layer is not supported'  # not supported
-        assert aa_layer is None, 'aa_layer is not supported'  # TODO not yet supported
+        assert attn_layer is None, "attn_layer is not supported"  # not supported
+        assert aa_layer is None, "aa_layer is not supported"  # TODO not yet supported
 
-        group_width = int(planes * (base_width / 64.)) * cardinality
+        group_width = int(planes * (base_width / 64.0)) * cardinality
         first_dilation = first_dilation or dilation
         if avd and (stride > 1 or is_first):
             avd_stride = stride
@@ -108,7 +109,7 @@ class ResNestBottleneck(nn.Module):
         self.drop_path = drop_path
 
     def zero_init_last(self):
-        if getattr(self.bn3, 'weight', None) is not None:
+        if getattr(self.bn3, "weight", None) is not None:
             nn.init.zeros_(self.bn3.weight)
 
     def forward(self, x):
@@ -152,127 +153,172 @@ def _create_resnest(variant, pretrained=False, **kwargs):
     )
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.875, 'interpolation': 'bilinear',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'conv1.0', 'classifier': 'fc',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.875,
+        "interpolation": "bilinear",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "conv1.0",
+        "classifier": "fc",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'resnest14d.gluon_in1k': _cfg(hf_hub_id='timm/'),
-    'resnest26d.gluon_in1k': _cfg(hf_hub_id='timm/'),
-    'resnest50d.in1k': _cfg(hf_hub_id='timm/'),
-    'resnest101e.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 256, 256), pool_size=(8, 8)),
-    'resnest200e.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 320, 320), pool_size=(10, 10), crop_pct=0.909, interpolation='bicubic'),
-    'resnest269e.in1k': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 416, 416), pool_size=(13, 13), crop_pct=0.928, interpolation='bicubic'),
-    'resnest50d_4s2x40d.in1k': _cfg(
-        hf_hub_id='timm/',
-        interpolation='bicubic'),
-    'resnest50d_1s4x24d.in1k': _cfg(
-        hf_hub_id='timm/',
-        interpolation='bicubic')
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "resnest14d.gluon_in1k": _cfg(hf_hub_id="timm/"),
+        "resnest26d.gluon_in1k": _cfg(hf_hub_id="timm/"),
+        "resnest50d.in1k": _cfg(hf_hub_id="timm/"),
+        "resnest101e.in1k": _cfg(hf_hub_id="timm/", input_size=(3, 256, 256), pool_size=(8, 8)),
+        "resnest200e.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 320, 320), pool_size=(10, 10), crop_pct=0.909, interpolation="bicubic"
+        ),
+        "resnest269e.in1k": _cfg(
+            hf_hub_id="timm/", input_size=(3, 416, 416), pool_size=(13, 13), crop_pct=0.928, interpolation="bicubic"
+        ),
+        "resnest50d_4s2x40d.in1k": _cfg(hf_hub_id="timm/", interpolation="bicubic"),
+        "resnest50d_1s4x24d.in1k": _cfg(hf_hub_id="timm/", interpolation="bicubic"),
+    }
+)
 
 
 @register_model
 def resnest14d(pretrained=False, **kwargs) -> ResNet:
-    """ ResNeSt-14d model. Weights ported from GluonCV.
-    """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[1, 1, 1, 1],
-        stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
-        block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest14d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    """ResNeSt-14d model. Weights ported from GluonCV."""
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [1, 1, 1, 1],
+        "stem_type": "deep",
+        "stem_width": 32,
+        "avg_down": True,
+        "base_width": 64,
+        "cardinality": 1,
+        "block_args": {"radix": 2, "avd": True, "avd_first": False},
+    }
+    return _create_resnest("resnest14d", pretrained=pretrained, **dict(model_kwargs, **kwargs))
 
 
 @register_model
 def resnest26d(pretrained=False, **kwargs) -> ResNet:
-    """ ResNeSt-26d model. Weights ported from GluonCV.
-    """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[2, 2, 2, 2],
-        stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
-        block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest26d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    """ResNeSt-26d model. Weights ported from GluonCV."""
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [2, 2, 2, 2],
+        "stem_type": "deep",
+        "stem_width": 32,
+        "avg_down": True,
+        "base_width": 64,
+        "cardinality": 1,
+        "block_args": {"radix": 2, "avd": True, "avd_first": False},
+    }
+    return _create_resnest("resnest26d", pretrained=pretrained, **dict(model_kwargs, **kwargs))
 
 
 @register_model
 def resnest50d(pretrained=False, **kwargs) -> ResNet:
-    """ ResNeSt-50d model. Matches paper ResNeSt-50 model, https://arxiv.org/abs/2004.08955
-    Since this codebase supports all possible variations, 'd' for deep stem, stem_width 32, avg in downsample.
+    """ResNeSt-50d model. Matches paper ResNeSt-50 model, https://arxiv.org/abs/2004.08955 Since this codebase supports
+    all possible variations, 'd' for deep stem, stem_width 32, avg in downsample.
     """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[3, 4, 6, 3],
-        stem_type='deep', stem_width=32, avg_down=True, base_width=64, cardinality=1,
-        block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest50d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [3, 4, 6, 3],
+        "stem_type": "deep",
+        "stem_width": 32,
+        "avg_down": True,
+        "base_width": 64,
+        "cardinality": 1,
+        "block_args": {"radix": 2, "avd": True, "avd_first": False},
+    }
+    return _create_resnest("resnest50d", pretrained=pretrained, **dict(model_kwargs, **kwargs))
 
 
 @register_model
 def resnest101e(pretrained=False, **kwargs) -> ResNet:
-    """ ResNeSt-101e model. Matches paper ResNeSt-101 model, https://arxiv.org/abs/2004.08955
-     Since this codebase supports all possible variations, 'e' for deep stem, stem_width 64, avg in downsample.
+    """ResNeSt-101e model. Matches paper ResNeSt-101 model, https://arxiv.org/abs/2004.08955 Since this codebase
+    supports all possible variations, 'e' for deep stem, stem_width 64, avg in downsample.
     """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[3, 4, 23, 3],
-        stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
-        block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest101e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [3, 4, 23, 3],
+        "stem_type": "deep",
+        "stem_width": 64,
+        "avg_down": True,
+        "base_width": 64,
+        "cardinality": 1,
+        "block_args": {"radix": 2, "avd": True, "avd_first": False},
+    }
+    return _create_resnest("resnest101e", pretrained=pretrained, **dict(model_kwargs, **kwargs))
 
 
 @register_model
 def resnest200e(pretrained=False, **kwargs) -> ResNet:
-    """ ResNeSt-200e model. Matches paper ResNeSt-200 model, https://arxiv.org/abs/2004.08955
-    Since this codebase supports all possible variations, 'e' for deep stem, stem_width 64, avg in downsample.
+    """ResNeSt-200e model. Matches paper ResNeSt-200 model, https://arxiv.org/abs/2004.08955 Since this codebase
+    supports all possible variations, 'e' for deep stem, stem_width 64, avg in downsample.
     """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[3, 24, 36, 3],
-        stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
-        block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest200e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [3, 24, 36, 3],
+        "stem_type": "deep",
+        "stem_width": 64,
+        "avg_down": True,
+        "base_width": 64,
+        "cardinality": 1,
+        "block_args": {"radix": 2, "avd": True, "avd_first": False},
+    }
+    return _create_resnest("resnest200e", pretrained=pretrained, **dict(model_kwargs, **kwargs))
 
 
 @register_model
 def resnest269e(pretrained=False, **kwargs) -> ResNet:
-    """ ResNeSt-269e model. Matches paper ResNeSt-269 model, https://arxiv.org/abs/2004.08955
-    Since this codebase supports all possible variations, 'e' for deep stem, stem_width 64, avg in downsample.
+    """ResNeSt-269e model. Matches paper ResNeSt-269 model, https://arxiv.org/abs/2004.08955 Since this codebase
+    supports all possible variations, 'e' for deep stem, stem_width 64, avg in downsample.
     """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[3, 30, 48, 8],
-        stem_type='deep', stem_width=64, avg_down=True, base_width=64, cardinality=1,
-        block_args=dict(radix=2, avd=True, avd_first=False))
-    return _create_resnest('resnest269e', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [3, 30, 48, 8],
+        "stem_type": "deep",
+        "stem_width": 64,
+        "avg_down": True,
+        "base_width": 64,
+        "cardinality": 1,
+        "block_args": {"radix": 2, "avd": True, "avd_first": False},
+    }
+    return _create_resnest("resnest269e", pretrained=pretrained, **dict(model_kwargs, **kwargs))
 
 
 @register_model
 def resnest50d_4s2x40d(pretrained=False, **kwargs) -> ResNet:
-    """ResNeSt-50 4s2x40d from https://github.com/zhanghang1989/ResNeSt/blob/master/ablation.md
-    """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[3, 4, 6, 3],
-        stem_type='deep', stem_width=32, avg_down=True, base_width=40, cardinality=2,
-        block_args=dict(radix=4, avd=True, avd_first=True))
-    return _create_resnest('resnest50d_4s2x40d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    """ResNeSt-50 4s2x40d from https://github.com/zhanghang1989/ResNeSt/blob/master/ablation.md."""
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [3, 4, 6, 3],
+        "stem_type": "deep",
+        "stem_width": 32,
+        "avg_down": True,
+        "base_width": 40,
+        "cardinality": 2,
+        "block_args": {"radix": 4, "avd": True, "avd_first": True},
+    }
+    return _create_resnest("resnest50d_4s2x40d", pretrained=pretrained, **dict(model_kwargs, **kwargs))
 
 
 @register_model
 def resnest50d_1s4x24d(pretrained=False, **kwargs) -> ResNet:
-    """ResNeSt-50 1s4x24d from https://github.com/zhanghang1989/ResNeSt/blob/master/ablation.md
-    """
-    model_kwargs = dict(
-        block=ResNestBottleneck, layers=[3, 4, 6, 3],
-        stem_type='deep', stem_width=32, avg_down=True, base_width=24, cardinality=4,
-        block_args=dict(radix=1, avd=True, avd_first=True))
-    return _create_resnest('resnest50d_1s4x24d', pretrained=pretrained, **dict(model_kwargs, **kwargs))
+    """ResNeSt-50 1s4x24d from https://github.com/zhanghang1989/ResNeSt/blob/master/ablation.md."""
+    model_kwargs = {
+        "block": ResNestBottleneck,
+        "layers": [3, 4, 6, 3],
+        "stem_type": "deep",
+        "stem_width": 32,
+        "avg_down": True,
+        "base_width": 24,
+        "cardinality": 4,
+        "block_args": {"radix": 1, "avd": True, "avd_first": True},
+    }
+    return _create_resnest("resnest50d_1s4x24d", pretrained=pretrained, **dict(model_kwargs, **kwargs))

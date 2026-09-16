@@ -1,4 +1,4 @@
-""" Convolution with Weight Standardization (StdConv and ScaledStdConv)
+"""Convolution with Weight Standardization (StdConv and ScaledStdConv).
 
 StdConv:
 @article{weightstandardization,
@@ -16,11 +16,12 @@ Official Deepmind JAX code: https://github.com/deepmind/deepmind-research/tree/m
 
 Hacked together by / copyright Ross Wightman, 2021.
 """
-from typing import Optional, Tuple, Union
+
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from ._fx import register_notrace_module
 from .padding import get_padding, get_padding_value, pad_same
@@ -32,25 +33,35 @@ class StdConv2d(nn.Conv2d):
     Paper: `Micro-Batch Training with Batch-Channel Normalization and Weight Standardization` -
         https://arxiv.org/abs/1903.10520v2
     """
+
     def __init__(
-            self,
-            in_channel: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple[int, int]],
-            stride: Union[int, Tuple[int, int]] = 1,
-            padding: Optional[Union[int, Tuple[int, int]]] = None,
-            dilation: Union[int, Tuple[int, int]] = 1,
-            groups: int = 1,
-            bias: bool = False,
-            eps: float = 1e-6,
-            device=None,
-            dtype=None,
+        self,
+        in_channel: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] | None = None,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        bias: bool = False,
+        eps: float = 1e-6,
+        device=None,
+        dtype=None,
     ):
         if padding is None:
             padding = get_padding(kernel_size, stride, dilation)
         super().__init__(
-            in_channel, out_channels, kernel_size, stride=stride,
-            padding=padding, dilation=dilation, groups=groups, bias=bias, device=device, dtype=dtype)
+            in_channel,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+            device=device,
+            dtype=dtype,
+        )
         self.eps = eps
 
     def forward(self, x):
@@ -59,7 +70,7 @@ class StdConv2d(nn.Conv2d):
             None,  # running_mean
             None,  # running_var
             training=True,
-            momentum=0.,
+            momentum=0.0,
             eps=self.eps,
         ).reshape_as(self.weight)
         x = F.conv2d(x, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
@@ -73,24 +84,34 @@ class StdConv2dSame(nn.Conv2d):
     Paper: `Micro-Batch Training with Batch-Channel Normalization and Weight Standardization` -
         https://arxiv.org/abs/1903.10520v2
     """
+
     def __init__(
-            self,
-            in_channel: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple[int, int]],
-            stride: Union[int, Tuple[int, int]] = 1,
-            padding: str = 'SAME',
-            dilation: Union[int, Tuple[int, int]] = 1,
-            groups: int = 1,
-            bias: bool = False,
-            eps: float = 1e-6,
-            device=None,
-            dtype=None,
+        self,
+        in_channel: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: str = "SAME",
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        bias: bool = False,
+        eps: float = 1e-6,
+        device=None,
+        dtype=None,
     ):
         padding, is_dynamic = get_padding_value(padding, kernel_size, stride=stride, dilation=dilation)
         super().__init__(
-            in_channel, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation,
-            groups=groups, bias=bias, device=device, dtype=dtype)
+            in_channel,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+            device=device,
+            dtype=dtype,
+        )
         self.same_pad = is_dynamic
         self.eps = eps
 
@@ -102,7 +123,7 @@ class StdConv2dSame(nn.Conv2d):
             None,  # running_mean
             None,  # running_var
             training=True,
-            momentum=0.,
+            momentum=0.0,
             eps=self.eps,
         ).reshape_as(self.weight)
         x = F.conv2d(x, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
@@ -119,27 +140,35 @@ class ScaledStdConv2d(nn.Conv2d):
     """
 
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple[int, int]],
-            stride: Union[int, Tuple[int, int]] = 1,
-            padding: Optional[Union[int, Tuple[int, int], str]] = None,
-            dilation: Union[int, Tuple[int, int]] = 1,
-            groups: int = 1,
-            bias: bool = True,
-            gamma: float = 1.0,
-            eps: float = 1e-6,
-            gain_init: float = 1.0,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] | str | None = None,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        bias: bool = True,
+        gamma: float = 1.0,
+        eps: float = 1e-6,
+        gain_init: float = 1.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         if padding is None:
             padding = get_padding(kernel_size, stride, dilation)
         super().__init__(
-            in_channels, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation,
-            groups=groups, bias=bias, **dd)
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+            **dd,
+        )
         self.scale = gamma * self.weight[0].numel() ** -0.5  # gamma * 1 / sqrt(fan-in)
         self.eps = eps
         self.gain_init = gain_init
@@ -150,7 +179,7 @@ class ScaledStdConv2d(nn.Conv2d):
 
     def reset_parameters(self) -> None:
         # Only initialize gain if it exists (for the second call)
-        if hasattr(self, 'gain'):
+        if hasattr(self, "gain"):
             torch.nn.init.constant_(self.gain, self.gain_init)
             # Also reset parent parameters if needed
             super().reset_parameters()
@@ -163,7 +192,7 @@ class ScaledStdConv2d(nn.Conv2d):
             None,  # running_var
             weight=(self.gain * self.scale).view(-1),
             training=True,
-            momentum=0.,
+            momentum=0.0,
             eps=self.eps,
         ).reshape_as(self.weight)
         return F.conv2d(x, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
@@ -171,7 +200,7 @@ class ScaledStdConv2d(nn.Conv2d):
 
 @register_notrace_module
 class ScaledStdConv2dSame(nn.Conv2d):
-    """Conv2d layer with Scaled Weight Standardization and Tensorflow-like SAME padding support
+    """Conv2d layer with Scaled Weight Standardization and Tensorflow-like SAME padding support.
 
     Paper: `Characterizing signal propagation to close the performance gap in unnormalized ResNets` -
         https://arxiv.org/abs/2101.08692
@@ -180,26 +209,34 @@ class ScaledStdConv2dSame(nn.Conv2d):
     """
 
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple[int, int]],
-            stride: Union[int, Tuple[int, int]] = 1,
-            padding: str = 'SAME',
-            dilation: Union[int, Tuple[int, int]] = 1,
-            groups: int = 1,
-            bias: bool = True,
-            gamma: float = 1.0,
-            eps: float = 1e-6,
-            gain_init: float = 1.0,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: str = "SAME",
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        bias: bool = True,
+        gamma: float = 1.0,
+        eps: float = 1e-6,
+        gain_init: float = 1.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         padding, is_dynamic = get_padding_value(padding, kernel_size, stride=stride, dilation=dilation)
         super().__init__(
-            in_channels, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation,
-            groups=groups, bias=bias, **dd)
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+            **dd,
+        )
         self.scale = gamma * self.weight[0].numel() ** -0.5
         self.same_pad = is_dynamic
         self.eps = eps
@@ -211,7 +248,7 @@ class ScaledStdConv2dSame(nn.Conv2d):
 
     def reset_parameters(self) -> None:
         # Only initialize gain if it exists (for the second call)
-        if hasattr(self, 'gain'):
+        if hasattr(self, "gain"):
             torch.nn.init.constant_(self.gain, self.gain_init)
             # Also reset parent parameters if needed
             super().reset_parameters()
@@ -226,7 +263,7 @@ class ScaledStdConv2dSame(nn.Conv2d):
             None,  # running_var
             weight=(self.gain * self.scale).view(-1),
             training=True,
-            momentum=0.,
+            momentum=0.0,
             eps=self.eps,
         ).reshape_as(self.weight)
         return F.conv2d(x, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
