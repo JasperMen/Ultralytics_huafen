@@ -1,17 +1,18 @@
-""" Layer/Module Helpers
+"""Layer/Module Helpers.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-from itertools import repeat
+
 import collections.abc
+from itertools import repeat
 
 
 # From PyTorch internals
 def _ntuple(n):
     """Return a function that converts input to an n-tuple.
 
-    Scalar values are repeated n times, while iterables are converted to tuples.
-    Strings are treated as scalars to avoid character-level splitting.
+    Scalar values are repeated n times, while iterables are converted to tuples. Strings are treated as scalars to avoid
+    character-level splitting.
 
     Args:
         n: Target tuple length.
@@ -19,10 +20,12 @@ def _ntuple(n):
     Returns:
         Function that converts input to n-tuple.
     """
+
     def parse(x):
         if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
             return tuple(x)
         return tuple(repeat(x, n))
+
     return parse
 
 
@@ -33,11 +36,11 @@ to_4tuple = _ntuple(4)
 to_ntuple = _ntuple
 
 
-def make_divisible(v, divisor=8, min_value=None, round_limit=.9):
+def make_divisible(v, divisor=8, min_value=None, round_limit=0.9):
     """Adjust value to be divisible by a divisor, typically for channel counts.
 
-    Rounds to the nearest multiple of divisor while ensuring the result doesn't
-    fall below min_value or decrease by more than (1 - round_limit).
+    Rounds to the nearest multiple of divisor while ensuring the result doesn't fall below min_value or decrease by more
+    than (1 - round_limit).
 
     Args:
         v: Value to adjust.
@@ -59,8 +62,7 @@ def make_divisible(v, divisor=8, min_value=None, round_limit=.9):
 def extend_tuple(x, n):
     """Pad a tuple to length n by repeating the last value.
 
-    If input is shorter than n, extends by repeating the last element.
-    If input is longer than n, truncates to n.
+    If input is shorter than n, extends by repeating the last element. If input is longer than n, truncates to n.
 
     Args:
         x: Input value, tuple, or list.
