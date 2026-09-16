@@ -1,4 +1,4 @@
-""" Global Context ViT
+"""Global Context ViT.
 
 From scratch implementation of GCViT in the style of timm swin_transformer_v2_cr.py
 
@@ -19,58 +19,61 @@ However, weight files adapted from NVIDIA GCVit impl ARE under a non-commercial 
 
 Hacked together by / Copyright 2022, Ross Wightman
 """
+
+from __future__ import annotations
+
 import math
 from functools import partial
-from typing import Callable, List, Optional, Tuple, Type, Union
+from typing import Callable
 
 import torch
-import torch.nn as nn
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import (
-    DropPath,
-    calculate_drop_path_rates,
-    to_2tuple,
-    to_ntuple,
-    Mlp,
     ClassifierHead,
+    DropPath,
     LayerNorm2d,
     LayerScale,
-    get_attn,
-    get_act_layer,
-    get_norm_layer,
+    Mlp,
     RelPosBias,
     _assert,
+    calculate_drop_path_rates,
+    get_act_layer,
+    get_attn,
+    get_norm_layer,
+    to_2tuple,
+    to_ntuple,
 )
+from torch import nn
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._features_fx import register_notrace_function
-from ._manipulate import named_apply, checkpoint
-from ._registry import register_model, generate_default_cfgs
+from ._manipulate import checkpoint, named_apply
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['GlobalContextVit']
+__all__ = ["GlobalContextVit"]
 
 
 class MbConvBlock(nn.Module):
-    """ A depthwise separable / fused mbconv style residual block with SE, `no norm.
-    """
+    """A depthwise separable / fused mbconv style residual block with SE, `no norm."""
+
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: Optional[int] = None,
-            expand_ratio: float = 1.0,
-            attn_layer: str = 'se',
-            bias: bool = False,
-            act_layer: Type[nn.Module] = nn.GELU,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int | None = None,
+        expand_ratio: float = 1.0,
+        attn_layer: str = "se",
+        bias: bool = False,
+        act_layer: type[nn.Module] = nn.GELU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         attn_kwargs = dict(act_layer=act_layer, **dd)
-        if isinstance(attn_layer, str) and attn_layer == 'se' or attn_layer == 'eca':
-            attn_kwargs['rd_ratio'] = 0.25
-            attn_kwargs['bias'] = False
+        if (isinstance(attn_layer, str) and attn_layer == "se") or attn_layer == "eca":
+            attn_kwargs["rd_ratio"] = 0.25
+            attn_kwargs["bias"] = False
         attn_layer = get_attn(attn_layer)
         out_chs = out_chs or in_chs
         mid_chs = int(expand_ratio * in_chs)
@@ -92,25 +95,25 @@ class MbConvBlock(nn.Module):
 
 class Downsample2d(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            reduction: str = 'conv',
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,  # NOTE in NCHW
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        reduction: str = "conv",
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = LayerNorm2d,  # NOTE in NCHW
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         dim_out = dim_out or dim
 
         self.norm1 = norm_layer(dim, **dd) if norm_layer is not None else nn.Identity()
         self.conv_block = MbConvBlock(dim, act_layer=act_layer, **dd)
-        assert reduction in ('conv', 'max', 'avg')
-        if reduction == 'conv':
+        assert reduction in ("conv", "max", "avg")
+        if reduction == "conv":
             self.reduction = nn.Conv2d(dim, dim_out, 3, 2, 1, bias=False, **dd)
-        elif reduction == 'max':
+        elif reduction == "max":
             assert dim == dim_out
             self.reduction = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         else:
@@ -128,27 +131,27 @@ class Downsample2d(nn.Module):
 
 class FeatureBlock(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            levels: int = 0,
-            reduction: str = 'max',
-            act_layer: Type[nn.Module] = nn.GELU,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        levels: int = 0,
+        reduction: str = "max",
+        act_layer: type[nn.Module] = nn.GELU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         reductions = levels
         levels = max(1, levels)
-        if reduction == 'avg':
+        if reduction == "avg":
             pool_fn = partial(nn.AvgPool2d, kernel_size=2)
         else:
             pool_fn = partial(nn.MaxPool2d, kernel_size=3, stride=2, padding=1)
         self.blocks = nn.Sequential()
         for i in range(levels):
-            self.blocks.add_module(f'conv{i+1}', MbConvBlock(dim, act_layer=act_layer, **dd))
+            self.blocks.add_module(f"conv{i + 1}", MbConvBlock(dim, act_layer=act_layer, **dd))
             if reductions:
-                self.blocks.add_module(f'pool{i+1}', pool_fn())
+                self.blocks.add_module(f"pool{i + 1}", pool_fn())
                 reductions -= 1
 
     def forward(self, x):
@@ -157,16 +160,16 @@ class FeatureBlock(nn.Module):
 
 class Stem(nn.Module):
     def __init__(
-            self,
-            in_chs: int = 3,
-            out_chs: int = 96,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,  # NOTE stem in NCHW
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int = 3,
+        out_chs: int = 96,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = LayerNorm2d,  # NOTE stem in NCHW
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.conv1 = nn.Conv2d(in_chs, out_chs, kernel_size=3, stride=2, padding=1, **dd)
         self.down = Downsample2d(out_chs, act_layer=act_layer, norm_layer=norm_layer, **dd)
 
@@ -177,26 +180,25 @@ class Stem(nn.Module):
 
 
 class WindowAttentionGlobal(nn.Module):
-
     def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            window_size: Tuple[int, int],
-            use_global: bool = True,
-            qkv_bias: bool = True,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int,
+        window_size: tuple[int, int],
+        use_global: bool = True,
+        qkv_bias: bool = True,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         window_size = to_2tuple(window_size)
         self.window_size = window_size
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.use_global = use_global
 
         self.rel_pos = RelPosBias(window_size=window_size, num_heads=num_heads, **dd)
@@ -208,10 +210,10 @@ class WindowAttentionGlobal(nn.Module):
         self.proj = nn.Linear(dim, dim, **dd)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x, q_global: Optional[torch.Tensor] = None):
+    def forward(self, x, q_global: torch.Tensor | None = None):
         B, N, C = x.shape
         if self.use_global and q_global is not None:
-            _assert(x.shape[-1] == q_global.shape[-1], 'x and q_global seq lengths should be equal')
+            _assert(x.shape[-1] == q_global.shape[-1], "x and q_global seq lengths should be equal")
 
             kv = self.qkv(x)
             kv = kv.reshape(B, N, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
@@ -235,7 +237,7 @@ class WindowAttentionGlobal(nn.Module):
         return x
 
 
-def window_partition(x, window_size: Tuple[int, int]):
+def window_partition(x, window_size: tuple[int, int]):
     B, H, W, C = x.shape
     x = x.view(B, H // window_size[0], window_size[0], W // window_size[1], window_size[1], C)
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0], window_size[1], C)
@@ -243,7 +245,7 @@ def window_partition(x, window_size: Tuple[int, int]):
 
 
 @register_notrace_function  # reason: int argument is a Proxy
-def window_reverse(windows, window_size: Tuple[int, int], img_size: Tuple[int, int]):
+def window_reverse(windows, window_size: tuple[int, int], img_size: tuple[int, int]):
     H, W = img_size
     C = windows.shape[-1]
     x = windows.view(-1, H // window_size[0], W // window_size[1], window_size[0], window_size[1], C)
@@ -253,25 +255,25 @@ def window_reverse(windows, window_size: Tuple[int, int], img_size: Tuple[int, i
 
 class GlobalContextVitBlock(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            feat_size: Tuple[int, int],
-            num_heads: int,
-            window_size: int = 7,
-            mlp_ratio: float = 4.,
-            use_global: bool = True,
-            qkv_bias: bool = True,
-            layer_scale: Optional[float] = None,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: float = 0.,
-            attn_layer: Callable = WindowAttentionGlobal,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        feat_size: tuple[int, int],
+        num_heads: int,
+        window_size: int = 7,
+        mlp_ratio: float = 4.0,
+        use_global: bool = True,
+        qkv_bias: bool = True,
+        layer_scale: float | None = None,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        attn_layer: Callable = WindowAttentionGlobal,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         feat_size = to_2tuple(feat_size)
         window_size = to_2tuple(window_size)
@@ -290,22 +292,22 @@ class GlobalContextVitBlock(nn.Module):
             **dd,
         )
         self.ls1 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else nn.Identity()
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim, **dd)
         self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, drop=proj_drop, **dd)
         self.ls2 = LayerScale(dim, layer_scale, **dd) if layer_scale is not None else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-    def _window_attn(self, x, q_global: Optional[torch.Tensor] = None):
-        B, H, W, C = x.shape
+    def _window_attn(self, x, q_global: torch.Tensor | None = None):
+        _B, H, W, C = x.shape
         x_win = window_partition(x, self.window_size)
         x_win = x_win.view(-1, self.window_size[0] * self.window_size[1], C)
         attn_win = self.attn(x_win, q_global)
         x = window_reverse(attn_win, self.window_size, (H, W))
         return x
 
-    def forward(self, x, q_global: Optional[torch.Tensor] = None):
+    def forward(self, x, q_global: torch.Tensor | None = None):
         x = x + self.drop_path1(self.ls1(self._window_attn(self.norm1(x), q_global)))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
@@ -313,28 +315,28 @@ class GlobalContextVitBlock(nn.Module):
 
 class GlobalContextVitStage(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            depth: int,
-            num_heads: int,
-            feat_size: Tuple[int, int],
-            window_size: Tuple[int, int],
-            downsample: bool = True,
-            global_norm: bool = False,
-            stage_norm: bool = False,
-            mlp_ratio: float = 4.,
-            qkv_bias: bool = True,
-            layer_scale: Optional[float] = None,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: Union[List[float], float] = 0.0,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.LayerNorm,
-            norm_layer_cl: Type[nn.Module] = LayerNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        depth: int,
+        num_heads: int,
+        feat_size: tuple[int, int],
+        window_size: tuple[int, int],
+        downsample: bool = True,
+        global_norm: bool = False,
+        stage_norm: bool = False,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = True,
+        layer_scale: float | None = None,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: list[float] | float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.LayerNorm,
+        norm_layer_cl: type[nn.Module] = LayerNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if downsample:
             self.downsample = Downsample2d(
@@ -354,25 +356,27 @@ class GlobalContextVitStage(nn.Module):
         self.global_block = FeatureBlock(dim, feat_levels, **dd)
         self.global_norm = norm_layer_cl(dim, **dd) if global_norm else nn.Identity()
 
-        self.blocks = nn.ModuleList([
-            GlobalContextVitBlock(
-                dim=dim,
-                num_heads=num_heads,
-                feat_size=feat_size,
-                window_size=window_size,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=qkv_bias,
-                use_global=(i % 2 != 0),
-                layer_scale=layer_scale,
-                proj_drop=proj_drop,
-                attn_drop=attn_drop,
-                drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
-                act_layer=act_layer,
-                norm_layer=norm_layer_cl,
-                **dd,
-            )
-            for i in range(depth)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                GlobalContextVitBlock(
+                    dim=dim,
+                    num_heads=num_heads,
+                    feat_size=feat_size,
+                    window_size=window_size,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    use_global=(i % 2 != 0),
+                    layer_scale=layer_scale,
+                    proj_drop=proj_drop,
+                    attn_drop=attn_drop,
+                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                    act_layer=act_layer,
+                    norm_layer=norm_layer_cl,
+                    **dd,
+                )
+                for i in range(depth)
+            ]
+        )
         self.norm = norm_layer_cl(dim, **dd) if stage_norm else nn.Identity()
         self.dim = dim
         self.feat_size = feat_size
@@ -398,33 +402,33 @@ class GlobalContextVitStage(nn.Module):
 
 class GlobalContextVit(nn.Module):
     def __init__(
-            self,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            img_size: Union[int, Tuple[int, int]] = 224,
-            window_ratio: Tuple[int, ...] = (32, 32, 16, 32),
-            window_size: Optional[Union[int, Tuple[int, ...]]] = None,
-            embed_dim: int = 64,
-            depths: Tuple[int, ...] = (3, 4, 19, 5),
-            num_heads: Tuple[int, ...] = (2, 4, 8, 16),
-            mlp_ratio: float = 3.0,
-            qkv_bias: bool = True,
-            layer_scale: Optional[float] = None,
-            drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            attn_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            weight_init: str = '',
-            act_layer: str = 'gelu',
-            norm_layer: str = 'layernorm2d',
-            norm_layer_cl: str = 'layernorm',
-            norm_eps: float = 1e-5,
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        img_size: int | tuple[int, int] = 224,
+        window_ratio: tuple[int, ...] = (32, 32, 16, 32),
+        window_size: int | tuple[int, ...] | None = None,
+        embed_dim: int = 64,
+        depths: tuple[int, ...] = (3, 4, 19, 5),
+        num_heads: tuple[int, ...] = (2, 4, 8, 16),
+        mlp_ratio: float = 3.0,
+        qkv_bias: bool = True,
+        layer_scale: float | None = None,
+        drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        weight_init: str = "",
+        act_layer: str = "gelu",
+        norm_layer: str = "layernorm2d",
+        norm_layer_cl: str = "layernorm",
+        norm_eps: float = 1e-5,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         act_layer = get_act_layer(act_layer)
         norm_layer = partial(get_norm_layer(norm_layer), eps=norm_eps)
         norm_layer_cl = partial(get_norm_layer(norm_layer_cl), eps=norm_eps)
@@ -456,26 +460,28 @@ class GlobalContextVit(nn.Module):
         for i in range(num_stages):
             last_stage = i == num_stages - 1
             stage_scale = 2 ** max(i - 1, 0)
-            stages.append(GlobalContextVitStage(
-                dim=embed_dim * stage_scale,
-                depth=depths[i],
-                num_heads=num_heads[i],
-                feat_size=(feat_size[0] // stage_scale, feat_size[1] // stage_scale),
-                window_size=window_size[i],
-                downsample=i != 0,
-                stage_norm=last_stage,
-                mlp_ratio=mlp_ratio,
-                qkv_bias=qkv_bias,
-                layer_scale=layer_scale,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[i],
-                act_layer=act_layer,
-                norm_layer=norm_layer,
-                norm_layer_cl=norm_layer_cl,
-                **dd,
-            ))
-            self.feature_info += [dict(num_chs=stages[-1].dim, reduction=2**(i+2), module=f'stages.{i}')]
+            stages.append(
+                GlobalContextVitStage(
+                    dim=embed_dim * stage_scale,
+                    depth=depths[i],
+                    num_heads=num_heads[i],
+                    feat_size=(feat_size[0] // stage_scale, feat_size[1] // stage_scale),
+                    window_size=window_size[i],
+                    downsample=i != 0,
+                    stage_norm=last_stage,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    layer_scale=layer_scale,
+                    proj_drop=proj_drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=dpr[i],
+                    act_layer=act_layer,
+                    norm_layer=norm_layer,
+                    norm_layer_cl=norm_layer_cl,
+                    **dd,
+                )
+            )
+            self.feature_info += [{"num_chs": stages[-1].dim, "reduction": 2 ** (i + 2), "module": f"stages.{i}"}]
         self.stages = nn.Sequential(*stages)
 
         # Classifier head
@@ -484,34 +490,36 @@ class GlobalContextVit(nn.Module):
         if weight_init:
             named_apply(partial(self._init_weights, scheme=weight_init), self)
 
-    def _init_weights(self, module, name, scheme='vit'):
+    def _init_weights(self, module, name, scheme="vit"):
         # note Conv2d left as default init
-        if scheme == 'vit':
+        if scheme == "vit":
             if isinstance(module, nn.Linear):
                 nn.init.xavier_uniform_(module.weight)
                 if module.bias is not None:
-                    if 'mlp' in name:
+                    if "mlp" in name:
                         nn.init.normal_(module.bias, std=1e-6)
                     else:
                         nn.init.zeros_(module.bias)
         else:
             if isinstance(module, nn.Linear):
-                nn.init.normal_(module.weight, std=.02)
+                nn.init.normal_(module.weight, std=0.02)
                 if module.bias is not None:
                     nn.init.zeros_(module.bias)
 
     @torch.jit.ignore
     def no_weight_decay(self):
         return {
-            k for k, _ in self.named_parameters()
-            if any(n in k for n in ["relative_position_bias_table", "rel_pos.mlp"])}
+            k
+            for k, _ in self.named_parameters()
+            if any(n in k for n in ["relative_position_bias_table", "rel_pos.mlp"])
+        }
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        matcher = dict(
-            stem=r'^stem',  # stem and embed
-            blocks=r'^stages\.(\d+)'
-        )
+        matcher = {
+            "stem": r"^stem",  # stem and embed
+            "blocks": r"^stages\.(\d+)",
+        }
         return matcher
 
     @torch.jit.ignore
@@ -523,23 +531,25 @@ class GlobalContextVit(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None):
-        dd = {'device': device, 'dtype': dtype}
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None, device=None, dtype=None):
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         if global_pool is None:
             global_pool = self.head.global_pool.pool_type
-        self.head = ClassifierHead(self.num_features, num_classes, pool_type=global_pool, drop_rate=self.drop_rate, **dd)
+        self.head = ClassifierHead(
+            self.num_features, num_classes, pool_type=global_pool, drop_rate=self.drop_rate, **dd
+        )
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -548,10 +558,8 @@ class GlobalContextVit(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
 
@@ -560,7 +568,7 @@ class GlobalContextVit(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x = stage(x)
@@ -573,17 +581,16 @@ class GlobalContextVit(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -602,85 +609,83 @@ class GlobalContextVit(nn.Module):
 
 def _create_gcvit(variant, pretrained=False, **kwargs):
     model = build_model_with_cfg(
-        GlobalContextVit, variant, pretrained,
-        feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
-        **kwargs
+        GlobalContextVit,
+        variant,
+        pretrained,
+        feature_cfg={"out_indices": (0, 1, 2, 3), "flatten_sequential": True},
+        **kwargs,
     )
     return model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url, 'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.875, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.conv1', 'classifier': 'head.fc',
-        'fixed_input_size': True,
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.875,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.conv1",
+        "classifier": "head.fc",
+        "fixed_input_size": True,
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'gcvit_xxtiny.in1k': _cfg(
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_xxtiny_224_nvidia-d1d86009.pth'),
-    'gcvit_xtiny.in1k': _cfg(
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_xtiny_224_nvidia-274b92b7.pth'),
-    'gcvit_tiny.in1k': _cfg(
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_tiny_224_nvidia-ac783954.pth'),
-    'gcvit_small.in1k': _cfg(
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_small_224_nvidia-4e98afa2.pth'),
-    'gcvit_base.in1k': _cfg(
-        url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_base_224_nvidia-f009139b.pth'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "gcvit_xxtiny.in1k": _cfg(
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_xxtiny_224_nvidia-d1d86009.pth"
+        ),
+        "gcvit_xtiny.in1k": _cfg(
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_xtiny_224_nvidia-274b92b7.pth"
+        ),
+        "gcvit_tiny.in1k": _cfg(
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_tiny_224_nvidia-ac783954.pth"
+        ),
+        "gcvit_small.in1k": _cfg(
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_small_224_nvidia-4e98afa2.pth"
+        ),
+        "gcvit_base.in1k": _cfg(
+            url="https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-weights-morevit/gcvit_base_224_nvidia-f009139b.pth"
+        ),
+    }
+)
 
 
 @register_model
 def gcvit_xxtiny(pretrained=False, **kwargs) -> GlobalContextVit:
-    model_kwargs = dict(
-        depths=(2, 2, 6, 2),
-        num_heads=(2, 4, 8, 16),
-        **kwargs)
-    return _create_gcvit('gcvit_xxtiny', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=(2, 2, 6, 2), num_heads=(2, 4, 8, 16), **kwargs)
+    return _create_gcvit("gcvit_xxtiny", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def gcvit_xtiny(pretrained=False, **kwargs) -> GlobalContextVit:
-    model_kwargs = dict(
-        depths=(3, 4, 6, 5),
-        num_heads=(2, 4, 8, 16),
-        **kwargs)
-    return _create_gcvit('gcvit_xtiny', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=(3, 4, 6, 5), num_heads=(2, 4, 8, 16), **kwargs)
+    return _create_gcvit("gcvit_xtiny", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def gcvit_tiny(pretrained=False, **kwargs) -> GlobalContextVit:
-    model_kwargs = dict(
-        depths=(3, 4, 19, 5),
-        num_heads=(2, 4, 8, 16),
-        **kwargs)
-    return _create_gcvit('gcvit_tiny', pretrained=pretrained, **model_kwargs)
+    model_kwargs = dict(depths=(3, 4, 19, 5), num_heads=(2, 4, 8, 16), **kwargs)
+    return _create_gcvit("gcvit_tiny", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def gcvit_small(pretrained=False, **kwargs) -> GlobalContextVit:
     model_kwargs = dict(
-        depths=(3, 4, 19, 5),
-        num_heads=(3, 6, 12, 24),
-        embed_dim=96,
-        mlp_ratio=2,
-        layer_scale=1e-5,
-        **kwargs)
-    return _create_gcvit('gcvit_small', pretrained=pretrained, **model_kwargs)
+        depths=(3, 4, 19, 5), num_heads=(3, 6, 12, 24), embed_dim=96, mlp_ratio=2, layer_scale=1e-5, **kwargs
+    )
+    return _create_gcvit("gcvit_small", pretrained=pretrained, **model_kwargs)
 
 
 @register_model
 def gcvit_base(pretrained=False, **kwargs) -> GlobalContextVit:
     model_kwargs = dict(
-        depths=(3, 4, 19, 5),
-        num_heads=(4, 8, 16, 32),
-        embed_dim=128,
-        mlp_ratio=2,
-        layer_scale=1e-5,
-        **kwargs)
-    return _create_gcvit('gcvit_base', pretrained=pretrained, **model_kwargs)
+        depths=(3, 4, 19, 5), num_heads=(4, 8, 16, 32), embed_dim=128, mlp_ratio=2, layer_scale=1e-5, **kwargs
+    )
+    return _create_gcvit("gcvit_base", pretrained=pretrained, **model_kwargs)

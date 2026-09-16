@@ -1,4 +1,4 @@
-""" PyTorch LARS / LARC Optimizer
+"""PyTorch LARS / LARC Optimizer.
 
 An implementation of LARS (SGD) + LARC in PyTorch
 
@@ -10,13 +10,14 @@ Additional cleanup and modifications to properly support PyTorch XLA.
 
 Copyright 2021 Ross Wightman
 """
+
 import torch
 from torch.optim.optimizer import Optimizer
 
 
 class Lars(Optimizer):
-    """ LARS for PyTorch
-    
+    """LARS for PyTorch.
+
     Paper: `Large batch training of Convolutional Networks` - https://arxiv.org/pdf/1708.03888.pdf
 
     Args:
@@ -54,17 +55,17 @@ class Lars(Optimizer):
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
 
-        defaults = dict(
-            lr=lr,
-            momentum=momentum,
-            dampening=dampening,
-            weight_decay=weight_decay,
-            nesterov=nesterov,
-            trust_coeff=trust_coeff,
-            eps=eps,
-            trust_clip=trust_clip,
-            always_adapt=always_adapt,
-        )
+        defaults = {
+            "lr": lr,
+            "momentum": momentum,
+            "dampening": dampening,
+            "weight_decay": weight_decay,
+            "nesterov": nesterov,
+            "trust_coeff": trust_coeff,
+            "eps": eps,
+            "trust_clip": trust_clip,
+            "always_adapt": always_adapt,
+        }
         super().__init__(params, defaults)
 
     def __setstate__(self, state):
@@ -85,21 +86,21 @@ class Lars(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            weight_decay = group['weight_decay']
-            momentum = group['momentum']
-            dampening = group['dampening']
-            nesterov = group['nesterov']
-            trust_coeff = group['trust_coeff']
-            eps = group['eps']
+            weight_decay = group["weight_decay"]
+            momentum = group["momentum"]
+            dampening = group["dampening"]
+            nesterov = group["nesterov"]
+            trust_coeff = group["trust_coeff"]
+            eps = group["eps"]
 
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
                 grad = p.grad
 
                 # apply LARS LR adaptation, LARC clipping, weight decay
                 # ref: https://github.com/NVIDIA/apex/blob/master/apex/parallel/LARC.py
-                if weight_decay != 0 or group['always_adapt']:
+                if weight_decay != 0 or group["always_adapt"]:
                     w_norm = p.norm(2.0)
                     g_norm = grad.norm(2.0)
                     trust_ratio = trust_coeff * w_norm / (g_norm + w_norm * weight_decay + eps)
@@ -110,24 +111,24 @@ class Lars(Optimizer):
                         torch.where(g_norm > 0, trust_ratio, 1.0),
                         1.0,
                     )
-                    if group['trust_clip']:
-                        trust_ratio = torch.clamp(trust_ratio / group['lr'], max=1.0)
+                    if group["trust_clip"]:
+                        trust_ratio = torch.clamp(trust_ratio / group["lr"], max=1.0)
                     grad.add_(p, alpha=weight_decay)
                     grad.mul_(trust_ratio)
 
                 # apply SGD update https://github.com/pytorch/pytorch/blob/1.7/torch/optim/sgd.py#L100
                 if momentum != 0:
                     param_state = self.state[p]
-                    if 'momentum_buffer' not in param_state:
-                        buf = param_state['momentum_buffer'] = torch.clone(grad).detach()
+                    if "momentum_buffer" not in param_state:
+                        buf = param_state["momentum_buffer"] = torch.clone(grad).detach()
                     else:
-                        buf = param_state['momentum_buffer']
-                        buf.mul_(momentum).add_(grad, alpha=1. - dampening)
+                        buf = param_state["momentum_buffer"]
+                        buf.mul_(momentum).add_(grad, alpha=1.0 - dampening)
                     if nesterov:
                         grad = grad.add(buf, alpha=momentum)
                     else:
                         grad = buf
 
-                p.add_(grad, alpha=-group['lr'])
+                p.add_(grad, alpha=-group["lr"])
 
         return loss

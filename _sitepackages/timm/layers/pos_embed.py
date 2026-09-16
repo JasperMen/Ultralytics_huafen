@@ -1,10 +1,12 @@
-""" Position Embedding Utilities
+"""Position Embedding Utilities.
 
 Hacked together by / Copyright 2022 Ross Wightman
 """
+
+from __future__ import annotations
+
 import logging
 import math
-from typing import List, Tuple, Optional, Union
 
 import torch
 import torch.nn.functional as F
@@ -17,13 +19,13 @@ _logger = logging.getLogger(__name__)
 @torch.fx.wrap
 @register_notrace_function
 def resample_abs_pos_embed(
-        posemb: torch.Tensor,
-        new_size: List[int],
-        old_size: Optional[List[int]] = None,
-        num_prefix_tokens: int = 1,
-        interpolation: str = 'bicubic',
-        antialias: bool = True,
-        verbose: bool = False,
+    posemb: torch.Tensor,
+    new_size: list[int],
+    old_size: list[int] | None = None,
+    num_prefix_tokens: int = 1,
+    interpolation: str = "bicubic",
+    antialias: bool = True,
+    verbose: bool = False,
 ):
     # sort out sizes, assume square if old size not provided
     num_pos_tokens = posemb.shape[1]
@@ -54,7 +56,7 @@ def resample_abs_pos_embed(
         posemb = torch.cat([posemb_prefix, posemb], dim=1)
 
     if not torch.jit.is_scripting() and verbose:
-        _logger.info(f'Resized position embedding: {old_size} to {new_size}.')
+        _logger.info(f"Resized position embedding: {old_size} to {new_size}.")
 
     return posemb
 
@@ -62,11 +64,11 @@ def resample_abs_pos_embed(
 @torch.fx.wrap
 @register_notrace_function
 def resample_abs_pos_embed_nhwc(
-        posemb: torch.Tensor,
-        new_size: List[int],
-        interpolation: str = 'bicubic',
-        antialias: bool = True,
-        verbose: bool = False,
+    posemb: torch.Tensor,
+    new_size: list[int],
+    interpolation: str = "bicubic",
+    antialias: bool = True,
+    verbose: bool = False,
 ):
     if new_size[0] == posemb.shape[-3] and new_size[1] == posemb.shape[-2]:
         return posemb
@@ -78,6 +80,6 @@ def resample_abs_pos_embed_nhwc(
     posemb = posemb.permute(0, 2, 3, 1).to(orig_dtype)
 
     if not torch.jit.is_scripting() and verbose:
-        _logger.info(f'Resized position embedding: {posemb.shape[-3:-1]} to {new_size}.')
+        _logger.info(f"Resized position embedding: {posemb.shape[-3:-1]} to {new_size}.")
 
     return posemb

@@ -1,4 +1,4 @@
-""" EvoNorm in PyTorch
+"""EvoNorm in PyTorch.
 
 Based on `Evolving Normalization-Activation Layers` - https://arxiv.org/abs/2004.02967
 @inproceedings{NEURIPS2020,
@@ -23,11 +23,13 @@ GPU, similar train speeds for EvoNormS variants and BatchNorm.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-from typing import Optional, Sequence, Type, Union
+
+from __future__ import annotations
+
+from typing import Sequence
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
 
 from .create_act import create_act_layer
 from .trace_utils import _assert
@@ -41,6 +43,8 @@ def instance_std(x, eps: float = 1e-5):
 def instance_std_tpu(x, eps: float = 1e-5):
     std = manual_var(x, dim=(2, 3)).add(eps).sqrt()
     return std.expand(x.shape)
+
+
 # instance_std = instance_std_tpu
 
 
@@ -49,7 +53,7 @@ def instance_rms(x, eps: float = 1e-5):
     return rms.expand(x.shape)
 
 
-def manual_var(x, dim: Union[int, Sequence[int]], diff_sqm: bool = False):
+def manual_var(x, dim: int | Sequence[int], diff_sqm: bool = False):
     xm = x.mean(dim=dim, keepdim=True)
     if diff_sqm:
         # difference of squared mean and mean squared, faster on TPU can be less stable
@@ -62,7 +66,7 @@ def manual_var(x, dim: Union[int, Sequence[int]], diff_sqm: bool = False):
 def group_std(x, groups: int = 32, eps: float = 1e-5, flatten: bool = False):
     B, C, H, W = x.shape
     x_dtype = x.dtype
-    _assert(C % groups == 0, '')
+    _assert(C % groups == 0, "")
     if flatten:
         x = x.reshape(B, groups, -1)  # FIXME simpler shape causing TPU / XLA issues
         std = x.float().var(dim=2, unbiased=False, keepdim=True).add(eps).sqrt().to(x_dtype)
@@ -73,10 +77,10 @@ def group_std(x, groups: int = 32, eps: float = 1e-5, flatten: bool = False):
 
 
 def group_std_tpu(x, groups: int = 32, eps: float = 1e-5, diff_sqm: bool = False, flatten: bool = False):
-    # This is a workaround for some stability / odd behaviour of .var and .std
+    # This is a workaround for some stability / odd behavior of .var and .std
     # running on PyTorch XLA w/ TPUs. These manual var impl are producing much better results
     B, C, H, W = x.shape
-    _assert(C % groups == 0, '')
+    _assert(C % groups == 0, "")
     if flatten:
         x = x.reshape(B, groups, -1)  # FIXME simpler shape causing TPU / XLA issues
         var = manual_var(x, dim=-1, diff_sqm=diff_sqm)
@@ -84,12 +88,14 @@ def group_std_tpu(x, groups: int = 32, eps: float = 1e-5, diff_sqm: bool = False
         x = x.reshape(B, groups, C // groups, H, W)
         var = manual_var(x, dim=(2, 3, 4), diff_sqm=diff_sqm)
     return var.add(eps).sqrt().expand(x.shape).reshape(B, C, H, W)
-#group_std = group_std_tpu  # FIXME TPU temporary
+
+
+# group_std = group_std_tpu  # FIXME TPU temporary
 
 
 def group_rms(x, groups: int = 32, eps: float = 1e-5):
     B, C, H, W = x.shape
-    _assert(C % groups == 0, '')
+    _assert(C % groups == 0, "")
     x_dtype = x.dtype
     x = x.reshape(B, groups, C // groups, H, W)
     rms = x.float().square().mean(dim=(2, 3, 4), keepdim=True).add(eps).sqrt_().to(x_dtype)
@@ -98,16 +104,16 @@ def group_rms(x, groups: int = 32, eps: float = 1e-5):
 
 class EvoNorm2dB0(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            apply_act: bool = True,
-            momentum: float = 0.1,
-            eps: float = 1e-3,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        apply_act: bool = True,
+        momentum: float = 0.1,
+        eps: float = 1e-3,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.momentum = momentum
@@ -115,7 +121,7 @@ class EvoNorm2dB0(nn.Module):
         self.weight = nn.Parameter(torch.empty(num_features, **dd))
         self.bias = nn.Parameter(torch.empty(num_features, **dd))
         self.v = nn.Parameter(torch.empty(num_features, **dd)) if apply_act else None
-        self.register_buffer('running_var', torch.ones(num_features, **dd))
+        self.register_buffer("running_var", torch.ones(num_features, **dd))
 
         self.reset_parameters()
 
@@ -126,7 +132,7 @@ class EvoNorm2dB0(nn.Module):
             nn.init.ones_(self.v)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         if self.v is not None:
@@ -135,8 +141,8 @@ class EvoNorm2dB0(nn.Module):
                 # var = manual_var(x, dim=(0, 2, 3)).squeeze()
                 n = x.numel() / x.shape[1]
                 self.running_var.copy_(
-                    self.running_var * (1 - self.momentum) +
-                    var.detach() * self.momentum * (n / (n - 1)))
+                    self.running_var * (1 - self.momentum) + var.detach() * self.momentum * (n / (n - 1))
+                )
             else:
                 var = self.running_var
             left = var.add(self.eps).sqrt_().to(x_dtype).view(v_shape).expand_as(x)
@@ -148,23 +154,23 @@ class EvoNorm2dB0(nn.Module):
 
 class EvoNorm2dB1(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            apply_act: bool = True,
-            momentum: float = 0.1,
-            eps: float = 1e-5,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        apply_act: bool = True,
+        momentum: float = 0.1,
+        eps: float = 1e-5,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.momentum = momentum
         self.eps = eps
         self.weight = nn.Parameter(torch.empty(num_features, **dd))
         self.bias = nn.Parameter(torch.empty(num_features, **dd))
-        self.register_buffer('running_var', torch.ones(num_features, **dd))
+        self.register_buffer("running_var", torch.ones(num_features, **dd))
 
         self.reset_parameters()
 
@@ -173,7 +179,7 @@ class EvoNorm2dB1(nn.Module):
         nn.init.zeros_(self.bias)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         if self.apply_act:
@@ -181,8 +187,9 @@ class EvoNorm2dB1(nn.Module):
                 var = x.float().var(dim=(0, 2, 3), unbiased=False)
                 n = x.numel() / x.shape[1]
                 self.running_var.copy_(
-                    self.running_var * (1 - self.momentum) +
-                    var.detach().to(self.running_var.dtype) * self.momentum * (n / (n - 1)))
+                    self.running_var * (1 - self.momentum)
+                    + var.detach().to(self.running_var.dtype) * self.momentum * (n / (n - 1))
+                )
             else:
                 var = self.running_var
             var = var.to(x_dtype).view(v_shape)
@@ -194,23 +201,23 @@ class EvoNorm2dB1(nn.Module):
 
 class EvoNorm2dB2(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            apply_act: bool = True,
-            momentum: float = 0.1,
-            eps: float = 1e-5,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        apply_act: bool = True,
+        momentum: float = 0.1,
+        eps: float = 1e-5,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.apply_act = apply_act  # apply activation (non-linearity)
         self.momentum = momentum
         self.eps = eps
         self.weight = nn.Parameter(torch.empty(num_features, **dd))
         self.bias = nn.Parameter(torch.empty(num_features, **dd))
-        self.register_buffer('running_var', torch.ones(num_features, **dd))
+        self.register_buffer("running_var", torch.ones(num_features, **dd))
 
         self.reset_parameters()
 
@@ -219,7 +226,7 @@ class EvoNorm2dB2(nn.Module):
         nn.init.zeros_(self.bias)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         if self.apply_act:
@@ -227,8 +234,9 @@ class EvoNorm2dB2(nn.Module):
                 var = x.float().var(dim=(0, 2, 3), unbiased=False)
                 n = x.numel() / x.shape[1]
                 self.running_var.copy_(
-                    self.running_var * (1 - self.momentum) +
-                    var.detach().to(self.running_var.dtype) * self.momentum * (n / (n - 1)))
+                    self.running_var * (1 - self.momentum)
+                    + var.detach().to(self.running_var.dtype) * self.momentum * (n / (n - 1))
+                )
             else:
                 var = self.running_var
             var = var.to(x_dtype).view(v_shape)
@@ -240,17 +248,17 @@ class EvoNorm2dB2(nn.Module):
 
 class EvoNorm2dS0(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            groups: int = 32,
-            group_size: Optional[int] = None,
-            apply_act: bool = True,
-            eps: float = 1e-5,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        groups: int = 32,
+        group_size: int | None = None,
+        apply_act: bool = True,
+        eps: float = 1e-5,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.apply_act = apply_act  # apply activation (non-linearity)
         if group_size:
@@ -272,7 +280,7 @@ class EvoNorm2dS0(nn.Module):
             nn.init.ones_(self.v)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         if self.v is not None:
@@ -283,15 +291,15 @@ class EvoNorm2dS0(nn.Module):
 
 class EvoNorm2dS0a(EvoNorm2dS0):
     def __init__(
-            self,
-            num_features: int,
-            groups: int = 32,
-            group_size: Optional[int] = None,
-            apply_act: bool = True,
-            eps: float = 1e-3,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        groups: int = 32,
+        group_size: int | None = None,
+        apply_act: bool = True,
+        eps: float = 1e-3,
+        device=None,
+        dtype=None,
+        **_,
     ):
         super().__init__(
             num_features,
@@ -304,7 +312,7 @@ class EvoNorm2dS0a(EvoNorm2dS0):
         )
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         d = group_std(x, self.groups, self.eps)
@@ -317,18 +325,18 @@ class EvoNorm2dS0a(EvoNorm2dS0):
 
 class EvoNorm2dS1(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            groups: int = 32,
-            group_size: Optional[int] = None,
-            apply_act: bool = True,
-            act_layer: Optional[Type[nn.Module]] = None,
-            eps: float = 1e-5,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        groups: int = 32,
+        group_size: int | None = None,
+        apply_act: bool = True,
+        act_layer: type[nn.Module] | None = None,
+        eps: float = 1e-5,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         act_layer = act_layer or nn.SiLU
         self.apply_act = apply_act  # apply activation (non-linearity)
@@ -353,7 +361,7 @@ class EvoNorm2dS1(nn.Module):
         nn.init.zeros_(self.bias)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         if self.apply_act:
@@ -363,16 +371,16 @@ class EvoNorm2dS1(nn.Module):
 
 class EvoNorm2dS1a(EvoNorm2dS1):
     def __init__(
-            self,
-            num_features: int,
-            groups: int = 32,
-            group_size: Optional[int] = None,
-            apply_act: bool = True,
-            act_layer: Optional[Type[nn.Module]] = None,
-            eps: float = 1e-3,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        groups: int = 32,
+        group_size: int | None = None,
+        apply_act: bool = True,
+        act_layer: type[nn.Module] | None = None,
+        eps: float = 1e-3,
+        device=None,
+        dtype=None,
+        **_,
     ):
         super().__init__(
             num_features,
@@ -386,7 +394,7 @@ class EvoNorm2dS1a(EvoNorm2dS1):
         )
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         x = self.act(x) / group_std(x, self.groups, self.eps)
@@ -395,18 +403,18 @@ class EvoNorm2dS1a(EvoNorm2dS1):
 
 class EvoNorm2dS2(nn.Module):
     def __init__(
-            self,
-            num_features: int,
-            groups: int = 32,
-            group_size: Optional[int] = None,
-            apply_act: bool = True,
-            act_layer: Optional[Type[nn.Module]] = None,
-            eps: float = 1e-5,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        groups: int = 32,
+        group_size: int | None = None,
+        apply_act: bool = True,
+        act_layer: type[nn.Module] | None = None,
+        eps: float = 1e-5,
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         act_layer = act_layer or nn.SiLU
         self.apply_act = apply_act  # apply activation (non-linearity)
@@ -430,7 +438,7 @@ class EvoNorm2dS2(nn.Module):
         nn.init.zeros_(self.bias)
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         if self.apply_act:
@@ -440,16 +448,16 @@ class EvoNorm2dS2(nn.Module):
 
 class EvoNorm2dS2a(EvoNorm2dS2):
     def __init__(
-            self,
-            num_features: int,
-            groups: int = 32,
-            group_size: Optional[int] = None,
-            apply_act: bool = True,
-            act_layer: Optional[Type[nn.Module]] = None,
-            eps: float = 1e-3,
-            device=None,
-            dtype=None,
-            **_
+        self,
+        num_features: int,
+        groups: int = 32,
+        group_size: int | None = None,
+        apply_act: bool = True,
+        act_layer: type[nn.Module] | None = None,
+        eps: float = 1e-3,
+        device=None,
+        dtype=None,
+        **_,
     ):
         super().__init__(
             num_features,
@@ -463,7 +471,7 @@ class EvoNorm2dS2a(EvoNorm2dS2):
         )
 
     def forward(self, x):
-        _assert(x.dim() == 4, 'expected 4D input')
+        _assert(x.dim() == 4, "expected 4D input")
         x_dtype = x.dtype
         v_shape = (1, -1, 1, 1)
         x = self.act(x) / group_rms(x, self.groups, self.eps)

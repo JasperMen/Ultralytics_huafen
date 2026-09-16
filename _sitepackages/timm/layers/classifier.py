@@ -1,14 +1,16 @@
-""" Classifier head and layer factory
+"""Classifier head and layer factory.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
+
+from __future__ import annotations
+
 from collections import OrderedDict
 from functools import partial
-from typing import Optional, Union, Callable
+from typing import Callable
 
 import torch
-import torch.nn as nn
-from torch.nn import functional as F
+from torch import nn
 
 from .adaptive_avgmax_pool import SelectAdaptivePool2d
 from .create_act import get_act_layer
@@ -16,11 +18,11 @@ from .create_norm import get_norm_layer
 
 
 def _create_pool(
-        num_features: int,
-        num_classes: int,
-        pool_type: str = 'avg',
-        use_conv: bool = False,
-        input_fmt: Optional[str] = None,
+    num_features: int,
+    num_classes: int,
+    pool_type: str = "avg",
+    use_conv: bool = False,
+    input_fmt: str | None = None,
 ):
     flatten_in_pool = not use_conv  # flatten when we use a Linear layer after pooling
     if not pool_type:
@@ -45,14 +47,14 @@ def _create_fc(num_features, num_classes, use_conv=False, device=None, dtype=Non
 
 
 def create_classifier(
-        num_features: int,
-        num_classes: int,
-        pool_type: str = 'avg',
-        use_conv: bool = False,
-        input_fmt: str = 'NCHW',
-        drop_rate: Optional[float] = None,
-        device=None,
-        dtype=None,
+    num_features: int,
+    num_classes: int,
+    pool_type: str = "avg",
+    use_conv: bool = False,
+    input_fmt: str = "NCHW",
+    drop_rate: float | None = None,
+    device=None,
+    dtype=None,
 ):
     global_pool, num_pooled_features = _create_pool(
         num_features,
@@ -78,20 +80,20 @@ class ClassifierHead(nn.Module):
     """Classifier head w/ configurable global pooling and dropout."""
 
     def __init__(
-            self,
-            in_features: int,
-            num_classes: int,
-            pool_type: str = 'avg',
-            drop_rate: float = 0.,
-            use_conv: bool = False,
-            input_fmt: str = 'NCHW',
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        num_classes: int,
+        pool_type: str = "avg",
+        drop_rate: float = 0.0,
+        use_conv: bool = False,
+        input_fmt: str = "NCHW",
+        device=None,
+        dtype=None,
     ):
         """
         Args:
             in_features: The number of input features.
-            num_classes:  The number of classes for the final classifier layer (output).
+            num_classes: The number of classes for the final classifier layer (output).
             pool_type: Global pooling type, pooling disabled if empty string ('').
             drop_rate: Pre-classifier dropout rate.
         """
@@ -114,7 +116,7 @@ class ClassifierHead(nn.Module):
         self.fc = fc
         self.flatten = nn.Flatten(1) if use_conv and pool_type else nn.Identity()
 
-    def reset(self, num_classes: int, pool_type: Optional[str] = None):
+    def reset(self, num_classes: int, pool_type: str | None = None):
         # FIXME get current device/dtype for reset?
         if pool_type is not None and pool_type != self.global_pool.pool_type:
             self.global_pool, self.fc = create_classifier(
@@ -143,31 +145,31 @@ class ClassifierHead(nn.Module):
 
 
 class NormMlpClassifierHead(nn.Module):
-    """ A Pool -> Norm -> Mlp Classifier Head for '2D' NCHW tensors
-    """
+    """A Pool -> Norm -> Mlp Classifier Head for '2D' NCHW tensors."""
+
     def __init__(
-            self,
-            in_features: int,
-            num_classes: int,
-            hidden_size: Optional[int] = None,
-            pool_type: str = 'avg',
-            drop_rate: float = 0.,
-            norm_layer: Union[str, Callable] = 'layernorm2d',
-            act_layer: Union[str, Callable] = 'tanh',
-            device=None,
-            dtype=None
+        self,
+        in_features: int,
+        num_classes: int,
+        hidden_size: int | None = None,
+        pool_type: str = "avg",
+        drop_rate: float = 0.0,
+        norm_layer: str | Callable = "layernorm2d",
+        act_layer: str | Callable = "tanh",
+        device=None,
+        dtype=None,
     ):
         """
         Args:
             in_features: The number of input features.
-            num_classes:  The number of classes for the final classifier layer (output).
+            num_classes: The number of classes for the final classifier layer (output).
             hidden_size: The hidden size of the MLP (pre-logits FC layer) if not None.
             pool_type: Global pooling type, pooling disabled if empty string ('').
             drop_rate: Pre-classifier dropout rate.
             norm_layer: Normalization layer type.
             act_layer: MLP activation layer type (only used if hidden_size is not None).
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.in_features = in_features
         self.hidden_size = hidden_size
@@ -181,31 +183,36 @@ class NormMlpClassifierHead(nn.Module):
         self.norm = norm_layer(in_features, **dd)
         self.flatten = nn.Flatten(1) if pool_type else nn.Identity()
         if hidden_size:
-            self.pre_logits = nn.Sequential(OrderedDict([
-                ('fc', linear_layer(in_features, hidden_size, **dd)),
-                ('act', act_layer()),
-            ]))
+            self.pre_logits = nn.Sequential(
+                OrderedDict(
+                    [
+                        ("fc", linear_layer(in_features, hidden_size, **dd)),
+                        ("act", act_layer()),
+                    ]
+                )
+            )
             self.num_features = hidden_size
         else:
             self.pre_logits = nn.Identity()
         self.drop = nn.Dropout(drop_rate)
         self.fc = linear_layer(self.num_features, num_classes, **dd) if num_classes > 0 else nn.Identity()
 
-    def reset(self, num_classes: int, pool_type: Optional[str] = None):
+    def reset(self, num_classes: int, pool_type: str | None = None):
         # FIXME handle device/dtype on reset
         if pool_type is not None:
             self.global_pool = SelectAdaptivePool2d(pool_type=pool_type)
             self.flatten = nn.Flatten(1) if pool_type else nn.Identity()
         self.use_conv = self.global_pool.is_identity()
         linear_layer = partial(nn.Conv2d, kernel_size=1) if self.use_conv else nn.Linear
-        if self.hidden_size:
-            if ((isinstance(self.pre_logits.fc, nn.Conv2d) and not self.use_conv) or
-                    (isinstance(self.pre_logits.fc, nn.Linear) and self.use_conv)):
-                with torch.no_grad():
-                    new_fc = linear_layer(self.in_features, self.hidden_size)
-                    new_fc.weight.copy_(self.pre_logits.fc.weight.reshape(new_fc.weight.shape))
-                    new_fc.bias.copy_(self.pre_logits.fc.bias)
-                    self.pre_logits.fc = new_fc
+        if self.hidden_size and (
+            (isinstance(self.pre_logits.fc, nn.Conv2d) and not self.use_conv)
+            or (isinstance(self.pre_logits.fc, nn.Linear) and self.use_conv)
+        ):
+            with torch.no_grad():
+                new_fc = linear_layer(self.in_features, self.hidden_size)
+                new_fc.weight.copy_(self.pre_logits.fc.weight.reshape(new_fc.weight.shape))
+                new_fc.bias.copy_(self.pre_logits.fc.bias)
+                self.pre_logits.fc = new_fc
         self.fc = linear_layer(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
 
     def forward(self, x, pre_logits: bool = False):
@@ -221,56 +228,60 @@ class NormMlpClassifierHead(nn.Module):
 
 
 class ClNormMlpClassifierHead(nn.Module):
-    """ A Pool -> Norm -> Mlp Classifier Head for n-D NxxC tensors
-    """
+    """A Pool -> Norm -> Mlp Classifier Head for n-D NxxC tensors."""
+
     def __init__(
-            self,
-            in_features: int,
-            num_classes: int,
-            hidden_size: Optional[int] = None,
-            pool_type: str = 'avg',
-            drop_rate: float = 0.,
-            norm_layer: Union[str, Callable] = 'layernorm',
-            act_layer: Union[str, Callable] = 'gelu',
-            input_fmt: str = 'NHWC',
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        num_classes: int,
+        hidden_size: int | None = None,
+        pool_type: str = "avg",
+        drop_rate: float = 0.0,
+        norm_layer: str | Callable = "layernorm",
+        act_layer: str | Callable = "gelu",
+        input_fmt: str = "NHWC",
+        device=None,
+        dtype=None,
     ):
         """
         Args:
             in_features: The number of input features.
-            num_classes:  The number of classes for the final classifier layer (output).
+            num_classes: The number of classes for the final classifier layer (output).
             hidden_size: The hidden size of the MLP (pre-logits FC layer) if not None.
             pool_type: Global pooling type, pooling disabled if empty string ('').
             drop_rate: Pre-classifier dropout rate.
             norm_layer: Normalization layer type.
             act_layer: MLP activation layer type (only used if hidden_size is not None).
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.in_features = in_features
         self.hidden_size = hidden_size
         self.num_features = in_features
-        assert pool_type in ('', 'avg', 'max', 'avgmax')
+        assert pool_type in ("", "avg", "max", "avgmax")
         self.pool_type = pool_type
-        assert input_fmt in ('NHWC', 'NLC')
-        self.pool_dim = 1 if input_fmt == 'NLC' else (1, 2)
+        assert input_fmt in ("NHWC", "NLC")
+        self.pool_dim = 1 if input_fmt == "NLC" else (1, 2)
         norm_layer = get_norm_layer(norm_layer)
         act_layer = get_act_layer(act_layer)
 
         self.norm = norm_layer(in_features, **dd)
         if hidden_size:
-            self.pre_logits = nn.Sequential(OrderedDict([
-                ('fc', nn.Linear(in_features, hidden_size, **dd)),
-                ('act', act_layer()),
-            ]))
+            self.pre_logits = nn.Sequential(
+                OrderedDict(
+                    [
+                        ("fc", nn.Linear(in_features, hidden_size, **dd)),
+                        ("act", act_layer()),
+                    ]
+                )
+            )
             self.num_features = hidden_size
         else:
             self.pre_logits = nn.Identity()
         self.drop = nn.Dropout(drop_rate)
         self.fc = nn.Linear(self.num_features, num_classes, **dd) if num_classes > 0 else nn.Identity()
 
-    def reset(self, num_classes: int, pool_type: Optional[str] = None, reset_other: bool = False):
+    def reset(self, num_classes: int, pool_type: str | None = None, reset_other: bool = False):
         # FIXME extract dd on reset
         if pool_type is not None:
             self.pool_type = pool_type
@@ -281,11 +292,11 @@ class ClNormMlpClassifierHead(nn.Module):
 
     def _global_pool(self, x):
         if self.pool_type:
-            if self.pool_type == 'avg':
+            if self.pool_type == "avg":
                 x = x.mean(dim=self.pool_dim)
-            elif self.pool_type == 'max':
+            elif self.pool_type == "max":
                 x = x.amax(dim=self.pool_dim)
-            elif self.pool_type == 'avgmax':
+            elif self.pool_type == "avgmax":
                 x = 0.5 * (x.amax(dim=self.pool_dim) + x.mean(dim=self.pool_dim))
         return x
 

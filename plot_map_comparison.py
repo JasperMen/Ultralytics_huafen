@@ -9,7 +9,6 @@ import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-
 ROOT = Path(__file__).resolve().parent
 BASELINE_ROOT = ROOT / "runs/detect/compare"
 ENHANCED_ROOT = ROOT / "runs/model2025_compare"
@@ -91,8 +90,7 @@ def load_comparison() -> dict[str, dict[str, tuple[float, float]]]:
         before = read_best_row(baseline_csv)
         after = read_best_row(enhanced_csv)
         comparison[model] = {
-            metric_name: (before[column] * 100, after[column] * 100)
-            for metric_name, column in METRICS.items()
+            metric_name: (before[column] * 100, after[column] * 100) for metric_name, column in METRICS.items()
         }
     return comparison
 
@@ -183,9 +181,7 @@ def create_plot() -> dict[str, dict[str, tuple[float, float]]]:
                 label=model,
             )
             if is_yolo26:
-                line.set_path_effects(
-                    [path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()]
-                )
+                line.set_path_effects([path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()])
             legend_handles[model] = line
 
         # Exact values and gain are shown only for YOLO26 to keep the figure uncluttered.
@@ -338,9 +334,7 @@ def create_yolo26_focus_plot(comparison: dict[str, dict[str, tuple[float, float]
         color="#5D6470",
     )
     fig.tight_layout()
-    fig.savefig(
-        FOCUS_OUTPUT_STEM.with_suffix(".png"), dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor()
-    )
+    fig.savefig(FOCUS_OUTPUT_STEM.with_suffix(".png"), dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
     fig.savefig(FOCUS_OUTPUT_STEM.with_suffix(".svg"), bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close(fig)
 
@@ -378,9 +372,7 @@ def create_combined_plot(comparison: dict[str, dict[str, tuple[float, float]]]) 
                 zorder=9 if is_yolo26 else 4,
             )
             if is_yolo26:
-                line.set_path_effects(
-                    [path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()]
-                )
+                line.set_path_effects([path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()])
                 before, after = values
                 for point_x, value in zip(x, values):
                     ax.annotate(
@@ -473,9 +465,7 @@ def create_combined_plot(comparison: dict[str, dict[str, tuple[float, float]]]) 
         color="#5D6470",
     )
     fig.tight_layout()
-    fig.savefig(
-        COMBINED_OUTPUT_STEM.with_suffix(".png"), dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor()
-    )
+    fig.savefig(COMBINED_OUTPUT_STEM.with_suffix(".png"), dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
     fig.savefig(COMBINED_OUTPUT_STEM.with_suffix(".svg"), bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close(fig)
 
@@ -517,10 +507,8 @@ def create_dashboard_plot(comparison: dict[str, dict[str, tuple[float, float]]])
                 zorder=9 if is_yolo26 else 4,
             )
             if is_yolo26:
-                line.set_path_effects(
-                    [path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()]
-                )
-                before, after = values
+                line.set_path_effects([path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()])
+                _before, _after = values
                 for point_x, value in zip(x, values):
                     ax.annotate(
                         f"{value:.2f}",
@@ -537,8 +525,14 @@ def create_dashboard_plot(comparison: dict[str, dict[str, tuple[float, float]]])
 
     model_handles = [
         Line2D(
-            [0], [0], color=COLORS[model], linewidth=4 if model == "YOLO26n" else 2.2,
-            marker="o", markersize=8, label=model, alpha=1 if model == "YOLO26n" else 0.65
+            [0],
+            [0],
+            color=COLORS[model],
+            linewidth=4 if model == "YOLO26n" else 2.2,
+            marker="o",
+            markersize=8,
+            label=model,
+            alpha=1 if model == "YOLO26n" else 0.65,
         )
         for model in ["YOLO26n", "YOLO11n", "YOLO12n", "YOLOv8n", "YOLOv10n"]
     ]
@@ -547,13 +541,23 @@ def create_dashboard_plot(comparison: dict[str, dict[str, tuple[float, float]]])
         Line2D([0], [0], color="#30343B", linewidth=2.5, linestyle="--", marker="s", label="mAP50–95"),
     ]
     first_legend = ax.legend(
-        handles=metric_handles, loc="upper left", title="Metric", frameon=True,
-        facecolor="white", edgecolor="#C8CCD3", fontsize=10.5
+        handles=metric_handles,
+        loc="upper left",
+        title="Metric",
+        frameon=True,
+        facecolor="white",
+        edgecolor="#C8CCD3",
+        fontsize=10.5,
     )
     ax.add_artist(first_legend)
     second_legend = ax.legend(
-        handles=model_handles, loc="upper right", title="Model", frameon=True,
-        facecolor="white", edgecolor="#C8CCD3", fontsize=10
+        handles=model_handles,
+        loc="upper right",
+        title="Model",
+        frameon=True,
+        facecolor="white",
+        edgecolor="#C8CCD3",
+        fontsize=10,
     )
     second_legend.get_texts()[0].set_fontweight("bold")
     second_legend.get_texts()[0].set_color(COLORS["YOLO26n"])
@@ -571,20 +575,26 @@ def create_dashboard_plot(comparison: dict[str, dict[str, tuple[float, float]]])
     # Magnified improvement panel: this makes small, real differences visible without distorting the main y-axis.
     positions = list(range(len(model_order)))
     width = 0.34
-    map50_deltas = [
-        comparison[model]["mAP50"][1] - comparison[model]["mAP50"][0] for model in model_order
-    ]
-    map95_deltas = [
-        comparison[model]["mAP50–95"][1] - comparison[model]["mAP50–95"][0] for model in model_order
-    ]
+    map50_deltas = [comparison[model]["mAP50"][1] - comparison[model]["mAP50"][0] for model in model_order]
+    map95_deltas = [comparison[model]["mAP50–95"][1] - comparison[model]["mAP50–95"][0] for model in model_order]
     delta_ax.axvspan(3.55, 4.45, color="#EEF2FF", alpha=0.85, zorder=0)
     bars50 = delta_ax.bar(
-        [position - width / 2 for position in positions], map50_deltas, width,
-        color="#4361EE", alpha=0.86, label="Δ mAP50", zorder=3
+        [position - width / 2 for position in positions],
+        map50_deltas,
+        width,
+        color="#4361EE",
+        alpha=0.86,
+        label="Δ mAP50",
+        zorder=3,
     )
     bars95 = delta_ax.bar(
-        [position + width / 2 for position in positions], map95_deltas, width,
-        color="#F28E2B", alpha=0.86, label="Δ mAP50–95", zorder=3
+        [position + width / 2 for position in positions],
+        map95_deltas,
+        width,
+        color="#F28E2B",
+        alpha=0.86,
+        label="Δ mAP50–95",
+        zorder=3,
     )
     for index, (bar50, bar95) in enumerate(zip(bars50, bars95)):
         if model_order[index] == "YOLO26n":
@@ -621,15 +631,17 @@ def create_dashboard_plot(comparison: dict[str, dict[str, tuple[float, float]]])
 
     fig.suptitle("Model2025 mAP: Before vs. After Module Integration", fontsize=21, fontweight="bold", y=0.985)
     fig.text(
-        0.5, 0.016,
+        0.5,
+        0.016,
         "Top: absolute best-epoch performance (50–100%). Bottom: magnified change in percentage points. "
         "YOLO26n ranks first after integration on both mAP metrics.",
-        ha="center", va="bottom", fontsize=9.5, color="#5D6470"
+        ha="center",
+        va="bottom",
+        fontsize=9.5,
+        color="#5D6470",
     )
     fig.subplots_adjust(left=0.09, right=0.98, top=0.91, bottom=0.08, hspace=0.36)
-    fig.savefig(
-        DASHBOARD_OUTPUT_STEM.with_suffix(".png"), dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor()
-    )
+    fig.savefig(DASHBOARD_OUTPUT_STEM.with_suffix(".png"), dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
     fig.savefig(DASHBOARD_OUTPUT_STEM.with_suffix(".svg"), bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close(fig)
 
@@ -679,9 +691,7 @@ def create_reference_style_plot(comparison: dict[str, dict[str, tuple[float, flo
                 zorder=9 if is_yolo26 else 4,
             )
             if is_yolo26:
-                line.set_path_effects(
-                    [path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()]
-                )
+                line.set_path_effects([path_effects.Stroke(linewidth=7, foreground="white"), path_effects.Normal()])
                 before, after = values
                 for point_x, value in zip(x, values):
                     axis.annotate(
@@ -741,16 +751,14 @@ def create_reference_style_plot(comparison: dict[str, dict[str, tuple[float, flo
     top_ax.tick_params(axis="x", which="both", bottom=False, labelbottom=False)
     bottom_ax.tick_params(axis="x", which="both", top=False)
     diagonal = 0.008
-    top_kwargs = dict(transform=top_ax.transAxes, color="#252A32", clip_on=False, linewidth=1.4)
+    top_kwargs = {"transform": top_ax.transAxes, "color": "#252A32", "clip_on": False, "linewidth": 1.4}
     top_ax.plot((-diagonal, +diagonal), (-diagonal, +diagonal), **top_kwargs)
     top_ax.plot((1 - diagonal, 1 + diagonal), (-diagonal, +diagonal), **top_kwargs)
-    bottom_kwargs = dict(transform=bottom_ax.transAxes, color="#252A32", clip_on=False, linewidth=1.4)
+    bottom_kwargs = {"transform": bottom_ax.transAxes, "color": "#252A32", "clip_on": False, "linewidth": 1.4}
     bottom_ax.plot((-diagonal, +diagonal), (1 - diagonal, 1 + diagonal), **bottom_kwargs)
     bottom_ax.plot((1 - diagonal, 1 + diagonal), (1 - diagonal, 1 + diagonal), **bottom_kwargs)
 
-    top_ax.text(
-        0.015, 0.89, "mAP50", transform=top_ax.transAxes, fontsize=14, fontweight="bold", color="#30343B"
-    )
+    top_ax.text(0.015, 0.89, "mAP50", transform=top_ax.transAxes, fontsize=14, fontweight="bold", color="#30343B")
     bottom_ax.text(
         0.015,
         0.88,
@@ -768,8 +776,14 @@ def create_reference_style_plot(comparison: dict[str, dict[str, tuple[float, flo
     legend_order = ["YOLO26n", "YOLO11n", "YOLO12n", "YOLOv8n", "YOLOv10n"]
     legend_handles = [
         Line2D(
-            [0], [0], color=COLORS[model], linewidth=4 if model == "YOLO26n" else 2.2,
-            marker="o", markersize=8, label=model, alpha=1 if model == "YOLO26n" else 0.7
+            [0],
+            [0],
+            color=COLORS[model],
+            linewidth=4 if model == "YOLO26n" else 2.2,
+            marker="o",
+            markersize=8,
+            label=model,
+            alpha=1 if model == "YOLO26n" else 0.7,
         )
         for model in legend_order
     ]
@@ -861,9 +875,7 @@ def create_multi_metric_line_plot() -> dict[str, dict[str, list[float]]]:
             zorder=5,
         )
         if is_yolo26:
-            after_line.set_path_effects(
-                [path_effects.Stroke(linewidth=6.8, foreground="white"), path_effects.Normal()]
-            )
+            after_line.set_path_effects([path_effects.Stroke(linewidth=6.8, foreground="white"), path_effects.Normal()])
             ax.scatter(
                 x[3:],
                 after[3:],
@@ -915,13 +927,16 @@ def create_multi_metric_line_plot() -> dict[str, dict[str, list[float]]]:
     summary_ax.legend(
         handles=[
             Line2D(
-                [0], [0], color="#7D8796", linewidth=2.2, linestyle=(0, (5, 3)), marker="o",
-                markerfacecolor="white", label="Before modules (baseline)"
+                [0],
+                [0],
+                color="#7D8796",
+                linewidth=2.2,
+                linestyle=(0, (5, 3)),
+                marker="o",
+                markerfacecolor="white",
+                label="Before modules (baseline)",
             ),
-            Line2D(
-                [0], [0], color=COLORS["YOLO26n"], linewidth=3.2, marker="o",
-                label="After modules (model color)"
-            ),
+            Line2D([0], [0], color=COLORS["YOLO26n"], linewidth=3.2, marker="o", label="After modules (model color)"),
         ],
         loc="upper left",
         frameon=False,
@@ -1068,9 +1083,7 @@ def create_combined_multi_metric_plot() -> None:
             zorder=10 if is_yolo26 else 4,
         )
         if is_yolo26:
-            after_line.set_path_effects(
-                [path_effects.Stroke(linewidth=8.0, foreground="white"), path_effects.Normal()]
-            )
+            after_line.set_path_effects([path_effects.Stroke(linewidth=8.0, foreground="white"), path_effects.Normal()])
 
         ax.text(
             4.10,
@@ -1135,8 +1148,16 @@ def create_combined_multi_metric_plot() -> None:
     ax.add_artist(model_legend)
     ax.legend(
         handles=[
-            Line2D([0], [0], color="#505866", linewidth=2.0, linestyle=(0, (5, 3)), marker="o",
-                   markerfacecolor="white", label="Before modules"),
+            Line2D(
+                [0],
+                [0],
+                color="#505866",
+                linewidth=2.0,
+                linestyle=(0, (5, 3)),
+                marker="o",
+                markerfacecolor="white",
+                label="Before modules",
+            ),
             Line2D([0], [0], color="#505866", linewidth=2.8, marker="o", label="After modules"),
         ],
         loc="lower left",
