@@ -8066,15 +8066,7 @@
       "gt_count": 7,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后200_TS-20240612185638021_jpg.rf.12527de074e6d86822eea74218da4c32.jpg",
@@ -8085,14 +8077,7 @@
       "gt_count": 6,
       "pred_count": 7,
       "match_count": 3,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024草木犀_草木犀染后40_TS-20240722153119086_jpg.rf.475b85aaaaba4b68efff6e232c0bfb36.jpg",
@@ -8147,18 +8132,7 @@
       "gt_count": 10,
       "pred_count": 11,
       "match_count": 7,
-      "gt_classes": [
-        "not_pollen",
-        "not_pollen",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["not_pollen", "not_pollen", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_20022_jpg.rf.9271704d07ca1bc99a73ce80e174b509.jpg",
@@ -8169,15 +8143,7 @@
       "gt_count": 7,
       "pred_count": 10,
       "match_count": 5,
-      "gt_classes": [
-        "jkzhkmc",
-        "jkzhkmc",
-        "jkzhkmc",
-        "jkzhkmc",
-        "jkzhkmc",
-        "jkzhkmc",
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc", "jkzhkmc", "jkzhkmc", "jkzhkmc", "jkzhkmc", "jkzhkmc", "jkzhkmc"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161416461_jpg.rf.537a7f4fe6d334917512ff06d0e94242.jpg",
@@ -8188,17 +8154,7 @@
       "gt_count": 9,
       "pred_count": 12,
       "match_count": 7,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "not_pollen"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "not_pollen"]
     },
     {
       "img_file": "2024松柏_10010_jpg.rf.44ca7a8d17f090652edd1e746dfc5a9b.jpg",
@@ -8209,23 +8165,7 @@
       "gt_count": 15,
       "pred_count": 22,
       "match_count": 15,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "not_pollen"
-      ]
+      "gt_classes": ["sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "not_pollen"]
     },
     {
       "img_file": "2024草木犀_草木犀染后40_TS-20240722152827220_jpg.rf.e3101f18723d6032fcd6c70bb70df8a4.jpg",
@@ -8281,17 +8221,7 @@
       "gt_count": 9,
       "pred_count": 9,
       "match_count": 6,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy"]
     },
     {
       "img_file": "2025圆柏_圆柏后100_TS-20250226103821151_jpg.rf.ac0b9599dfb8e3e485409a48d4ec8979.jpg",
@@ -8302,12 +8232,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 1,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "2024菊科蒲公英_403_jpg.rf.0c2c4d8bb46eb740213d9fbdb966720f.jpg",
@@ -8428,11 +8353,7 @@
       "gt_count": 3,
       "pred_count": 4,
       "match_count": 1,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb", "sb"]
     },
     {
       "img_file": "2025圆柏_圆柏后100_TS-20250226103753211_jpg.rf.f1e9c473e5de257a4ad9b64ccee5c69a.jpg",
@@ -8443,12 +8364,7 @@
       "gt_count": 4,
       "pred_count": 5,
       "match_count": 2,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "2024油菜花_油菜花染后40_TS-20240709120127009_jpg.rf.aa1738ccc2906e0ce81f9560f9491af8.jpg",
@@ -8533,18 +8449,7 @@
       "gt_count": 10,
       "pred_count": 10,
       "match_count": 8,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701112113597_jpg.rf.dc4e38094b3de27c9837c4f4d93cb2a8.jpg",
@@ -8555,18 +8460,7 @@
       "gt_count": 10,
       "pred_count": 12,
       "match_count": 9,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "not_pollen",
-        "dzh",
-        "dzh",
-        "dzh",
-        "not_pollen",
-        "not_pollen",
-        "dzh",
-        "not_pollen"
-      ]
+      "gt_classes": ["dzh", "dzh", "not_pollen", "dzh", "dzh", "dzh", "not_pollen", "not_pollen", "dzh", "not_pollen"]
     },
     {
       "img_file": "蔷薇科苹果_2009_jpg.rf.8585c4adf8be69bab8c34b7944a786cc.jpg",
@@ -8577,18 +8471,7 @@
       "gt_count": 10,
       "pred_count": 8,
       "match_count": 7,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后400_TS-20240709114425600_jpg.rf.c6b7f1edf8ff10c652e0cf728cbe9001.jpg",
@@ -8599,10 +8482,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 0,
-      "gt_classes": [
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后200_TS-20240612185517003_jpg.rf.5b618119a69140340464782ed32b6c92.jpg",
@@ -8613,11 +8493,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 1,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120312727_jpg.rf.57fccb2204c341cf352ca65780a83719.jpg",
@@ -8628,10 +8504,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 0,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_4016_jpg.rf.ba6a9a49fa9cbfdc1b26e36b986a6d39.jpg",
@@ -8716,11 +8589,7 @@
       "gt_count": 3,
       "pred_count": 5,
       "match_count": 2,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb", "sb"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084207437_jpg.rf.96f8e0721648e88c8ee8501199bca38b.jpg",
@@ -8731,15 +8600,7 @@
       "gt_count": 7,
       "pred_count": 9,
       "match_count": 6,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych", "ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后40_TS-20240709120121856_jpg.rf.ce517ec2e6ba9c67b01e90aa9139174b.jpg",
@@ -8831,13 +8692,7 @@
       "gt_count": 5,
       "pred_count": 7,
       "match_count": 4,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024金银花_金银花染后40_TS-20240608161053238_jpg.rf.efa11c6832c16f0754eaa06f8f94211f.jpg",
@@ -8891,10 +8746,7 @@
       "gt_count": 2,
       "pred_count": 4,
       "match_count": 1,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2025圆柏_圆柏后100_TS-20250226103940989_jpg.rf.0382dc8113c3e993d88f4b410c437fe5.jpg",
@@ -8905,14 +8757,7 @@
       "gt_count": 6,
       "pred_count": 8,
       "match_count": 5,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后40_TS-20250214160550356_jpg.rf.a1daef9b031a86cd0174ab589df85cb5.jpg",
@@ -8923,15 +8768,7 @@
       "gt_count": 7,
       "pred_count": 11,
       "match_count": 7,
-      "gt_classes": [
-        "bjys",
-        "bjys",
-        "bjys",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen"
-      ]
+      "gt_classes": ["bjys", "bjys", "bjys", "not_pollen", "not_pollen", "not_pollen", "not_pollen"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_10010_jpg.rf.8fbe321d704bc6ae45bf14e84800919f.jpg",
@@ -8986,14 +8823,7 @@
       "gt_count": 6,
       "pred_count": 10,
       "match_count": 6,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_1001_jpg.rf.79ade89fc72cb1ec4210110dfea30916.jpg",
@@ -9071,11 +8901,7 @@
       "gt_count": 3,
       "pred_count": 7,
       "match_count": 3,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后40_TS-20240611204619393_jpg.rf.000701a6d35bedfae14740ec13674cb8.jpg",
@@ -9086,18 +8912,7 @@
       "gt_count": 10,
       "pred_count": 11,
       "match_count": 9,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm", "hcm", "hcm", "hcm", "hcm", "hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2024北京云杉_云杉染后400_TS-20250220101518749_jpg.rf.6b1d3f200f2f2f7d2f1ead3fd4240b7d.jpg",
@@ -9108,9 +8923,7 @@
       "gt_count": 1,
       "pred_count": 4,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701111909834_jpg.rf.3c08eee6c4f288532d14ad6f1a349fba.jpg",
@@ -9121,21 +8934,7 @@
       "gt_count": 13,
       "pred_count": 12,
       "match_count": 11,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后100_TS-20240709113044990_jpg.rf.b37229276d29118aca99bdcfab5f872a.jpg",
@@ -9146,11 +8945,7 @@
       "gt_count": 3,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc", "gybc"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612190248928_jpg.rf.33845abda02bff5f742572879da95986.jpg",
@@ -9161,14 +8956,7 @@
       "gt_count": 6,
       "pred_count": 6,
       "match_count": 5,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_1001_jpg.rf.56e7bd1fce4fabd099baf7727259ab86.jpg",
@@ -9219,11 +9007,7 @@
       "gt_count": 3,
       "pred_count": 4,
       "match_count": 2,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb", "sb"]
     },
     {
       "img_file": "2024格桑花_格桑花染后40_TS-20240801084556935_jpg.rf.eea906cc23e1c5510286fdd7d4d32e56.jpg",
@@ -9274,10 +9058,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 1,
-      "gt_classes": [
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后40_TS-20240709112103609_jpg.rf.ae17ac7aa401d3f66f07d3fe233a762b.jpg",
@@ -9288,16 +9069,7 @@
       "gt_count": 8,
       "pred_count": 9,
       "match_count": 7,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc", "gybc", "gybc", "gybc", "gybc", "gybc", "gybc"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后100_TS-20250211184332566_jpg.rf.f799e92f01775d9915262c3b65982e72.jpg",
@@ -9308,11 +9080,7 @@
       "gt_count": 3,
       "pred_count": 4,
       "match_count": 2,
-      "gt_classes": [
-        "azs",
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs", "azs"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161518139_jpg.rf.25bdc6cd88766e7524d492a8a8afa29f.jpg",
@@ -9323,12 +9091,7 @@
       "gt_count": 4,
       "pred_count": 5,
       "match_count": 3,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后40_TS-20240611204203231_jpg.rf.f8ee146e4b1690cc2e54d01609cbdd7c.jpg",
@@ -9339,10 +9102,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 1,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2024柳树_染色后_10024_jpg.rf.6e8b864cdf656584c0364777dda2ca71.jpg",
@@ -9353,21 +9113,7 @@
       "gt_count": 13,
       "pred_count": 16,
       "match_count": 13,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024格桑花_格桑花染后40_TS-20240801084459929_jpg.rf.5e8d900ea8314eaea0e5c4468c857c00.jpg",
@@ -9415,12 +9161,7 @@
       "gt_count": 4,
       "pred_count": 7,
       "match_count": 4,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185130562_jpg.rf.cb9b7b4e2a7e2aebdf86df21fe7b7622.jpg",
@@ -9431,10 +9172,7 @@
       "gt_count": 2,
       "pred_count": 5,
       "match_count": 2,
-      "gt_classes": [
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs"]
     },
     {
       "img_file": "2024草木犀_草木犀染后200_TS-20240722155125056_jpg.rf.5f2f4f5c68260458c59735b0e3c58492.jpg",
@@ -9445,10 +9183,7 @@
       "gt_count": 2,
       "pred_count": 5,
       "match_count": 2,
-      "gt_classes": [
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_4014_jpg.rf.252e12de44a01d5bb8b8b4bf8235e0f4.jpg",
@@ -9530,17 +9265,7 @@
       "gt_count": 9,
       "pred_count": 12,
       "match_count": 9,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk",
-        "not_pollen",
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["sk", "sk", "sk", "not_pollen", "sk", "sk", "sk", "sk", "sk"]
     },
     {
       "img_file": "2024金银花_金银花染后40_TS-20240608161034584_jpg.rf.e548fc39b572aee8d45f1142983ff755.jpg",
@@ -9589,11 +9314,7 @@
       "gt_count": 3,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh"]
     },
     {
       "img_file": "2024松柏_20019_jpg.rf.e2513d01f470c9439c241ac1e6381307.jpg",
@@ -9699,12 +9420,7 @@
       "gt_count": 4,
       "pred_count": 6,
       "match_count": 4,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后200_TS-20240612190016870_jpg.rf.04dff49d01261ba49a1fd60f1cc7b892.jpg",
@@ -9715,9 +9431,7 @@
       "gt_count": 1,
       "pred_count": 3,
       "match_count": 1,
-      "gt_classes": [
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_10020_jpg.rf.dce01d63adf7c7a3b4f70e10917b2514.jpg",
@@ -9728,11 +9442,7 @@
       "gt_count": 3,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkzhkmc",
-        "jkzhkmc",
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc", "jkzhkmc", "jkzhkmc"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912103222820_jpg.rf.f5553fb597883b2d7ca09a7432adc62b.jpg",
@@ -9775,9 +9485,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后40_TS-20250214160014074_jpg.rf.8bfa14e2eda92b84cca3642b964ce56f.jpg",
@@ -9788,13 +9496,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "not_pollen",
-        "not_pollen",
-        "bjys",
-        "bjys",
-        "bjys"
-      ]
+      "gt_classes": ["not_pollen", "not_pollen", "bjys", "bjys", "bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后40_TS-20250214160807971_jpg.rf.2993fe05242bd3ba5c66610bc67e2646.jpg",
@@ -9805,13 +9507,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "bjys"
-      ]
+      "gt_classes": ["not_pollen", "not_pollen", "not_pollen", "not_pollen", "bjys"]
     },
     {
       "img_file": "2024松柏_1007_jpg.rf.36ebeb458165530fd807408175304341.jpg",
@@ -9884,10 +9580,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084133401_jpg.rf.275730acbe72ac864f782f7af6ca1bc3.jpg",
@@ -9898,10 +9591,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211184841557_jpg.rf.9abec77d3702c2d9780149ee7cbce0ed.jpg",
@@ -9912,10 +9602,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185103578_jpg.rf.9f030f36507aa6a1cd27c477102bf645.jpg",
@@ -9926,9 +9613,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185418039_jpg.rf.d7e73dc97627077e1d3b7b5f628cac10.jpg",
@@ -9939,9 +9624,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185722315_jpg.rf.2f21446467e0515ff9e4ba98212c3885.jpg",
@@ -9952,9 +9635,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024芍药花_芍药花染后100_TS-20240610113747845_jpg.rf.5b65b16e6773a6e6ec88e013d9a4982b.jpg",
@@ -9965,16 +9646,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 7,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh", "syh", "syh", "syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120216132_jpg.rf.3d599301f153636daa007309e2a847c1.jpg",
@@ -9985,10 +9657,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120334718_jpg.rf.0bf3c8cf2c8d338a6e8233076b43dcd6.jpg",
@@ -9999,9 +9668,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120643222_jpg.rf.767f647fbc17751ba1c6fb1eb8b485f7.jpg",
@@ -10012,10 +9679,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120713502_jpg.rf.7ff5d08bdf71ba52dbbb0d5e979e4bcd.jpg",
@@ -10026,9 +9690,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024草木犀_草木犀染后40_TS-20240722152832999_jpg.rf.56552e5b7d9439903a6d87363aaa690f.jpg",
@@ -10080,9 +9742,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc"]
     },
     {
       "img_file": "2024菊科蒲公英_2002_jpg.rf.21d71ab738a8c8eaba29429d6a095cf4.jpg",
@@ -10093,11 +9753,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_2003_jpg.rf.645a22344359d1deda01935c78ac0288.jpg",
@@ -10108,11 +9764,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912105814594_jpg.rf.3437a6de2ff07639a9cc40eda80f106a.jpg",
@@ -10123,13 +9775,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后40_TS-20240619110907923_jpg.rf.06a980830f1b486f779652dd638fc12d.jpg",
@@ -10140,18 +9786,7 @@
       "gt_count": 10,
       "pred_count": 10,
       "match_count": 9,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "not_pollen",
-        "not_pollen",
-        "sk",
-        "not_pollen"
-      ]
+      "gt_classes": ["sk", "sk", "sk", "sk", "sk", "sk", "not_pollen", "not_pollen", "sk", "not_pollen"]
     },
     {
       "img_file": "2024金银花_金银花染后200_TS-20240608162102101_jpg.rf.6e49377fd575f0c31257e6c31c97cce9.jpg",
@@ -10162,10 +9797,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611210153446_jpg.rf.ea2e6df62d6a10761c6a778e97f1fb57.jpg",
@@ -10176,9 +9808,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611213849008_jpg.rf.4c05dc81bdcacaef94cc3e61144f7ffa.jpg",
@@ -10189,10 +9819,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2025圆柏_圆柏后100_TS-20250226103923944_jpg.rf.01a42e99a1ae9e46f0604013d33f349c.jpg",
@@ -10203,11 +9830,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb"]
     },
     {
       "img_file": "2025圆柏_圆柏后40_TS-20250226103338342_jpg.rf.e1cfcea9602db9776fe7359f94592cea.jpg",
@@ -10218,20 +9841,7 @@
       "gt_count": 12,
       "pred_count": 12,
       "match_count": 11,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104722266_jpg.rf.962fadcbf77949a4e65d1f551e7e5db1.jpg",
@@ -10242,11 +9852,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb"]
     },
     {
       "img_file": "蔷薇科苹果_10018_jpg.rf.94bf7a29ed8f784ce1b453f808aa554e.jpg",
@@ -10257,9 +9863,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 0,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "2024云杉_云杉染色后_10026_jpg.rf.a85bb2de3c6da011c6300d6100d333f4.jpg",
@@ -10270,14 +9874,7 @@
       "gt_count": 6,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1", "ys1", "ys1", "ys1", "ys1"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后40_TS-20250214160619730_jpg.rf.abd546c7cfb50d387ab49e9994590637.jpg",
@@ -10288,14 +9885,7 @@
       "gt_count": 6,
       "pred_count": 8,
       "match_count": 6,
-      "gt_classes": [
-        "not_pollen",
-        "bjys",
-        "bjys",
-        "bjys",
-        "not_pollen",
-        "not_pollen"
-      ]
+      "gt_classes": ["not_pollen", "bjys", "bjys", "bjys", "not_pollen", "not_pollen"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701112220076_jpg.rf.9eb5a1b21cd3ce6a4cbe8ec70e4b3bfe.jpg",
@@ -10377,19 +9967,7 @@
       "gt_count": 11,
       "pred_count": 13,
       "match_count": 11,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024格桑花_格桑花染后40_TS-20240801084726813_jpg.rf.c3858294921007b3e66c5964cdd37b46.jpg",
@@ -10429,13 +10007,7 @@
       "gt_count": 5,
       "pred_count": 7,
       "match_count": 5,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后100_TS-20240612185235742_jpg.rf.f3ca34ad33fe43e195ed2658fbffcb91.jpg",
@@ -10446,14 +10018,7 @@
       "gt_count": 6,
       "pred_count": 8,
       "match_count": 6,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后200_TS-20240612185949935_jpg.rf.202c01b87e0da686d15eab95b7868339.jpg",
@@ -10464,11 +10029,7 @@
       "gt_count": 3,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612190459101_jpg.rf.fb2b02b234166e42b4580e4bf6440314.jpg",
@@ -10479,12 +10040,7 @@
       "gt_count": 4,
       "pred_count": 6,
       "match_count": 4,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185611047_jpg.rf.b5360e251d526c277c3f116871a83c81.jpg",
@@ -10495,9 +10051,7 @@
       "gt_count": 1,
       "pred_count": 3,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024芍药花_芍药花染后100_TS-20240610113645475_jpg.rf.d597e0ca2c3fbd11dc2b9d1624ab35a4.jpg",
@@ -10508,13 +10062,7 @@
       "gt_count": 5,
       "pred_count": 7,
       "match_count": 5,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610115219218_jpg.rf.6ac1e33adc0cc8e01d554db76fe1af8e.jpg",
@@ -10525,11 +10073,7 @@
       "gt_count": 3,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610115438227_jpg.rf.58ac785d229aac0df57f568cd447c865.jpg",
@@ -10540,10 +10084,7 @@
       "gt_count": 2,
       "pred_count": 4,
       "match_count": 2,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161311939_jpg.rf.36471e3cd8218fad2a5a3fb5fa101d4a.jpg",
@@ -10554,14 +10095,7 @@
       "gt_count": 6,
       "pred_count": 8,
       "match_count": 6,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611213854857_jpg.rf.219241ebbacbc37237042b3c5b356ed9.jpg",
@@ -10572,9 +10106,7 @@
       "gt_count": 1,
       "pred_count": 3,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后40_TS-20240611204417925_jpg.rf.7e34dff2548c0da2b66fab85d2dfc418.jpg",
@@ -10585,13 +10117,7 @@
       "gt_count": 5,
       "pred_count": 7,
       "match_count": 5,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm", "hcm", "hcm"]
     },
     {
       "img_file": "蔷薇科苹果_10025_jpg.rf.145385562ab59e41bfcba09069e20c95.jpg",
@@ -10602,18 +10128,7 @@
       "gt_count": 10,
       "pred_count": 12,
       "match_count": 10,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912102207903_jpg.rf.f1e601e95c486523965fcc5bbb229997.jpg",
@@ -10624,13 +10139,7 @@
       "gt_count": 5,
       "pred_count": 7,
       "match_count": 5,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912102718143_jpg.rf.4ace234cd20e907f89cededafe2971ad.jpg",
@@ -10641,12 +10150,7 @@
       "gt_count": 4,
       "pred_count": 6,
       "match_count": 4,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "2024北京云杉_云杉染后200_TS-20250214164113529_jpg.rf.c1ea583cbc58ab500bfbfab6521ff064.jpg",
@@ -10657,9 +10161,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后400_TS-20240701114729595_jpg.rf.77385ebbb95122bd0d19b03376f65cbc.jpg",
@@ -10670,10 +10172,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "dzh",
-        "dzh"
-      ]
+      "gt_classes": ["dzh", "dzh"]
     },
     {
       "img_file": "2024松柏_20023_jpg.rf.f4ef4d968b7ccd44cbdb4a265d1fc581.jpg",
@@ -10751,12 +10250,7 @@
       "gt_count": 4,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "not_pollen",
-        "not_pollen",
-        "bjys",
-        "not_pollen"
-      ]
+      "gt_classes": ["not_pollen", "not_pollen", "bjys", "not_pollen"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701111706973_jpg.rf.1659163b973da98bf99e1dc0e7c3aeae.jpg",
@@ -10893,19 +10387,7 @@
       "gt_count": 11,
       "pred_count": 10,
       "match_count": 10,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "not_pollen"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "not_pollen"]
     },
     {
       "img_file": "2024格桑花_格桑花染后100_TS-20240801091324846_jpg.rf.507bd7bdc3a1831c9b8a5437d6290946.jpg",
@@ -10916,16 +10398,7 @@
       "gt_count": 8,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后40_TS-20240801084716681_jpg.rf.615fc05303194ceb19540003da0601fa.jpg",
@@ -10936,22 +10409,7 @@
       "gt_count": 14,
       "pred_count": 13,
       "match_count": 13,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后40_TS-20240801084721886_jpg.rf.a606b7e3a1ae2aa4ddd2e7316b1dded2.jpg",
@@ -10962,20 +10420,7 @@
       "gt_count": 12,
       "pred_count": 11,
       "match_count": 11,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084736828_jpg.rf.796576aba3db60b61b819c8f9ef0ab96.jpg",
@@ -10986,12 +10431,7 @@
       "gt_count": 4,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后100_TS-20240709112746266_jpg.rf.cf35f7d1b96b1485005d1e2a884561cc.jpg",
@@ -11002,11 +10442,7 @@
       "gt_count": 3,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "not_pollen"
-      ]
+      "gt_classes": ["gybc", "gybc", "not_pollen"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后40_TS-20240709112026721_jpg.rf.fc258407a2d092e6c214dca9ca168617.jpg",
@@ -11017,14 +10453,7 @@
       "gt_count": 6,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "not_pollen"
-      ]
+      "gt_classes": ["gybc", "gybc", "gybc", "gybc", "gybc", "not_pollen"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后100_TS-20250211184214171_jpg.rf.beddd791a9fb5a2a1c2c772900addf99.jpg",
@@ -11062,12 +10491,7 @@
       "gt_count": 4,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610114723870_jpg.rf.a8684da056f2fc5ce941f4a2a8ac56bc.jpg",
@@ -11078,11 +10502,7 @@
       "gt_count": 3,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610114731457_jpg.rf.81935e902f1721567f706390caa716f5.jpg",
@@ -11093,10 +10513,7 @@
       "gt_count": 2,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153847575_jpg.rf.79f5734f51fe8e327bd5174334db3fc4.jpg",
@@ -11107,15 +10524,7 @@
       "gt_count": 7,
       "pred_count": 6,
       "match_count": 6,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "not_pollen"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "not_pollen"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153900034_jpg.rf.d20af080019eae665967d6ecfeeed64d.jpg",
@@ -11126,18 +10535,7 @@
       "gt_count": 10,
       "pred_count": 9,
       "match_count": 9,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "not_pollen"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "not_pollen"]
     },
     {
       "img_file": "2024草木犀_草木犀染后400_TS-20240722160110401_jpg.rf.d92b0bc9ca05afd06cfb09fe9252a0b3.jpg",
@@ -11148,9 +10546,7 @@
       "gt_count": 1,
       "pred_count": 0,
       "match_count": 0,
-      "gt_classes": [
-        "cmx"
-      ]
+      "gt_classes": ["cmx"]
     },
     {
       "img_file": "2024藜科_藜科染后200_TS-20240912104851683_jpg.rf.f04c623a27dc26911ce5a6999de7c8e3.jpg",
@@ -11161,10 +10557,7 @@
       "gt_count": 2,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk"]
     },
     {
       "img_file": "2024藜科_藜科染后200_TS-20240912104935259_jpg.rf.098fbd246944b088c82fe1cf2005ed32.jpg",
@@ -11175,10 +10568,7 @@
       "gt_count": 2,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后200_TS-20240611210856731_jpg.rf.5e79b02da6da37a73a241848bea07c8b.jpg",
@@ -11189,10 +10579,7 @@
       "gt_count": 2,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后200_TS-20240611211236900_jpg.rf.6cbe4946a61ae6db425c5a028c827b17.jpg",
@@ -11203,10 +10590,7 @@
       "gt_count": 2,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2025圆柏_圆柏后40_TS-20250226103252440_jpg.rf.cfef5881eea87766df416c59614ded41.jpg",
@@ -11217,17 +10601,7 @@
       "gt_count": 9,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "not_pollen"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "not_pollen"]
     },
     {
       "img_file": "2025圆柏_圆柏后40_TS-20250226103254457_jpg.rf.5bd7ffaf438731313723c78899001d26.jpg",
@@ -11238,19 +10612,7 @@
       "gt_count": 11,
       "pred_count": 10,
       "match_count": 10,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104152010_jpg.rf.78511a74eb303d7fa056bca42128eb5d.jpg",
@@ -11261,10 +10623,7 @@
       "gt_count": 2,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb"]
     },
     {
       "img_file": "蔷薇科苹果_20021_jpg.rf.c2b1cdbdfaea61ba5b46a1c227e4df77.jpg",
@@ -11275,10 +10634,7 @@
       "gt_count": 2,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg"]
     },
     {
       "img_file": "2024北京云杉_云杉染后400_TS-20250220093430928_jpg.rf.00f9faeac7c5b4aebb015c368b0247bb.jpg",
@@ -11289,9 +10645,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后400_TS-20250220095924996_jpg.rf.df9482281c1ec9370287bbad3adde8e7.jpg",
@@ -11302,9 +10656,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后400_TS-20250220101447995_jpg.rf.dac1fa965cd9622bbd6d01afabe51cbe.jpg",
@@ -11315,9 +10667,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后400_TS-20250220103104626_jpg.rf.0d511e720da75179fa43f7034635ef00.jpg",
@@ -11328,9 +10678,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后100_TS-20250214161252786_jpg.rf.a4bf02791ce5cb2036b9855ebf4d0aaf.jpg",
@@ -11341,10 +10689,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "bjys",
-        "not_pollen"
-      ]
+      "gt_classes": ["bjys", "not_pollen"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后40_TS-20250214160823909_jpg.rf.fed75a07035f34c07448aa8e3aecf831.jpg",
@@ -11355,12 +10700,7 @@
       "gt_count": 4,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "not_pollen",
-        "not_pollen",
-        "bjys",
-        "bjys"
-      ]
+      "gt_classes": ["not_pollen", "not_pollen", "bjys", "bjys"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701111635863_jpg.rf.542d0e39feb055a2459efb92bfe8ef8e.jpg",
@@ -11400,9 +10740,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后200_TS-20240701113143792_jpg.rf.4ecdb070a5a6fe7e8fac961b625e3df4.jpg",
@@ -11413,9 +10751,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_4008_jpg.rf.c8179b23620609f0b0c06c81db5d2f37.jpg",
@@ -11426,14 +10762,7 @@
       "gt_count": 6,
       "pred_count": 7,
       "match_count": 6,
-      "gt_classes": [
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2"
-      ]
+      "gt_classes": ["ys2", "ys2", "ys2", "ys2", "ys2", "ys2"]
     },
     {
       "img_file": "2024柳树_染色后_20029_jpg.rf.9a4fced774d58c1db9194ccddb39646c.jpg",
@@ -11444,10 +10773,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls"]
     },
     {
       "img_file": "2024格桑花_格桑花染后100_TS-20240801090212631_jpg.rf.51e489ab171b484ee4db68990892af26.jpg",
@@ -11458,11 +10784,7 @@
       "gt_count": 3,
       "pred_count": 4,
       "match_count": 3,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801091928274_jpg.rf.9be07499e3e2bf28692dbd7380083043.jpg",
@@ -11473,9 +10795,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "gsh"
-      ]
+      "gt_classes": ["gsh"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709121231990_jpg.rf.af3c5967955cdf00a767a357c78a1801.jpg",
@@ -11486,22 +10806,7 @@
       "gt_count": 14,
       "pred_count": 15,
       "match_count": 14,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709121322041_jpg.rf.cc55f005e67f95e96147f686ec73e9db.jpg",
@@ -11512,20 +10817,7 @@
       "gt_count": 12,
       "pred_count": 13,
       "match_count": 12,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710085352781_jpg.rf.dafabe88bdb4a8ce104174ecf9023d7a.jpg",
@@ -11536,9 +10828,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710085901163_jpg.rf.9e596f390ba94927351993265ef76f8f.jpg",
@@ -11549,9 +10839,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710090453315_jpg.rf.e8c9e9ce2c7d7da00b8211be0b2191a0.jpg",
@@ -11562,9 +10850,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后40_TS-20240709120110438_jpg.rf.b5cea7fff745790109849dd609b7ede2.jpg",
@@ -11618,10 +10904,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后40_TS-20240709112043911_jpg.rf.2279f4769b8755cf6ffc283418a27ac2.jpg",
@@ -11692,10 +10975,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后100_TS-20250211183802706_jpg.rf.5a625ade23b10f6ad1520f9130a203ef.jpg",
@@ -11706,16 +10986,7 @@
       "gt_count": 8,
       "pred_count": 9,
       "match_count": 8,
-      "gt_classes": [
-        "not_pollen",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["not_pollen", "azs", "azs", "azs", "azs", "azs", "azs", "azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后100_TS-20250211184203989_jpg.rf.85a054b8be53f1855f72846c26b54a1a.jpg",
@@ -11726,19 +10997,7 @@
       "gt_count": 11,
       "pred_count": 12,
       "match_count": 11,
-      "gt_classes": [
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs", "azs", "azs", "azs", "azs", "azs", "azs", "azs", "azs", "azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185221465_jpg.rf.df42ba6d91ce096acb9b5bf997ae94ad.jpg",
@@ -11749,10 +11008,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185546102_jpg.rf.cc61116ce6712127cdd967d9e8ea140f.jpg",
@@ -11763,9 +11019,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后400_TS-20250211190517769_jpg.rf.1376b82061af25458142c38e69c58490.jpg",
@@ -11776,9 +11030,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610114900487_jpg.rf.74a680c442d76ad06cf40ad97c0eacf0.jpg",
@@ -11789,9 +11041,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610114909814_jpg.rf.9ab8e491265cd80c70d0c959d683bbbe.jpg",
@@ -11802,9 +11052,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153512208_jpg.rf.0d2cdd202aba8f23f636e04fe5bec0a2.jpg",
@@ -11815,17 +11063,7 @@
       "gt_count": 9,
       "pred_count": 10,
       "match_count": 9,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153605597_jpg.rf.484029e9842e2e54249c5ea71a0b942b.jpg",
@@ -11836,16 +11074,7 @@
       "gt_count": 8,
       "pred_count": 9,
       "match_count": 8,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153627888_jpg.rf.29b164bf6b158b5cd63df6e208b5a02d.jpg",
@@ -11856,11 +11085,7 @@
       "gt_count": 3,
       "pred_count": 4,
       "match_count": 3,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153655367_jpg.rf.daaa84479791ef4ef82563e27dcdff7f.jpg",
@@ -11871,13 +11096,7 @@
       "gt_count": 5,
       "pred_count": 6,
       "match_count": 5,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722154019955_jpg.rf.261e2f36db1454afb37212b0518a5510.jpg",
@@ -11888,14 +11107,7 @@
       "gt_count": 6,
       "pred_count": 7,
       "match_count": 6,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后200_TS-20240722155119981_jpg.rf.127f9d8e7453f610c4df6a920ab5d1b4.jpg",
@@ -11906,12 +11118,7 @@
       "gt_count": 4,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后40_TS-20240722153043657_jpg.rf.d1a28ba1bf6d9f814d0639e766bf46ac.jpg",
@@ -11962,11 +11169,7 @@
       "gt_count": 3,
       "pred_count": 4,
       "match_count": 3,
-      "gt_classes": [
-        "jkzhkmc",
-        "jkzhkmc",
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc", "jkzhkmc", "jkzhkmc"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_40014_jpg.rf.e6680ee28268b8135625e71a6e12c08d.jpg",
@@ -11977,9 +11180,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_40021_jpg.rf.1ea2cca939fa6942948bb9b055d7c69c.jpg",
@@ -11990,9 +11191,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc"]
     },
     {
       "img_file": "2024菊科蒲公英_20021_jpg.rf.7db8f714187ca821cedf9cddddc68931.jpg",
@@ -12003,9 +11202,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_20023_jpg.rf.5dcee1b355796c105f63ff30c9874a7e.jpg",
@@ -12016,10 +11213,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_2005_jpg.rf.0a599cae12fbe326a0d2e4f884562010.jpg",
@@ -12030,10 +11224,7 @@
       "gt_count": 2,
       "pred_count": 3,
       "match_count": 2,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_4008_jpg.rf.a4e3c1a70242c312cae5f3a340b87fbe.jpg",
@@ -12044,9 +11235,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024藜科_藜科染后200_TS-20240912104142407_jpg.rf.5c225d0d2201e856382d67a49c807a06.jpg",
@@ -12057,9 +11246,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "lk"
-      ]
+      "gt_classes": ["lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912110049404_jpg.rf.04ca2a8416b4e011ed1519d59759f3a9.jpg",
@@ -12070,12 +11257,7 @@
       "gt_count": 4,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912110648561_jpg.rf.4ab8be10ba4e01cbcca137e10a93fb92.jpg",
@@ -12086,12 +11268,7 @@
       "gt_count": 4,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后200_TS-20240619113310327_jpg.rf.ba1a6cb1bcb1224ac1d39f74d96d2f1f.jpg",
@@ -12102,9 +11279,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后40_TS-20240619110929085_jpg.rf.5fc07e1e1aa1c126e46d92fd0015ca70.jpg",
@@ -12115,15 +11290,7 @@
       "gt_count": 7,
       "pred_count": 8,
       "match_count": 7,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "not_pollen"
-      ]
+      "gt_classes": ["sk", "sk", "sk", "sk", "sk", "sk", "not_pollen"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161401011_jpg.rf.3718d540f144d92d4721c70f869d5caa.jpg",
@@ -12134,12 +11301,7 @@
       "gt_count": 4,
       "pred_count": 5,
       "match_count": 4,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后40_TS-20240608161001243_jpg.rf.00f2b7912b92d29bd3cd27005b0970d6.jpg",
@@ -12265,11 +11427,7 @@
       "gt_count": 3,
       "pred_count": 4,
       "match_count": 3,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205721551_jpg.rf.79e87bc66ed1f9bf47a3d476398af6af.jpg",
@@ -12280,9 +11438,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后200_TS-20240611211656684_jpg.rf.b7154c133900a4c247c87eab90a46772.jpg",
@@ -12293,9 +11449,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611211836339_jpg.rf.3190ae29fde85d9472f1b7dac1e28bb7.jpg",
@@ -12306,9 +11460,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2025圆柏_圆柏后40_TS-20250226103306583_jpg.rf.32a6bfb6a4e1e6c38f15bc00fb144b81.jpg",
@@ -12347,9 +11499,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104640538_jpg.rf.ce8b1c20f3ceeecb47432dd23a601d0f.jpg",
@@ -12360,9 +11510,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "蔷薇科苹果_10022_jpg.rf.e0ae253815cab70e56329ce7e4c9fc48.jpg",
@@ -12395,9 +11543,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_40014_jpg.rf.eaae2ae1a85d3c6155b18e23be72b1ec.jpg",
@@ -12408,9 +11554,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_40027_jpg.rf.1f862fceb7757a2544b673b584b4686f.jpg",
@@ -12421,9 +11565,7 @@
       "gt_count": 1,
       "pred_count": 2,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912102153979_jpg.rf.af66a400dfe1898e080f7a12e811e9d1.jpg",
@@ -12434,16 +11576,7 @@
       "gt_count": 8,
       "pred_count": 9,
       "match_count": 8,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912102826362_jpg.rf.71552997dbd4b8abd53152d3a7c95f5c.jpg",
@@ -12454,17 +11587,7 @@
       "gt_count": 9,
       "pred_count": 10,
       "match_count": 9,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912103309181_jpg.rf.62755ebf98c7184558628e860f59b315.jpg",
@@ -12528,14 +11651,7 @@
       "gt_count": 6,
       "pred_count": 6,
       "match_count": 6,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh", "dzh", "dzh", "dzh"]
     },
     {
       "img_file": "2024柳树_染色后_20046_jpg.rf.94e86745cbc5aaf35b9e738ef46086c6.jpg",
@@ -12546,21 +11662,7 @@
       "gt_count": 13,
       "pred_count": 13,
       "match_count": 13,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "not_pollen",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls", "not_pollen", "ls", "ls"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801092710416_jpg.rf.8a71290c90b3fd3c1ac43ee52086d47d.jpg",
@@ -12571,9 +11673,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gsh"
-      ]
+      "gt_classes": ["gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801094639021_jpg.rf.cf753c941c9a611b5d98c984738782ed.jpg",
@@ -12584,9 +11684,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后200_TS-20240709114126758_jpg.rf.8aa6d541d5ef36a9806ef4997c48d7d4.jpg",
@@ -12597,9 +11695,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后200_TS-20240612185441635_jpg.rf.00a3e485c0f1d75cf68f658456ea78d3.jpg",
@@ -12610,15 +11706,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612191327936_jpg.rf.f8ee9055903303b8bc1462f601f65555.jpg",
@@ -12629,9 +11717,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185435344_jpg.rf.4412f4e8099ea0534b1d27dc5c6cbdfd.jpg",
@@ -12642,9 +11728,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后200_TS-20240611211114418_jpg.rf.8cfe2ab68871e7d2e809052addfebcd6.jpg",
@@ -12655,10 +11739,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2025圆柏_圆柏后100_TS-20250226103425638_jpg.rf.55bd7b2787ad65b55325133ad0be978c.jpg",
@@ -12669,12 +11750,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "蔷薇科苹果_40046_jpg.rf.7d585cde286ae7bf268d4b32de8f5146.jpg",
@@ -12685,15 +11761,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "qwkpg"
-      ]
+      "gt_classes": ["not_pollen", "not_pollen", "not_pollen", "not_pollen", "not_pollen", "not_pollen", "qwkpg"]
     },
     {
       "img_file": "2024云杉_云杉染色后_10017_jpg.rf.530f987bd2ec2f5327ab94e3507c8e3c.jpg",
@@ -12704,17 +11772,7 @@
       "gt_count": 9,
       "pred_count": 9,
       "match_count": 9,
-      "gt_classes": [
-        "ys1",
-        "ys1",
-        "not_pollen",
-        "not_pollen",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1", "not_pollen", "not_pollen", "ys1", "ys1", "ys1", "ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_10018_jpg.rf.d00a14997be932e2033a14e841668bb1.jpg",
@@ -12725,17 +11783,7 @@
       "gt_count": 9,
       "pred_count": 9,
       "match_count": 9,
-      "gt_classes": [
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "not_pollen",
-        "not_pollen",
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1", "ys1", "ys1", "ys1", "not_pollen", "not_pollen", "ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_1001_jpg.rf.2a6e7fb22d54359188778eb565bbc848.jpg",
@@ -12746,9 +11794,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_10028_jpg.rf.95e81ffabea1688364f7ea13ce4ef463.jpg",
@@ -12759,10 +11805,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_10032_jpg.rf.cd8e76a5f2ca4d9a815602db9b25b08e.jpg",
@@ -12773,9 +11816,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_1006_jpg.rf.fb7bbd07c80ee9a2c6360fb0a1771bb6.jpg",
@@ -12786,11 +11827,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "ys1",
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_1007_jpg.rf.167da8ea6404d7e869e71120363163aa.jpg",
@@ -12801,10 +11838,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_20012_jpg.rf.170c4e6725f11729cf145383867108eb.jpg",
@@ -12815,9 +11849,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_20013_jpg.rf.bf1e1fa773db4cbf3aced3b166923951.jpg",
@@ -12828,9 +11860,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_20014_jpg.rf.ae5b3826b0a9b009d2e8d84d42a4c6e3.jpg",
@@ -12841,9 +11871,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_2005_jpg.rf.d83551613e8e57e4af942a4f20f84aae.jpg",
@@ -12854,9 +11882,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_2009_jpg.rf.10cae87e2229459783cce2e08611aa59.jpg",
@@ -12867,10 +11893,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_40010_jpg.rf.e08601c3581c4ca564f63b9aec1e5277.jpg",
@@ -12881,9 +11904,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_40013_jpg.rf.7120a85b1f4372e8cc60aca3cbcf7738.jpg",
@@ -12894,9 +11915,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_40019_jpg.rf.1f66f406d2648003be122fa1819b5359.jpg",
@@ -12907,9 +11926,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_40024_jpg.rf.b17b5b1abfa874d4562d0668456755f9.jpg",
@@ -12920,9 +11937,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_40031_jpg.rf.f028b63fb562f251826f4a0a681c6a6a.jpg",
@@ -12933,9 +11948,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_4007_jpg.rf.d223582a06c43b829ad93452b385b0b3.jpg",
@@ -12946,9 +11959,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys1"
-      ]
+      "gt_classes": ["ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_4013_jpg.rf.a027246284eac208d24ecd55b5fb0ac5.jpg",
@@ -12984,11 +11995,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "not_pollen",
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["not_pollen", "ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_4019_jpg.rf.0aa6c368e3513a613c7c387b75b17b5c.jpg",
@@ -12999,16 +12006,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1",
-        "ys1"
-      ]
+      "gt_classes": ["ys1", "ys1", "ys1", "ys1", "ys1", "ys1", "ys1", "ys1"]
     },
     {
       "img_file": "2024云杉_云杉染色后_409_jpg.rf.84fafc3e79a2739fdd3364c0b9613e72.jpg",
@@ -13042,9 +12040,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后200_TS-20250214163325201_jpg.rf.40d0c85d3a92393a594ee4450902d55c.jpg",
@@ -13055,9 +12051,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后200_TS-20250214164039071_jpg.rf.ee61f2fc546dab9d72c9143794589127.jpg",
@@ -13068,9 +12062,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后200_TS-20250214164344648_jpg.rf.ead4ce92c16d0faa0abc30ffbe00b686.jpg",
@@ -13081,9 +12073,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后200_TS-20250214164458227_jpg.rf.eba4fd67b043cbe808e515bed7d011cc.jpg",
@@ -13094,9 +12084,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后400_TS-20250220095310791_jpg.rf.afede8af422b1f8bae847287ad4039bd.jpg",
@@ -13107,9 +12095,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_云杉染后400_TS-20250220103929708_jpg.rf.c9cad83a15a5ae4423ae52fa98b03576.jpg",
@@ -13120,9 +12106,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后100_TS-20250214160920548_jpg.rf.66ef811b1736767cb257afee0c7c8d05.jpg",
@@ -13133,10 +12117,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "bjys",
-        "not_pollen"
-      ]
+      "gt_classes": ["bjys", "not_pollen"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后100_TS-20250214161136425_jpg.rf.019ff89a45631fcac5beb6eae12f5b82.jpg",
@@ -13147,9 +12128,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后100_TS-20250214161322093_jpg.rf.947651c8ab4f161075bb7c456ad331cb.jpg",
@@ -13160,9 +12139,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后100_TS-20250214161340258_jpg.rf.94aa2b4bf3c2e7633849e5cfb0a0f88c.jpg",
@@ -13173,9 +12150,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后100_TS-20250214161614652_jpg.rf.3cd21ae7ca87ed7e3978f639c1f81e2d.jpg",
@@ -13186,9 +12161,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "bjys"
-      ]
+      "gt_classes": ["bjys"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后40_TS-20250214160244497_jpg.rf.2270c6ccaf5fed8f448e1d5ee745e5e9.jpg",
@@ -13230,15 +12203,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "bjys",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen"
-      ]
+      "gt_classes": ["bjys", "not_pollen", "not_pollen", "not_pollen", "not_pollen", "not_pollen", "not_pollen"]
     },
     {
       "img_file": "2024北京云杉_北京云杉染后40_TS-20250214160715624_jpg.rf.85f8a9ebb99239f0bd10f0f65747ec44.jpg",
@@ -13249,11 +12214,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "bjys",
-        "not_pollen",
-        "not_pollen"
-      ]
+      "gt_classes": ["bjys", "not_pollen", "not_pollen"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701111720546_jpg.rf.54b07b33103b463e9c677c761f56d8a0.jpg",
@@ -13264,19 +12225,7 @@
       "gt_count": 11,
       "pred_count": 11,
       "match_count": 11,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701111844355_jpg.rf.6580357356d83e21755075d1ace01a28.jpg",
@@ -13287,18 +12236,7 @@
       "gt_count": 10,
       "pred_count": 10,
       "match_count": 10,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "not_pollen",
-        "not_pollen"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "not_pollen", "not_pollen"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后100_TS-20240701112208452_jpg.rf.5f54483d34dfd1f939fa2a5c5b161388.jpg",
@@ -13309,17 +12247,7 @@
       "gt_count": 9,
       "pred_count": 9,
       "match_count": 9,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh",
-        "not_pollen"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "dzh", "not_pollen"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后200_TS-20240701112520390_jpg.rf.c616f4a9e276d4ce43d98d190de39133.jpg",
@@ -13330,9 +12258,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后200_TS-20240701112757777_jpg.rf.19449fd966546d140a7950980b4ca442.jpg",
@@ -13343,9 +12269,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后200_TS-20240701113230781_jpg.rf.3df69aae072ecef21ead13b6ef053563.jpg",
@@ -13356,11 +12280,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后200_TS-20240701113317490_jpg.rf.fdd8a0a5a4d789a49856fb888341a78e.jpg",
@@ -13371,12 +12291,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "dzh",
-        "dzh",
-        "dzh",
-        "dzh"
-      ]
+      "gt_classes": ["dzh", "dzh", "dzh", "dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后400_TS-20240701113718643_jpg.rf.6bdc7c383c44c21a156a6183e0d33ffe.jpg",
@@ -13387,9 +12302,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后400_TS-20240701114606616_jpg.rf.21f9ded8189205f882844d26c236edc3.jpg",
@@ -13400,9 +12313,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后400_TS-20240701114617545_jpg.rf.23b40ff16053a197d92aaa064f0b5e9c.jpg",
@@ -13413,9 +12324,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后400_TS-20240701114643997_jpg.rf.9f2f40fa538eb2401993e21d9ca6c597.jpg",
@@ -13426,9 +12335,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后400_TS-20240701114859109_jpg.rf.92bc0aa276d14d6d530adf375b8cc7f3.jpg",
@@ -13439,9 +12346,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024大籽蒿_大籽蒿染后400_TS-20240701114914631_jpg.rf.fed5d0ac0095447122a5ccd5b7ceb972.jpg",
@@ -13452,9 +12357,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "dzh"
-      ]
+      "gt_classes": ["dzh"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_1005_jpg.rf.32022f0d46c99d73d7fffbc63106bdae.jpg",
@@ -13510,20 +12413,7 @@
       "gt_count": 12,
       "pred_count": 12,
       "match_count": 12,
-      "gt_classes": [
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2"
-      ]
+      "gt_classes": ["ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_2004_jpg.rf.a6cd472285d6c8dcb9360ceba34eadaa.jpg",
@@ -13534,22 +12424,7 @@
       "gt_count": 14,
       "pred_count": 14,
       "match_count": 14,
-      "gt_classes": [
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2"
-      ]
+      "gt_classes": ["ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2", "ys2"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_40011_jpg.rf.57ee9fdd47f40b96b04d740c020d7967.jpg",
@@ -13560,11 +12435,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "ys2",
-        "ys2",
-        "ys2"
-      ]
+      "gt_classes": ["ys2", "ys2", "ys2"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_4001_jpg.rf.c6b7beb6364b60060aa70a51af0da9d0.jpg",
@@ -13575,12 +12446,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "ys2",
-        "ys2",
-        "ys2",
-        "ys2"
-      ]
+      "gt_classes": ["ys2", "ys2", "ys2", "ys2"]
     },
     {
       "img_file": "2024杨树_2024年杨树染色后_4002_jpg.rf.bca9211d44217608348ab0b66d6b75cd.jpg",
@@ -13591,9 +12457,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ys2"
-      ]
+      "gt_classes": ["ys2"]
     },
     {
       "img_file": "2024松柏_20027_jpg.rf.7e2b06abe384285243271d3f864f18cf.jpg",
@@ -13604,16 +12468,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "not_pollen"
-      ]
+      "gt_classes": ["sb", "sb", "sb", "sb", "sb", "sb", "sb", "not_pollen"]
     },
     {
       "img_file": "2024松柏_20034_jpg.rf.353ecf7366d7ebd0b24399b0bcd2d429.jpg",
@@ -13624,20 +12479,7 @@
       "gt_count": 12,
       "pred_count": 12,
       "match_count": 12,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb"]
     },
     {
       "img_file": "2024松柏_2006_jpg.rf.45e5ec5fc56e126e6fdb0704fb85da19.jpg",
@@ -13648,18 +12490,7 @@
       "gt_count": 10,
       "pred_count": 10,
       "match_count": 10,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb", "sb"]
     },
     {
       "img_file": "2024松柏_40010_jpg.rf.7441eb22359938b6396fd3fa62aa3461.jpg",
@@ -13670,11 +12501,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb", "sb"]
     },
     {
       "img_file": "2024松柏_40014_jpg.rf.012149bb5ff9e574d652af74e1a4b5f6.jpg",
@@ -13685,9 +12512,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sb"
-      ]
+      "gt_classes": ["sb"]
     },
     {
       "img_file": "2024松柏_40015_jpg.rf.78665ea0903c71c6417cffc28070e665.jpg",
@@ -13698,10 +12523,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb"]
     },
     {
       "img_file": "2024松柏_40016_jpg.rf.a2dd830e5e061c08c886fe5fcde8a44e.jpg",
@@ -13712,13 +12534,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "sb",
-        "sb",
-        "sb",
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb", "sb", "sb", "sb"]
     },
     {
       "img_file": "2024松柏_40022_jpg.rf.8d2a3fbffcc07bfdd1003392306e5cef.jpg",
@@ -13729,9 +12545,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sb"
-      ]
+      "gt_classes": ["sb"]
     },
     {
       "img_file": "2024松柏_40025_jpg.rf.4970dccd725be8a7e4a8109915c4d247.jpg",
@@ -13742,10 +12556,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "sb",
-        "sb"
-      ]
+      "gt_classes": ["sb", "sb"]
     },
     {
       "img_file": "2024松柏_4009_jpg.rf.01fd7d42cf6c47be87d9411b701375fd.jpg",
@@ -13756,9 +12567,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sb"
-      ]
+      "gt_classes": ["sb"]
     },
     {
       "img_file": "2024柳树_染色后_10032_jpg.rf.d6e139201b7cbaf759c684a23f1f89c3.jpg",
@@ -13769,15 +12578,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_20035_jpg.rf.1437003e684fa5855fd690060959b686.jpg",
@@ -13788,11 +12589,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "ls",
-        "not_pollen",
-        "ls"
-      ]
+      "gt_classes": ["ls", "not_pollen", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_20040_jpg.rf.527634fbdef5ee3bebf471f4f9721331.jpg",
@@ -13803,13 +12600,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_20043_jpg.rf.2103b973c57ccf96f89eadafd0a9e40d.jpg",
@@ -13820,10 +12611,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_2004_jpg.rf.306b316f0641d596e2b6c540b89452b8.jpg",
@@ -13834,10 +12622,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40011_jpg.rf.767022a52cab2f0c308af1df47c4e0f1.jpg",
@@ -13848,9 +12633,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ls"
-      ]
+      "gt_classes": ["ls"]
     },
     {
       "img_file": "2024柳树_染色后_40012_jpg.rf.1067082c960d8635932fbcb4493c8fdc.jpg",
@@ -13861,10 +12644,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40016_jpg.rf.97a5484374dbb34f84c833798cfc3047.jpg",
@@ -13875,9 +12655,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ls"
-      ]
+      "gt_classes": ["ls"]
     },
     {
       "img_file": "2024柳树_染色后_40017_jpg.rf.5d588ecf2947d436d23546cb62538419.jpg",
@@ -13888,9 +12666,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ls"
-      ]
+      "gt_classes": ["ls"]
     },
     {
       "img_file": "2024柳树_染色后_40026_jpg.rf.6d83e21e5b4280219521d8b01d8074b3.jpg",
@@ -13901,12 +12677,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40037_jpg.rf.899e0554b1ffc39e4ddc73e093f4ed57.jpg",
@@ -13917,15 +12688,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40047_jpg.rf.d83818bfb3427ae18b076f7586619ecc.jpg",
@@ -13936,10 +12699,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40048_jpg.rf.74249aa057fc15afdb4792c82146e938.jpg",
@@ -13950,9 +12710,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ls"
-      ]
+      "gt_classes": ["ls"]
     },
     {
       "img_file": "2024柳树_染色后_40055_jpg.rf.f1f9fbb912120955b939ce15a50f0cea.jpg",
@@ -13963,12 +12721,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40062_jpg.rf.9e4d0415c416aff8e07d13d4439181d4.jpg",
@@ -13979,16 +12732,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40063_jpg.rf.2490fad054843b1954693c07a5bd25ff.jpg",
@@ -13999,16 +12743,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls",
-        "ls"
-      ]
+      "gt_classes": ["ls", "ls", "ls", "ls", "ls", "ls", "ls", "ls"]
     },
     {
       "img_file": "2024柳树_染色后_40064_jpg.rf.19720b020329401dd1aacf9150340fc0.jpg",
@@ -14019,9 +12754,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ls"
-      ]
+      "gt_classes": ["ls"]
     },
     {
       "img_file": "2024柳树_染色后_4009_jpg.rf.352280b179dfc8126fe3402c860cf28c.jpg",
@@ -14032,9 +12765,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ls"
-      ]
+      "gt_classes": ["ls"]
     },
     {
       "img_file": "2024格桑花_格桑花染后100_TS-20240801085048041_jpg.rf.fa61e264666c9068b15d98c27b1a57da.jpg",
@@ -14045,11 +12776,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后100_TS-20240801085119991_jpg.rf.bffd5eb5962c2fb10034d8bba737cb8d.jpg",
@@ -14060,17 +12787,7 @@
       "gt_count": 9,
       "pred_count": 9,
       "match_count": 9,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后100_TS-20240801085954950_jpg.rf.3c131b744dc90606bef51d4b8463c8fb.jpg",
@@ -14081,11 +12798,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后100_TS-20240801091333131_jpg.rf.4b31b6df7ed806774887fb6351187788.jpg",
@@ -14096,10 +12809,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后100_TS-20240801091344544_jpg.rf.43da77e6ab01bd362caac9cbebec4d9d.jpg",
@@ -14110,10 +12820,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801091656114_jpg.rf.6c6120163e53b91ee918056ca95ffc5d.jpg",
@@ -14124,9 +12831,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gsh"
-      ]
+      "gt_classes": ["gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801091727786_jpg.rf.f4944a3fc0f126021d755b801d12d015.jpg",
@@ -14137,10 +12842,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801092102875_jpg.rf.03d44e3a4b88445646128d89cf30e27f.jpg",
@@ -14151,9 +12853,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gsh"
-      ]
+      "gt_classes": ["gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801092116244_jpg.rf.7e525fa13efb89130da7b93ed722b802.jpg",
@@ -14164,15 +12864,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh",
-        "gsh"
-      ]
+      "gt_classes": ["gsh", "gsh", "gsh", "gsh", "gsh", "gsh", "gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801092136860_jpg.rf.6d84215f0c58b90c008eecb1d34c6d64.jpg",
@@ -14183,9 +12875,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gsh"
-      ]
+      "gt_classes": ["gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801092635397_jpg.rf.78f25e0d8330f1ceb69be58c096a6e27.jpg",
@@ -14196,9 +12886,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gsh"
-      ]
+      "gt_classes": ["gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后200_TS-20240801092649738_jpg.rf.9818123e84526fa2b101c5d848e149a3.jpg",
@@ -14209,9 +12897,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gsh"
-      ]
+      "gt_classes": ["gsh"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801093323877_jpg.rf.98548c2e249a199bce82c2dd7d47f85f.jpg",
@@ -14222,9 +12908,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801093457712_jpg.rf.c54d4dc28d15a255d7fb741dde275e64.jpg",
@@ -14235,9 +12919,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801093614352_jpg.rf.87473d97d55ed4e3c0a3cfb7c1e965bf.jpg",
@@ -14248,9 +12930,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801093656047_jpg.rf.a1fe2f2e8a33ce86dc5181b1b82d12eb.jpg",
@@ -14261,9 +12941,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801093936496_jpg.rf.cee480884488f2bf923d093b561ec1d2.jpg",
@@ -14274,9 +12952,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801093951534_jpg.rf.7c00687e1c300675e11fd7b14bc55833.jpg",
@@ -14287,10 +12963,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801094004550_jpg.rf.e5c4235cb608219a47d2a69d0aeb014c.jpg",
@@ -14301,10 +12974,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801094550576_jpg.rf.f8047fb1224586165d06606eba4c9dc5.jpg",
@@ -14315,9 +12985,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024格桑花_格桑花染后400_TS-20240801094819328_jpg.rf.a6728bf2cbca5c80885324c0dc0b87bf.jpg",
@@ -14328,9 +12996,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709120419576_jpg.rf.dbc63a04e243fe0689b05780b088ac64.jpg",
@@ -14341,16 +13007,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709120545681_jpg.rf.cfbd7aca02fd4015c13718f6ed44e6e9.jpg",
@@ -14361,11 +13018,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709120803088_jpg.rf.105271a8e038bf88bca834fb0a054df3.jpg",
@@ -14376,13 +13029,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709121210062_jpg.rf.214b63199f181e6707b2842c22d6bfac.jpg",
@@ -14393,10 +13040,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709121300530_jpg.rf.56b27841c760997de0e67357455b5c4b.jpg",
@@ -14407,18 +13051,7 @@
       "gt_count": 10,
       "pred_count": 10,
       "match_count": 10,
-      "gt_classes": [
-        "ych",
-        "not_pollen",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "not_pollen", "ych", "ych", "ych", "ych", "ych", "ych", "ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后100_TS-20240709121340068_jpg.rf.254d670a3db879bb0cbed67dc407ee1a.jpg",
@@ -14462,10 +13095,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084254494_jpg.rf.99725287024054dcf6041c254002d1bd.jpg",
@@ -14476,9 +13106,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084303821_jpg.rf.aca6c899744836674a3c6fb977972bb2.jpg",
@@ -14489,9 +13117,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084420047_jpg.rf.3d9aafa00ecca1aeb44f79723f36d0e5.jpg",
@@ -14502,9 +13128,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084613294_jpg.rf.590264edfe8d6a23afa32fc6c591cfdd.jpg",
@@ -14515,9 +13139,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084621299_jpg.rf.ee9cc795d1b0f0e5d2fe183c5b43fc63.jpg",
@@ -14528,10 +13150,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084712602_jpg.rf.8e8f284dd435bbab8171951dd929533a.jpg",
@@ -14542,9 +13161,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710084758891_jpg.rf.403f942a8834bc9e8e9ad1cfa567e882.jpg",
@@ -14555,9 +13172,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后200_TS-20240710085034333_jpg.rf.078dba5d4a844053fda67d3f356e58ac.jpg",
@@ -14568,10 +13183,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710085825595_jpg.rf.ab1f1ca3b92ac9326c221869f87b32ce.jpg",
@@ -14582,9 +13194,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710090039312_jpg.rf.37f06681859f8d884e2a8d76d610931f.jpg",
@@ -14595,9 +13205,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710090334795_jpg.rf.de87609e9db0e24ed588471ebbafec72.jpg",
@@ -14608,9 +13216,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710092827415_jpg.rf.e64431590b003642697622a2b3866991.jpg",
@@ -14621,10 +13227,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "ych",
-        "ych"
-      ]
+      "gt_classes": ["ych", "ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710092928813_jpg.rf.e5a434cfd83d5d681af8e4d1618023d6.jpg",
@@ -14635,9 +13238,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710092940297_jpg.rf.85dacca9d1930119d88698e277babfa9.jpg",
@@ -14648,9 +13249,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024油菜花_油菜花染后400_TS-20240710093151718_jpg.rf.e37f631616a7f85a2d31e1df1b19cd48.jpg",
@@ -14661,9 +13260,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "ych"
-      ]
+      "gt_classes": ["ych"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后100_TS-20240709112813729_jpg.rf.459a8b80e4e9355555ef3c83df18ba8d.jpg",
@@ -14674,11 +13271,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc", "gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后100_TS-20240709112901481_jpg.rf.4353446db04b9f3c879f19455e07d542.jpg",
@@ -14689,11 +13282,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc", "gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后100_TS-20240709113156615_jpg.rf.5e9a7b5a24b4550be1a6f5c4e0f48f88.jpg",
@@ -14704,9 +13293,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后200_TS-20240709113407665_jpg.rf.7acf861c41caecb48acfd91828e92f17.jpg",
@@ -14717,10 +13304,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后200_TS-20240709113524582_jpg.rf.b694b640e275cc1b669d1ca74b318f4d.jpg",
@@ -14731,9 +13315,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后200_TS-20240709113756543_jpg.rf.c07def2edb8034f0347d04a86600b208.jpg",
@@ -14744,9 +13326,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后200_TS-20240709113808579_jpg.rf.0fedda324f4fe573595ce8fddd3b3e9d.jpg",
@@ -14757,9 +13337,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后200_TS-20240709114016802_jpg.rf.be90f0793a105d412c35c71a2dbe0c6a.jpg",
@@ -14770,9 +13348,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后200_TS-20240709114327253_jpg.rf.b7eb2f20d182bbdd630abdec637dd465.jpg",
@@ -14783,9 +13359,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后400_TS-20240709114609731_jpg.rf.78a53d2ae9be8491fb14ba82d55b44e6.jpg",
@@ -14796,9 +13370,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后400_TS-20240709114644954_jpg.rf.2584e4712315cb6db43c09bb5d789837.jpg",
@@ -14809,9 +13381,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后400_TS-20240709114738762_jpg.rf.8a66f0fad7271833705c4ada8c7736d5.jpg",
@@ -14822,9 +13392,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后400_TS-20240709115059030_jpg.rf.c8cc16b4355dda1e86fb73cb5f469228.jpg",
@@ -14835,9 +13403,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后400_TS-20240709115353602_jpg.rf.e8e3927e30e9e501d520696fbc767760.jpg",
@@ -14848,9 +13414,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "gybc"
-      ]
+      "gt_classes": ["gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后40_TS-20240709112218862_jpg.rf.651f3ed6264a4cdbd4b1dd71b2cea049.jpg",
@@ -14861,14 +13425,7 @@
       "gt_count": 6,
       "pred_count": 6,
       "match_count": 6,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc", "gybc", "gybc", "gybc", "gybc"]
     },
     {
       "img_file": "2024狗尾巴草_狗尾巴草染后40_TS-20240709112252482_jpg.rf.e0ade3392499b8a5e7ae32f842d806bc.jpg",
@@ -14879,14 +13436,7 @@
       "gt_count": 6,
       "pred_count": 6,
       "match_count": 6,
-      "gt_classes": [
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc",
-        "gybc"
-      ]
+      "gt_classes": ["gybc", "gybc", "gybc", "gybc", "gybc", "gybc"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后100_TS-20240612184732386_jpg.rf.38a60093c5ef9293216c5445238cb10d.jpg",
@@ -14897,10 +13447,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后100_TS-20240612184738723_jpg.rf.446f32bc12ed15314fe836c47ea441d8.jpg",
@@ -14911,12 +13458,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "qxlm",
-        "qxlm",
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm", "qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后100_TS-20240612184807054_jpg.rf.3ea111cf3d8c5733dd1bfd16c889de8b.jpg",
@@ -14927,10 +13469,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后100_TS-20240612184905592_jpg.rf.31f5b356d81777694b2014d376cb2a38.jpg",
@@ -14941,10 +13480,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后200_TS-20240612185801206_jpg.rf.029ac709018fd5d83f0407d5155fd889.jpg",
@@ -14955,9 +13491,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612190540171_jpg.rf.237580b21c67894c23761bad9480c3fa.jpg",
@@ -14968,10 +13502,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612190557088_jpg.rf.24b5dbcfd788fafc9aafcfdd53aac8c1.jpg",
@@ -14982,10 +13513,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612190700605_jpg.rf.607416637f0e77577cefae9a45111885.jpg",
@@ -14996,9 +13524,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612191101681_jpg.rf.beffd572eabdf2c4b24494d7df4b628a.jpg",
@@ -15009,9 +13535,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612191148695_jpg.rf.5d34f85c0a7b55f02daee23e365e8f51.jpg",
@@ -15022,10 +13546,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qxlm",
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm", "qxlm"]
     },
     {
       "img_file": "2024球悬铃木_球悬铃木染后400_TS-20240612191335870_jpg.rf.838dcce47b30476b1a5e3889bbbd360e.jpg",
@@ -15036,9 +13557,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qxlm"
-      ]
+      "gt_classes": ["qxlm"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185018789_jpg.rf.de49ded9768c9b5de21730d509d8485e.jpg",
@@ -15049,9 +13568,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185153977_jpg.rf.621eb19f2eac2cb3cce3fcde8c93a5ce.jpg",
@@ -15062,10 +13579,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "azs",
-        "azs"
-      ]
+      "gt_classes": ["azs", "azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185531343_jpg.rf.2b2e38ca1e642722cbdcc641a2554bc1.jpg",
@@ -15076,9 +13590,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后200_TS-20250211185711623_jpg.rf.361b80926312b777fcae54046b224f33.jpg",
@@ -15089,9 +13601,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后400_TS-20250211190709759_jpg.rf.58d1c440c9423ce3231961e2d8ccb79f.jpg",
@@ -15102,9 +13612,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024矮紫杉_矮紫杉染后400_TS-20250211191139561_jpg.rf.97da09a8929cd720646afc51dea599d1.jpg",
@@ -15115,9 +13623,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "azs"
-      ]
+      "gt_classes": ["azs"]
     },
     {
       "img_file": "2024芍药花_芍药花染后100_TS-20240610113909563_jpg.rf.0d360e10ad90d6a4a14d10ca79900c42.jpg",
@@ -15128,10 +13634,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后100_TS-20240610114024605_jpg.rf.93647034f9d8fd4ab4b919ae0020b880.jpg",
@@ -15142,15 +13645,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh", "syh", "syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后100_TS-20240610114135601_jpg.rf.aec047a05aff7b34622ca4798dcb5afd.jpg",
@@ -15161,13 +13656,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后100_TS-20240610114230670_jpg.rf.d78345e5f43080ce2ed7b36bdba17339.jpg",
@@ -15178,10 +13667,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后100_TS-20240610114355513_jpg.rf.bafdef0109aa145dc220fbee09450f73.jpg",
@@ -15192,13 +13678,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610114810994_jpg.rf.3146684a1d38e2f9c7996b30859b3409.jpg",
@@ -15209,9 +13689,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610114945108_jpg.rf.208f048400e1edf6680ff0ebe1e2445f.jpg",
@@ -15222,11 +13700,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "syh",
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610115100770_jpg.rf.deeb9e3ec339e5b08079a20e76b509ff.jpg",
@@ -15237,9 +13711,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后200_TS-20240610115140379_jpg.rf.e2c56bd77abe86f90072e794d4a7a23a.jpg",
@@ -15250,9 +13722,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610115836797_jpg.rf.bc0a4a4dfb9a3903d54bcf3f308538a8.jpg",
@@ -15263,9 +13733,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120240909_jpg.rf.d9f141a4a41a0f901b7872b53c471346.jpg",
@@ -15276,10 +13744,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "syh",
-        "syh"
-      ]
+      "gt_classes": ["syh", "syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120322051_jpg.rf.718146e4828c9cd2d3671445e7e7797c.jpg",
@@ -15290,9 +13755,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120446197_jpg.rf.bec8f15451b1570fc98f2c0c8e0045d6.jpg",
@@ -15303,9 +13766,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120721365_jpg.rf.07404326af570e14acb1c1e2c648d2ea.jpg",
@@ -15316,9 +13777,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024芍药花_芍药花染后400_TS-20240610120906387_jpg.rf.0f77b04d88eed0ca86b756fe0907d6df.jpg",
@@ -15329,9 +13788,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "syh"
-      ]
+      "gt_classes": ["syh"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153453143_jpg.rf.a53adf3db389f677d8aff58d6c71c275.jpg",
@@ -15342,16 +13799,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153536295_jpg.rf.541e4568a76c760e9b462e9808953734.jpg",
@@ -15362,16 +13810,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "not_pollen"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "not_pollen"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153832189_jpg.rf.c4de595764ec222c7bf3e404ad4dab40.jpg",
@@ -15382,17 +13821,7 @@
       "gt_count": 9,
       "pred_count": 9,
       "match_count": 9,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后100_TS-20240722153926982_jpg.rf.f45a1ae70b9108b23adb6126300d82be.jpg",
@@ -15403,15 +13832,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx", "cmx", "cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后200_TS-20240722154207478_jpg.rf.6f3224d0efa30dda2ded0c3ce980b0ad.jpg",
@@ -15422,10 +13843,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后200_TS-20240722154227240_jpg.rf.45a1e7a99d515b7d1f6161aa13ca0980.jpg",
@@ -15436,9 +13854,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "cmx"
-      ]
+      "gt_classes": ["cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后200_TS-20240722154344264_jpg.rf.7157605560ad03f23626cd515cb67d4e.jpg",
@@ -15449,9 +13865,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "cmx"
-      ]
+      "gt_classes": ["cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后200_TS-20240722154515555_jpg.rf.fd97bf86b1faa48417096b5f60b551bd.jpg",
@@ -15462,9 +13876,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "cmx"
-      ]
+      "gt_classes": ["cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后200_TS-20240722155159794_jpg.rf.1c4ddfa4b6e969ff64536752f66f7d76.jpg",
@@ -15475,10 +13887,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后400_TS-20240722155600919_jpg.rf.29e1edc4af5c2d6f3027d536425f5bb7.jpg",
@@ -15489,10 +13898,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后400_TS-20240722155902464_jpg.rf.2ebf00f64b715b6c586b062f77db2bb2.jpg",
@@ -15503,9 +13909,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "cmx"
-      ]
+      "gt_classes": ["cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后400_TS-20240722160431702_jpg.rf.5d71df20da11f39ea8a48809bb18c37a.jpg",
@@ -15516,9 +13920,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "cmx"
-      ]
+      "gt_classes": ["cmx"]
     },
     {
       "img_file": "2024草木犀_草木犀染后400_TS-20240722160446674_jpg.rf.3e4ebd6efd24d355e81269c45ac535b4.jpg",
@@ -15529,11 +13931,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "cmx",
-        "cmx",
-        "cmx"
-      ]
+      "gt_classes": ["cmx", "cmx", "cmx"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_4001_jpg.rf.2ede5b8a2f5cf3d2ba199ad06c8a6d4c.jpg",
@@ -15544,9 +13942,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_40029_jpg.rf.6846b0bcf20d57cf6b5b8e5d76f59584.jpg",
@@ -15557,9 +13953,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_4005_jpg.rf.838801e74690cd0cb8f7b2b3852bfb19.jpg",
@@ -15570,9 +13964,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc"]
     },
     {
       "img_file": "2024菊科中华苦荬菜_4008_jpg.rf.ab5d1c00cc97ec7fc79912e3ca990053.jpg",
@@ -15583,9 +13975,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkzhkmc"
-      ]
+      "gt_classes": ["jkzhkmc"]
     },
     {
       "img_file": "2024菊科蒲公英_10019_jpg.rf.d37bc3ddeabef7ebbea828ec456fadb1.jpg",
@@ -15596,9 +13986,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_10020_jpg.rf.36407673756ae62e72ccc577bb821a56.jpg",
@@ -15609,9 +13997,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_10023_jpg.rf.9ae10889ce990b6a335aaee5e95324c6.jpg",
@@ -15622,9 +14008,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_1006_jpg.rf.fe57489585555fb787053dd8478ed769.jpg",
@@ -15635,10 +14019,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_20010_jpg.rf.ec805d67e034f6e6b3b509b83abe8c7b.jpg",
@@ -15649,9 +14030,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_20026_jpg.rf.0751c0542c07aa82aea12fedcffcd3a8.jpg",
@@ -15662,9 +14041,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_40012_jpg.rf.4f4aafa835dfe8754289e46e30a8f545.jpg",
@@ -15675,9 +14052,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_40021_jpg.rf.fe179717e483e88fc8121ca0a6993bd9.jpg",
@@ -15688,9 +14063,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_40026_jpg.rf.51db15e3eac09db67af881e4d1589b24.jpg",
@@ -15701,11 +14074,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_40029_jpg.rf.3bdd89e7faa9966f81b50c8822f66447.jpg",
@@ -15716,9 +14085,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_40031_jpg.rf.c95379b23db6d1a867ad0914a482d1c4.jpg",
@@ -15729,9 +14096,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_40033_jpg.rf.994405f5b5afd5536a759ed16b947a62.jpg",
@@ -15742,13 +14107,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy",
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy", "jkpgy", "jkpgy", "jkpgy", "jkpgy"]
     },
     {
       "img_file": "2024菊科蒲公英_4007_jpg.rf.67889a22060fe41b053240bf922517d7.jpg",
@@ -15759,9 +14118,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jkpgy"
-      ]
+      "gt_classes": ["jkpgy"]
     },
     {
       "img_file": "2024藜科_藜科染后200_TS-20240912103724785_jpg.rf.9e767fa4ad3047f25e107f410181ceac.jpg",
@@ -15772,9 +14129,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk"
-      ]
+      "gt_classes": ["lk"]
     },
     {
       "img_file": "2024藜科_藜科染后200_TS-20240912103757850_jpg.rf.7518c8b0641a8d2396cc9bfa0ae8bea1.jpg",
@@ -15785,9 +14140,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk"
-      ]
+      "gt_classes": ["lk"]
     },
     {
       "img_file": "2024藜科_藜科染后200_TS-20240912104707689_jpg.rf.f4735e8466ab511b8b03752aded346dc.jpg",
@@ -15798,9 +14151,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk"
-      ]
+      "gt_classes": ["lk"]
     },
     {
       "img_file": "2024藜科_藜科染后200_TS-20240912105131642_jpg.rf.13576d74308282fdd8b791ac7127a3ba.jpg",
@@ -15811,12 +14162,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912105716678_jpg.rf.66d10187c7a5d2db8dc073854b258702.jpg",
@@ -15827,9 +14173,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk"
-      ]
+      "gt_classes": ["lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912110127062_jpg.rf.1c32357c2ca9d9e1389e9443c1c8abd9.jpg",
@@ -15840,9 +14184,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk"
-      ]
+      "gt_classes": ["lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912110302811_jpg.rf.c3f2092876f9ae7a44cc7af8792de9d8.jpg",
@@ -15853,9 +14195,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "lk"
-      ]
+      "gt_classes": ["lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912110750114_jpg.rf.cac48a0aa1db383bdec2bff17bcffdae.jpg",
@@ -15866,10 +14206,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912111108598_jpg.rf.c4a5866e75583499fe02a09e2b2a61f1.jpg",
@@ -15880,12 +14217,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "2024藜科_藜科染后400_TS-20240912111447425_jpg.rf.0a9f0034ec8787d414afe34fcd8ef87f.jpg",
@@ -15896,10 +14228,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后100_TS-20240619111454877_jpg.rf.0425d152e6c837af90cda8d31d12a118.jpg",
@@ -15910,9 +14239,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后100_TS-20240619111640335_jpg.rf.feec4026617210bf4a8fff8bed34b280.jpg",
@@ -15923,9 +14250,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后100_TS-20240619111829276_jpg.rf.08ecbeb16f62dc7a806dbcf4d1ac8db1.jpg",
@@ -15936,9 +14261,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后100_TS-20240619112150654_jpg.rf.0d703236400af5323ac44bd3337655c1.jpg",
@@ -15949,11 +14272,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["sk", "sk", "sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后100_TS-20240619112238129_jpg.rf.957e8934d1a5de1497983a7c75a82bb3.jpg",
@@ -15964,10 +14283,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["sk", "sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后100_TS-20240619112345785_jpg.rf.fe27c0e62ff5ff902d4a2d783609d682.jpg",
@@ -15978,9 +14294,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后100_TS-20240619112636957_jpg.rf.814e3abbd0813a9963b3d788db48a6c3.jpg",
@@ -15991,13 +14305,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "not_pollen"
-      ]
+      "gt_classes": ["sk", "sk", "sk", "sk", "not_pollen"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后200_TS-20240619113008572_jpg.rf.e8854119c6a21667e46ca7e4ac912ac4.jpg",
@@ -16008,9 +14316,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后200_TS-20240619113318818_jpg.rf.0a4dd3fa9f8160c757ea8b759d9d0a37.jpg",
@@ -16021,9 +14327,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后200_TS-20240619113345615_jpg.rf.52165b5cf520cb187fdddac638ff1ace.jpg",
@@ -16034,9 +14338,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后200_TS-20240619113428495_jpg.rf.fca9c0d29701290e1bb07d2801fc48c3.jpg",
@@ -16047,9 +14349,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后200_TS-20240619115644344_jpg.rf.0c3a1d30c15c44c3cdf3d0414e77f5d4.jpg",
@@ -16060,9 +14360,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619120425094_jpg.rf.ad5e6e8c5cc4af5cef1ca359550d666e.jpg",
@@ -16073,9 +14371,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619120513891_jpg.rf.2f2f1866ecc4e06b8f632508014bbb0c.jpg",
@@ -16086,9 +14382,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619120615424_jpg.rf.f511ba4100d28e3268a5e540064442df.jpg",
@@ -16099,9 +14393,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619120643481_jpg.rf.0ee463cad6a6e6d6f7b577035ff90c9e.jpg",
@@ -16112,9 +14404,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619120657745_jpg.rf.9e17088189e97028293c9cef7f4b7f65.jpg",
@@ -16125,9 +14415,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121128105_jpg.rf.8ae263ed7a8238b0037ee76a7f8f8d9a.jpg",
@@ -16138,9 +14426,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121157481_jpg.rf.e6d4ce4d5641c46f4bfa5add9e9ae28d.jpg",
@@ -16151,9 +14437,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121255741_jpg.rf.2de92e75a8b0d3992a39077fd7484f93.jpg",
@@ -16164,9 +14448,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121424705_jpg.rf.d1c866acd40060f3d0964b9fe7543ced.jpg",
@@ -16177,9 +14459,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121450666_jpg.rf.c64c77b15c6465b1dc48402026302229.jpg",
@@ -16190,9 +14470,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121455890_jpg.rf.fbf2dea42c4fe2145ce759b3dc63d776.jpg",
@@ -16203,9 +14481,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121652622_jpg.rf.3de03f5eb50bc1d1cb7ba4e71df041c1.jpg",
@@ -16216,9 +14492,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121702506_jpg.rf.9a2a88f4fa13ffec6aa796cb26b582a5.jpg",
@@ -16229,9 +14503,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后400_TS-20240619121835922_jpg.rf.2105e1a8c053be92e358636b04a59055.jpg",
@@ -16242,9 +14514,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "sk"
-      ]
+      "gt_classes": ["sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后40_TS-20240619110501860_jpg.rf.9548cb4f3ce725cd48cfb34778112930.jpg",
@@ -16255,11 +14525,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["sk", "sk", "sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后40_TS-20240619110516895_jpg.rf.05e6ee0c16eebd5da250dc235dfcce9c.jpg",
@@ -16270,13 +14536,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "not_pollen",
-        "sk",
-        "sk",
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["not_pollen", "sk", "sk", "sk", "sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后40_TS-20240619110641188_jpg.rf.03bc82cdf00d5aab101cdf90a96089d0.jpg",
@@ -16287,13 +14547,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk",
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["sk", "sk", "sk", "sk", "sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后40_TS-20240619111215380_jpg.rf.bf25d5ef85f51b11d9f1b865d2af65d3.jpg",
@@ -16304,11 +14558,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "sk",
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["sk", "sk", "sk"]
     },
     {
       "img_file": "2024蜀葵_蜀葵染后40_TS-20240619111241137_jpg.rf.7f29614dc1e35ee5693f06803bf8eeb7.jpg",
@@ -16319,10 +14569,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "sk",
-        "sk"
-      ]
+      "gt_classes": ["sk", "sk"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161318899_jpg.rf.e45e52b11d1b108ec9fcc0c1c0640451.jpg",
@@ -16333,13 +14580,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161455658_jpg.rf.e546d09472c90c44f70acb1687a89d0d.jpg",
@@ -16350,13 +14591,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161622945_jpg.rf.99eeed438816f1078a4b74662a7dafbe.jpg",
@@ -16367,15 +14602,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161656427_jpg.rf.5e0d651ef59b41f8d997a81c4beab091.jpg",
@@ -16386,18 +14613,7 @@
       "gt_count": 10,
       "pred_count": 10,
       "match_count": 10,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后100_TS-20240608161702482_jpg.rf.eaa738066572104adb634fae7c7b4219.jpg",
@@ -16408,11 +14624,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后200_TS-20240608161900213_jpg.rf.753a6abc35f039cda4714ea4816bbd77.jpg",
@@ -16423,11 +14635,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "jyh",
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后200_TS-20240608162019082_jpg.rf.be17463258cb4f0e8e23b67e235d4952.jpg",
@@ -16438,9 +14646,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后200_TS-20240608162325635_jpg.rf.d96ebe95cf0ed235382156b6da58177a.jpg",
@@ -16451,9 +14657,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608162616185_jpg.rf.2d1377b7db969fd66a624b4e87fad45e.jpg",
@@ -16464,9 +14668,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608162748917_jpg.rf.53a1bcbe7bbdac7648116477e5729704.jpg",
@@ -16477,9 +14679,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608162821710_jpg.rf.8146ccd3511cc1fb963b4ec06a1a5e6d.jpg",
@@ -16490,9 +14690,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608163024707_jpg.rf.935308567dacbd749ceefab79ff32b54.jpg",
@@ -16503,9 +14701,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608163127334_jpg.rf.1ac78d23fc706e3264161b4ff3f8a573.jpg",
@@ -16516,9 +14712,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608163207577_jpg.rf.5d668c273355a442cd98390b436271cc.jpg",
@@ -16529,9 +14723,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608163351886_jpg.rf.8b1935838a05a08ba391995ad412a77e.jpg",
@@ -16542,10 +14734,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "jyh",
-        "jyh"
-      ]
+      "gt_classes": ["jyh", "jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608163505683_jpg.rf.2c600839ac425e9129eea7b210941546.jpg",
@@ -16556,9 +14745,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后400_TS-20240608163633550_jpg.rf.cdfd94c56867189a91713a00ebe81b7e.jpg",
@@ -16569,9 +14756,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "jyh"
-      ]
+      "gt_classes": ["jyh"]
     },
     {
       "img_file": "2024金银花_金银花染后40_TS-20240608160909039_jpg.rf.027d9e696fb8e8cb75d33ccf8d153d21.jpg",
@@ -16720,9 +14905,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205142560_jpg.rf.c0585fd579a886974441ca687539a9d8.jpg",
@@ -16733,14 +14916,7 @@
       "gt_count": 6,
       "pred_count": 6,
       "match_count": 6,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm", "hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205301639_jpg.rf.7f0c91cfa2d28598799be60563904d4f.jpg",
@@ -16751,11 +14927,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205400034_jpg.rf.f058c3abc8f52c1f227550bcd2c2dbf0.jpg",
@@ -16766,10 +14938,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205423630_jpg.rf.49b966e7948d578de26c9007f1208eb4.jpg",
@@ -16780,11 +14949,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205439854_jpg.rf.2eb54183f61d568c3336eda0b7e53f9c.jpg",
@@ -16795,9 +14960,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205614033_jpg.rf.9d631a74920dadcdb0df5ba57f624db3.jpg",
@@ -16808,9 +14971,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205743480_jpg.rf.1d69153cb786f0b773683ac6f99afd6c.jpg",
@@ -16821,9 +14982,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611205923229_jpg.rf.dffde399a50318200e0e76242e112923.jpg",
@@ -16834,9 +14993,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后100_TS-20240611210303681_jpg.rf.d2d6e4b7098d0ffeb7fb8ffad1b851f6.jpg",
@@ -16847,11 +15004,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后200_TS-20240611210403813_jpg.rf.701efa03033eb6e3958ba9dbeac27b83.jpg",
@@ -16862,9 +15015,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611211855339_jpg.rf.8af45aa630568e34d229f4d861fd2f51.jpg",
@@ -16875,9 +15026,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611212124680_jpg.rf.ca5173a9827fb76d4a42d90bc0cebbfe.jpg",
@@ -16888,9 +15037,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611212545772_jpg.rf.b2cb3bee98fa4eab53921c43b95bb8d9.jpg",
@@ -16901,9 +15048,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611212711589_jpg.rf.4cb2669afb336569d9db88086835c424.jpg",
@@ -16914,9 +15059,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611212814789_jpg.rf.9fddcc49f220c5a75ebee0a021ca0a3a.jpg",
@@ -16927,9 +15070,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611213457721_jpg.rf.09a902cd68e9be88ec8477ca24c384d0.jpg",
@@ -16940,9 +15081,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611213735780_jpg.rf.269cc03880e837bd8e59958cfe039674.jpg",
@@ -16953,9 +15092,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611213830853_jpg.rf.09e16aa05283128b41e5fcc3fe11b377.jpg",
@@ -16966,9 +15103,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后400_TS-20240611213915011_jpg.rf.bac0dd2ddc21846342e33c22a946ab33.jpg",
@@ -16979,9 +15114,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "hcm"
-      ]
+      "gt_classes": ["hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后40_TS-20240611204128220_jpg.rf.7ccde48141758b59a77cb4d2a5f596b1.jpg",
@@ -16992,10 +15125,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm"]
     },
     {
       "img_file": "2024黄刺玫_黄刺玫染后40_TS-20240611204504771_jpg.rf.6dde9be799ab4828e05ef27a21f4abf1.jpg",
@@ -17006,12 +15136,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "hcm",
-        "hcm",
-        "hcm",
-        "hcm"
-      ]
+      "gt_classes": ["hcm", "hcm", "hcm", "hcm"]
     },
     {
       "img_file": "2025圆柏_圆柏后100_TS-20250226103405915_jpg.rf.aed104c4256536db83eda7b4eecdf138.jpg",
@@ -17022,15 +15147,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "2025圆柏_圆柏后100_TS-20250226103831157_jpg.rf.4ca4a8c59b6d40a24fa2f91adbe118a1.jpg",
@@ -17041,10 +15158,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb"]
     },
     {
       "img_file": "2025圆柏_圆柏后40_TS-20250226103207479_jpg.rf.71219990c6966f8f02f4642f80c55cd4.jpg",
@@ -17055,10 +15169,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb"]
     },
     {
       "img_file": "2025圆柏_圆柏后40_TS-20250226103355290_jpg.rf.a2078618221c2681c4de1a5a0262ae70.jpg",
@@ -17069,22 +15180,7 @@
       "gt_count": 14,
       "pred_count": 14,
       "match_count": 14,
-      "gt_classes": [
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb",
-        "yb"
-      ]
+      "gt_classes": ["yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb", "yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104321844_jpg.rf.14981e6a026986a117318e5371fbcc13.jpg",
@@ -17095,9 +15191,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104449613_jpg.rf.1919ea06725d33fe13e4f7b5c35a30ac.jpg",
@@ -17108,9 +15202,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104816207_jpg.rf.ce52606cd9d8e7beaa68f0fdf481e42e.jpg",
@@ -17121,9 +15213,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104828411_jpg.rf.aa2233a50110562e13d92c20805993b5.jpg",
@@ -17134,9 +15224,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104855675_jpg.rf.bb48c123fada1494de18c5198755daaf.jpg",
@@ -17147,9 +15235,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后200_TS-20250226104904094_jpg.rf.59ec1867308ab6d5ccd6ea266701e7b3.jpg",
@@ -17160,9 +15246,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后400_TS-20250226105907348_jpg.rf.4eb1d1511a1dfddd2502aff59ded51d4.jpg",
@@ -17173,9 +15257,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后400_TS-20250226110150430_jpg.rf.f5f5711bfd5a7243f34200b084ae0be1.jpg",
@@ -17186,9 +15268,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后400_TS-20250226111014496_jpg.rf.39b1357eb4747a512d3a971d82a06c0d.jpg",
@@ -17199,9 +15279,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后400_TS-20250226111019788_jpg.rf.420dca2436b26a1d2540a1aa991049a9.jpg",
@@ -17212,9 +15290,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后400_TS-20250226111030025_jpg.rf.ac2a79a42cf471205c42036aad6ef56d.jpg",
@@ -17225,9 +15301,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "2025圆柏_圆柏染后400_TS-20250226111054735_jpg.rf.7d5770e9e2232635d9052c2ba0354839.jpg",
@@ -17238,9 +15312,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "yb"
-      ]
+      "gt_classes": ["yb"]
     },
     {
       "img_file": "蔷薇科苹果_10010_jpg.rf.ccd95c5e3d84a4825d0301a63bd8d073.jpg",
@@ -17251,12 +15323,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "not_pollen"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg", "qwkpg", "not_pollen"]
     },
     {
       "img_file": "蔷薇科苹果_10015_jpg.rf.cee66b06e324d5b312902fb4cc864932.jpg",
@@ -17267,15 +15334,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_10031_jpg.rf.7dbbf1d480d25cb94a8d3f2f8de476b8.jpg",
@@ -17286,9 +15345,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_20014_jpg.rf.68d1029f5b1619b9876caf7baf0b4fed.jpg",
@@ -17299,9 +15356,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_20023_jpg.rf.002420466506edebf2d71267b7b91947.jpg",
@@ -17312,9 +15367,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_20029_jpg.rf.3c719d3e9a6f80bed85cb62037c9fcda.jpg",
@@ -17325,9 +15378,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_20035_jpg.rf.12a316aa542d0e1ebded14a6669b7e46.jpg",
@@ -17338,9 +15389,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_20036_jpg.rf.73ea8a0dd36069f990e9d88aad46812e.jpg",
@@ -17351,9 +15400,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_20043_jpg.rf.845e8b87779f74932ae9ad196560b498.jpg",
@@ -17364,10 +15411,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qwkpg",
-        "not_pollen"
-      ]
+      "gt_classes": ["qwkpg", "not_pollen"]
     },
     {
       "img_file": "蔷薇科苹果_20044_jpg.rf.c682cd76a9edb0e5d6422ea23b1b0caf.jpg",
@@ -17378,9 +15422,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_2005_jpg.rf.de052b41399a831868dfd993b8d3588c.jpg",
@@ -17391,10 +15433,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_40015_jpg.rf.bb05416238d56e893a56ea30c3cfffaa.jpg",
@@ -17405,9 +15444,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_40018_jpg.rf.43620ed14d1dba3f53e3b1151c3b6a08.jpg",
@@ -17418,9 +15455,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_4001_jpg.rf.2be547558345802a8d35a3cce0cf30b2.jpg",
@@ -17431,13 +15466,7 @@
       "gt_count": 5,
       "pred_count": 5,
       "match_count": 5,
-      "gt_classes": [
-        "qwkpg",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen",
-        "not_pollen"
-      ]
+      "gt_classes": ["qwkpg", "not_pollen", "not_pollen", "not_pollen", "not_pollen"]
     },
     {
       "img_file": "蔷薇科苹果_40022_jpg.rf.3e631f6e432cbe04641a19fc2d7861cf.jpg",
@@ -17448,10 +15477,7 @@
       "gt_count": 2,
       "pred_count": 2,
       "match_count": 2,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_40036_jpg.rf.d43f548775d7b9f2478ad60857c5d4f7.jpg",
@@ -17462,9 +15488,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_4003_jpg.rf.4cffbdad5eadd7c720654d2e250bef85.jpg",
@@ -17475,14 +15499,7 @@
       "gt_count": 6,
       "pred_count": 6,
       "match_count": 6,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_40048_jpg.rf.519b9b00e014be076252075c936f46cb.jpg",
@@ -17493,9 +15510,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_40050_jpg.rf.c2df8b6d90ff72a3406c0e2c26f64a72.jpg",
@@ -17506,11 +15521,7 @@
       "gt_count": 3,
       "pred_count": 3,
       "match_count": 3,
-      "gt_classes": [
-        "not_pollen",
-        "not_pollen",
-        "qwkpg"
-      ]
+      "gt_classes": ["not_pollen", "not_pollen", "qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_4005_jpg.rf.0ebf3204e9bde4925fb8b915930e65e9.jpg",
@@ -17521,9 +15532,7 @@
       "gt_count": 1,
       "pred_count": 1,
       "match_count": 1,
-      "gt_classes": [
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg"]
     },
     {
       "img_file": "蔷薇科苹果_4007_jpg.rf.711ddc863d30a3cc90c4f683ecdadaea.jpg",
@@ -17534,12 +15543,7 @@
       "gt_count": 4,
       "pred_count": 4,
       "match_count": 4,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg",
-        "not_pollen",
-        "not_pollen"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg", "not_pollen", "not_pollen"]
     },
     {
       "img_file": "蔷薇科苹果_4011_jpg.rf.a51c24a8e13fff371a30daa601b4400e.jpg",
@@ -17550,16 +15554,7 @@
       "gt_count": 8,
       "pred_count": 8,
       "match_count": 8,
-      "gt_classes": [
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg",
-        "qwkpg"
-      ]
+      "gt_classes": ["qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg", "qwkpg"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912102237203_jpg.rf.33d77ad94ffc0ac7cad8751a2062a44f.jpg",
@@ -17570,15 +15565,7 @@
       "gt_count": 7,
       "pred_count": 7,
       "match_count": 7,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912102652807_jpg.rf.4ec9d239d9acb695077c1f5e8a0d7280.jpg",
@@ -17589,21 +15576,7 @@
       "gt_count": 13,
       "pred_count": 13,
       "match_count": 13,
-      "gt_classes": [
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk",
-        "lk"
-      ]
+      "gt_classes": ["lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk", "lk"]
     },
     {
       "img_file": "藜科2024_藜科染后100_TS-20240912103518029_jpg.rf.b38824464098d2c5a43667c3db2e25c0.jpg",

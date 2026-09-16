@@ -1,14 +1,15 @@
-""" Quick n Simple Image Folder, Tarfile based DataSet
+"""Quick n Simple Image Folder, Tarfile based DataSet.
 
 Hacked together by / Copyright 2019, Ross Wightman
 """
-import io
+
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 import torch
-import torch.utils.data as data
 from PIL import Image
+from torch.utils import data
 
 from .readers import create_reader
 
@@ -19,23 +20,22 @@ _ERROR_RETRY = 20
 
 
 class ImageDataset(data.Dataset):
-
     def __init__(
-            self,
-            root,
-            reader=None,
-            split='train',
-            class_map=None,
-            load_bytes=False,
-            input_img_mode='RGB',
-            transform=None,
-            target_transform=None,
-            additional_features=None,
-            **kwargs,
+        self,
+        root,
+        reader=None,
+        split="train",
+        class_map=None,
+        load_bytes=False,
+        input_img_mode="RGB",
+        transform=None,
+        target_transform=None,
+        additional_features=None,
+        **kwargs,
     ):
         if reader is None or isinstance(reader, str):
             reader = create_reader(
-                reader or '',
+                reader or "",
                 root=root,
                 split=split,
                 class_map=class_map,
@@ -56,8 +56,8 @@ class ImageDataset(data.Dataset):
                 img, target, *features = self.reader[index]
                 img = img.read() if self.load_bytes else Image.open(img)
                 break
-            except (IOError, OSError) as e:  # be specific
-                _logger.warning(f'Skipped sample (index {index}). {e}')
+            except OSError as e:  # be specific
+                _logger.warning(f"Skipped sample (index {index}). {e}")
                 index = (index + 1) % len(self.reader)
         else:
             raise RuntimeError(f"Failed to load {self._max_retries} consecutive samples")
@@ -88,26 +88,25 @@ class ImageDataset(data.Dataset):
 
 
 class IterableImageDataset(data.IterableDataset):
-
     def __init__(
-            self,
-            root,
-            reader=None,
-            split='train',
-            class_map=None,
-            is_training=False,
-            batch_size=1,
-            num_samples=None,
-            seed=42,
-            repeats=0,
-            download=False,
-            input_img_mode='RGB',
-            input_key=None,
-            target_key=None,
-            transform=None,
-            target_transform=None,
-            max_steps=None,
-            **kwargs,
+        self,
+        root,
+        reader=None,
+        split="train",
+        class_map=None,
+        is_training=False,
+        batch_size=1,
+        num_samples=None,
+        seed=42,
+        repeats=0,
+        download=False,
+        input_img_mode="RGB",
+        input_key=None,
+        target_key=None,
+        transform=None,
+        target_transform=None,
+        max_steps=None,
+        **kwargs,
     ):
         assert reader is not None
         if isinstance(reader, str):
@@ -142,33 +141,33 @@ class IterableImageDataset(data.IterableDataset):
             yield img, target
 
     def __len__(self):
-        if hasattr(self.reader, '__len__'):
+        if hasattr(self.reader, "__len__"):
             return len(self.reader)
         else:
             return 0
 
     def set_epoch(self, count):
         # TFDS and WDS need external epoch count for deterministic cross process shuffle
-        if hasattr(self.reader, 'set_epoch'):
+        if hasattr(self.reader, "set_epoch"):
             self.reader.set_epoch(count)
 
     def set_loader_cfg(
-            self,
-            num_workers: Optional[int] = None,
+        self,
+        num_workers: int | None = None,
     ):
         # TFDS and WDS readers need # workers for correct # samples estimate before loader processes created
-        if hasattr(self.reader, 'set_loader_cfg'):
+        if hasattr(self.reader, "set_loader_cfg"):
             self.reader.set_loader_cfg(num_workers=num_workers)
 
     def filename(self, index, basename=False, absolute=False):
-        assert False, 'Filename lookup by index not supported, use filenames().'
+        assert False, "Filename lookup by index not supported, use filenames()."
 
     def filenames(self, basename=False, absolute=False):
         return self.reader.filenames(basename, absolute)
 
 
 class AugMixDataset(torch.utils.data.Dataset):
-    """Dataset wrapper to perform AugMix or other clean/augmentation mixes"""
+    """Dataset wrapper to perform AugMix or other clean/augmentation mixes."""
 
     def __init__(self, dataset, num_splits=2):
         self.augmentation = None
@@ -179,7 +178,7 @@ class AugMixDataset(torch.utils.data.Dataset):
         self.num_splits = num_splits
 
     def _set_transforms(self, x):
-        assert isinstance(x, (list, tuple)) and len(x) == 3, 'Expecting a tuple/list of 3 transforms'
+        assert isinstance(x, (list, tuple)) and len(x) == 3, "Expecting a tuple/list of 3 transforms"
         self.dataset.transform = x[0]
         self.augmentation = x[1]
         self.normalize = x[2]

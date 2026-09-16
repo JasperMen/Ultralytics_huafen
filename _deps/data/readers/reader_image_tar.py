@@ -1,10 +1,11 @@
-""" A dataset reader that reads single tarfile based datasets
+"""A dataset reader that reads single tarfile based datasets.
 
 This reader can read datasets consisting if a single tarfile containing images.
-I am planning to deprecated it in favour of ParerImageInTar.
+I am planning to deprecated it in favor of ParerImageInTar.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
+
 import os
 import tarfile
 
@@ -30,7 +31,7 @@ def extract_tarinfo(tarfile, class_to_idx=None, sort=True):
             labels.append(label)
     if class_to_idx is None:
         unique_labels = set(labels)
-        sorted_labels = list(sorted(unique_labels, key=natural_key))
+        sorted_labels = sorted(unique_labels, key=natural_key)
         class_to_idx = {c: idx for idx, c in enumerate(sorted_labels)}
     tarinfo_and_targets = [(f, class_to_idx[l]) for f, l in zip(files, labels) if l in class_to_idx]
     if sort:
@@ -39,11 +40,11 @@ def extract_tarinfo(tarfile, class_to_idx=None, sort=True):
 
 
 class ReaderImageTar(Reader):
-    """ Single tarfile dataset where classes are mapped to folders within tar
-    NOTE: This class is being deprecated in favour of the more capable ReaderImageInTar that can
-    operate on folders of tars or tars in tars.
+    """Single tarfile dataset where classes are mapped to folders within tar NOTE: This class is being deprecated in
+    favor of the more capable ReaderImageInTar that can operate on folders of tars or tars in tars.
     """
-    def __init__(self, root, class_map=''):
+
+    def __init__(self, root, class_map=""):
         super().__init__()
 
         class_to_idx = None

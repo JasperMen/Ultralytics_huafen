@@ -1,4 +1,4 @@
-""" Adaptive Gradient Clipping
+"""Adaptive Gradient Clipping.
 
 An impl of AGC, as per (https://arxiv.org/abs/2102.06171):
 
@@ -15,6 +15,7 @@ Code references:
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
+
 import torch
 
 
