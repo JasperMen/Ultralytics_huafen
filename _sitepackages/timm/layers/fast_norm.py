@@ -1,4 +1,4 @@
-""" 'Fast' Normalization Functions
+"""'Fast' Normalization Functions.
 
 For GroupNorm and LayerNorm these functions bypass typical AMP upcast to float32.
 
@@ -6,51 +6,54 @@ Additionally, for LayerNorm, the APEX fused LN is used if available (which also 
 
 Hacked together by / Copyright 2022 Ross Wightman
 """
-from typing import List, Optional
+
+from __future__ import annotations
 
 import torch
 from torch.nn import functional as F
 
 try:
     from apex.normalization.fused_layer_norm import fused_layer_norm_affine
+
     has_apex = True
 except ImportError:
     has_apex = False
 
 try:
-    from apex.normalization.fused_layer_norm import fused_rms_norm_affine, fused_rms_norm
+    from apex.normalization.fused_layer_norm import fused_rms_norm, fused_rms_norm_affine
+
     has_apex_rmsnorm = True
 except ImportError:
     has_apex_rmsnorm = False
 
 
-has_torch_rms_norm = hasattr(F, 'rms_norm')
+has_torch_rms_norm = hasattr(F, "rms_norm")
 
 # fast (ie lower precision LN) can be disabled with this flag if issues crop up
 _USE_FAST_NORM = False  # defaulting to False for now
 
 
-def get_autocast_dtype(device: str = 'cuda'):
+def get_autocast_dtype(device: str = "cuda"):
     try:
         return torch.get_autocast_dtype(device)
     except (AttributeError, TypeError):
         # dispatch to older device specific fns, only covering cuda/cpu devices here
-        if device == 'cpu':
+        if device == "cpu":
             return torch.get_autocast_cpu_dtype()
         else:
-            assert device == 'cuda'
+            assert device == "cuda"
             return torch.get_autocast_gpu_dtype()
 
 
-def is_autocast_enabled(device: str = 'cuda'):
+def is_autocast_enabled(device: str = "cuda"):
     try:
         return torch.is_autocast_enabled(device)
     except TypeError:
         # dispatch to older device specific fns, only covering cuda/cpu devices here
-        if device == 'cpu':
+        if device == "cpu":
             return torch.is_autocast_cpu_enabled()
         else:
-            assert device == 'cuda'
+            assert device == "cuda"
             return torch.is_autocast_enabled()  # defaults cuda (only cuda on older pytorch)
 
 
@@ -66,9 +69,9 @@ def set_fast_norm(enable=True):
 def fast_group_norm(
     x: torch.Tensor,
     num_groups: int,
-    weight: Optional[torch.Tensor] = None,
-    bias: Optional[torch.Tensor] = None,
-    eps: float = 1e-5
+    weight: torch.Tensor | None = None,
+    bias: torch.Tensor | None = None,
+    eps: float = 1e-5,
 ) -> torch.Tensor:
     if torch.jit.is_scripting():
         # currently cannot use is_autocast_enabled within torchscript
@@ -90,10 +93,10 @@ def fast_group_norm(
 
 def fast_layer_norm(
     x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
-    bias: Optional[torch.Tensor] = None,
-    eps: float = 1e-5
+    normalized_shape: list[int],
+    weight: torch.Tensor | None = None,
+    bias: torch.Tensor | None = None,
+    eps: float = 1e-5,
 ) -> torch.Tensor:
     if torch.jit.is_scripting():
         # currently cannot use is_autocast_enabled within torchscript
@@ -118,8 +121,8 @@ def fast_layer_norm(
 
 def rms_norm(
     x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    normalized_shape: list[int],
+    weight: torch.Tensor | None = None,
     eps: float = 1e-5,
 ):
     norm_ndim = len(normalized_shape)
@@ -141,8 +144,8 @@ def rms_norm(
 
 def fast_rms_norm(
     x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    normalized_shape: list[int],
+    weight: torch.Tensor | None = None,
     eps: float = 1e-5,
 ) -> torch.Tensor:
     if torch.jit.is_scripting():
@@ -172,8 +175,8 @@ def fast_rms_norm(
 
 def rms_norm2d(
     x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    normalized_shape: list[int],
+    weight: torch.Tensor | None = None,
     eps: float = 1e-5,
 ):
     assert len(normalized_shape) == 1
@@ -187,8 +190,8 @@ def rms_norm2d(
 
 def fast_rms_norm2d(
     x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    normalized_shape: list[int],
+    weight: torch.Tensor | None = None,
     eps: float = 1e-5,
 ) -> torch.Tensor:
     if torch.jit.is_scripting():
@@ -217,8 +220,8 @@ def fast_rms_norm2d(
 
 def simple_norm(
     x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    normalized_shape: list[int],
+    weight: torch.Tensor | None = None,
     eps: float = 1e-5,
 ):
     norm_ndim = len(normalized_shape)
@@ -239,8 +242,8 @@ def simple_norm(
 
 def fast_simple_norm(
     x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
+    normalized_shape: list[int],
+    weight: torch.Tensor | None = None,
     eps: float = 1e-5,
 ) -> torch.Tensor:
     if torch.jit.is_scripting():
@@ -256,4 +259,3 @@ def fast_simple_norm(
     with torch.amp.autocast(device_type=x.device.type, enabled=False):
         x = simple_norm(x, normalized_shape, weight, eps)
     return x
-
