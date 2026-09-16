@@ -1,4 +1,4 @@
-""" Gather-Excite Attention Block
+"""Gather-Excite Attention Block.
 
 Paper: `Gather-Excite: Exploiting Feature Context in CNNs` - https://arxiv.org/abs/1810.12348
 
@@ -11,11 +11,13 @@ NOTE: extent=0 + extra_params=False is equivalent to Squeeze-and-Excitation
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import Optional, Tuple, Type, Union
+
+from __future__ import annotations
+
 import math
 
-from torch import nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from .create_act import create_act_layer, get_act_layer
 from .create_conv2d import create_conv2d
@@ -24,26 +26,26 @@ from .mlp import ConvMlp
 
 
 class GatherExcite(nn.Module):
-    """ Gather-Excite Attention Module
-    """
+    """Gather-Excite Attention Module."""
+
     def __init__(
-            self,
-            channels: int,
-            feat_size: Optional[Tuple[int, int]] = None,
-            extra_params: bool = False,
-            extent: int = 0,
-            use_mlp: bool = True,
-            rd_ratio: float = 1./16,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 1,
-            add_maxpool: bool = False,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            device=None,
-            dtype=None,
+        self,
+        channels: int,
+        feat_size: tuple[int, int] | None = None,
+        extra_params: bool = False,
+        extent: int = 0,
+        use_mlp: bool = True,
+        rd_ratio: float = 1.0 / 16,
+        rd_channels: int | None = None,
+        rd_divisor: int = 1,
+        add_maxpool: bool = False,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.add_maxpool = add_maxpool
         act_layer = get_act_layer(act_layer)
@@ -51,22 +53,23 @@ class GatherExcite(nn.Module):
         if extra_params:
             self.gather = nn.Sequential()
             if extent == 0:
-                assert feat_size is not None, 'spatial feature size must be specified for global extent w/ params'
+                assert feat_size is not None, "spatial feature size must be specified for global extent w/ params"
                 self.gather.add_module(
-                    'conv1', create_conv2d(channels, channels, kernel_size=feat_size, stride=1, depthwise=True, *dd))
+                    "conv1", create_conv2d(channels, channels, kernel_size=feat_size, stride=1, depthwise=True, *dd)
+                )
                 if norm_layer:
-                    self.gather.add_module(f'norm1', nn.BatchNorm2d(channels, *dd))
+                    self.gather.add_module("norm1", nn.BatchNorm2d(channels, *dd))
             else:
                 assert extent % 2 == 0
                 num_conv = int(math.log2(extent))
                 for i in range(num_conv):
                     self.gather.add_module(
-                        f'conv{i + 1}',
-                        create_conv2d(channels, channels, kernel_size=3, stride=2, depthwise=True, *dd))
+                        f"conv{i + 1}", create_conv2d(channels, channels, kernel_size=3, stride=2, depthwise=True, *dd)
+                    )
                     if norm_layer:
-                        self.gather.add_module(f'norm{i + 1}', nn.BatchNorm2d(channels, *dd))
+                        self.gather.add_module(f"norm{i + 1}", nn.BatchNorm2d(channels, *dd))
                     if i != num_conv - 1:
-                        self.gather.add_module(f'act{i + 1}', act_layer(inplace=True))
+                        self.gather.add_module(f"act{i + 1}", act_layer(inplace=True))
         else:
             self.gather = None
             if self.extent == 0:
@@ -78,7 +81,7 @@ class GatherExcite(nn.Module):
                 self.gs = self.extent
 
         if not rd_channels:
-            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
+            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.0)
         self.mlp = ConvMlp(channels, rd_channels, act_layer=act_layer, *dd) if use_mlp else nn.Identity()
         self.gate = create_act_layer(gate_layer)
 
@@ -95,7 +98,8 @@ class GatherExcite(nn.Module):
                     x_ge = 0.5 * x_ge + 0.5 * x.amax((2, 3), keepdim=True)
             else:
                 x_ge = F.avg_pool2d(
-                    x, kernel_size=self.gk, stride=self.gs, padding=self.gk // 2, count_include_pad=False)
+                    x, kernel_size=self.gk, stride=self.gs, padding=self.gk // 2, count_include_pad=False
+                )
                 if self.add_maxpool:
                     # experimental codepath, may remove or change
                     x_ge = 0.5 * x_ge + 0.5 * F.max_pool2d(x, kernel_size=self.gk, stride=self.gs, padding=self.gk // 2)

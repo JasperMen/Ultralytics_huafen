@@ -1,33 +1,36 @@
-""" Loader Factory, Fast Collate, CUDA Prefetcher
+"""Loader Factory, Fast Collate, CUDA Prefetcher.
 
 Prefetcher and Fast Collate inspired by NVIDIA APEX example at
 https://github.com/NVIDIA/apex/commit/d5e2bb4bdeedd27b1dfaf5bb2b24d6c000dee9be#diff-cf86c282ff7fba81fad27a559379d5bf
 
 Hacked together by / Copyright 2019, Ross Wightman
 """
+
+from __future__ import annotations
+
 import logging
 import random
 from contextlib import suppress
 from functools import partial
 from itertools import repeat
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable
 
+import numpy as np
 import torch
 import torch.utils.data
-import numpy as np
 
 from .constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from .dataset import IterableImageDataset, ImageDataset
+from .dataset import ImageDataset, IterableImageDataset
 from .distributed_sampler import OrderedDistributedSampler, RepeatAugSampler
-from .random_erasing import RandomErasing
 from .mixup import FastCollateMixup
+from .random_erasing import RandomErasing
 from .transforms_factory import create_transform
 
 _logger = logging.getLogger(__name__)
 
 
 def fast_collate(batch):
-    """ A fast collation function optimized for uint8 images (np array or torch) and int64 targets (labels)"""
+    """A fast collation function optimized for uint8 images (np array or torch) and int64 targets (labels)."""
     assert isinstance(batch[0], tuple)
     batch_size = len(batch)
     if isinstance(batch[0][0], tuple):
@@ -71,27 +74,26 @@ def adapt_to_chs(x, n):
     elif len(x) != n:
         x_mean = np.mean(x).item()
         x = (x_mean,) * n
-        _logger.warning(f'Pretrained mean/std different shape than model, using avg value {x}.')
+        _logger.warning(f"Pretrained mean/std different shape than model, using avg value {x}.")
     else:
-        assert len(x) == n, 'normalization stats must match image channels'
+        assert len(x) == n, "normalization stats must match image channels"
     return x
 
 
 class PrefetchLoader:
-
     def __init__(
-            self,
-            loader: torch.utils.data.DataLoader,
-            mean: Tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
-            std: Tuple[float, ...] = IMAGENET_DEFAULT_STD,
-            channels: int = 3,
-            device: torch.device = torch.device('cuda'),
-            img_dtype: Optional[torch.dtype] = None,
-            fp16: bool = False,
-            re_prob: float = 0.,
-            re_mode: str = 'const',
-            re_count: int = 1,
-            re_num_splits: int = 0,
+        self,
+        loader: torch.utils.data.DataLoader,
+        mean: tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
+        std: tuple[float, ...] = IMAGENET_DEFAULT_STD,
+        channels: int = 3,
+        device: torch.device = torch.device("cuda"),
+        img_dtype: torch.dtype | None = None,
+        fp16: bool = False,
+        re_prob: float = 0.0,
+        re_mode: str = "const",
+        re_count: int = 1,
+        re_num_splits: int = 0,
     ):
         mean = adapt_to_chs(mean, channels)
         std = adapt_to_chs(std, channels)
@@ -103,11 +105,9 @@ class PrefetchLoader:
             # fp16 arg is deprecated, but will override dtype arg if set for bwd compat
             img_dtype = torch.float16
         self.img_dtype = img_dtype or torch.float32
-        self.mean = torch.tensor(
-            [x * 255 for x in mean], device=device, dtype=img_dtype).view(normalization_shape)
-        self.std = torch.tensor(
-            [x * 255 for x in std], device=device, dtype=img_dtype).view(normalization_shape)
-        if re_prob > 0.:
+        self.mean = torch.tensor([x * 255 for x in mean], device=device, dtype=img_dtype).view(normalization_shape)
+        self.std = torch.tensor([x * 255 for x in std], device=device, dtype=img_dtype).view(normalization_shape)
+        if re_prob > 0.0:
             self.random_erasing = RandomErasing(
                 probability=re_prob,
                 mode=re_mode,
@@ -117,8 +117,8 @@ class PrefetchLoader:
             )
         else:
             self.random_erasing = None
-        self.is_cuda = device.type == 'cuda' and torch.cuda.is_available()
-        self.is_npu = device.type == 'npu' and torch.npu.is_available()
+        self.is_cuda = device.type == "cuda" and torch.cuda.is_available()
+        self.is_npu = device.type == "npu" and torch.npu.is_available()
 
     def __iter__(self):
         first = True
@@ -133,7 +133,6 @@ class PrefetchLoader:
             stream_context = suppress
 
         for next_input, next_target in self.loader:
-
             with stream_context():
                 next_input = next_input.to(device=self.device, non_blocking=True)
                 next_target = next_target.to(device=self.device, non_blocking=True)
@@ -181,65 +180,64 @@ class PrefetchLoader:
             self.loader.collate_fn.mixup_enabled = x
 
 
-def _worker_init(worker_id, worker_seeding='all'):
+def _worker_init(worker_id, worker_seeding="all"):
     worker_info = torch.utils.data.get_worker_info()
     assert worker_info.id == worker_id
     if isinstance(worker_seeding, Callable):
         seed = worker_seeding(worker_info)
         random.seed(seed)
         torch.manual_seed(seed)
-        np.random.seed(seed % (2 ** 32 - 1))
+        np.random.seed(seed % (2**32 - 1))
     else:
-        assert worker_seeding in ('all', 'part')
+        assert worker_seeding in ("all", "part")
         # random / torch seed already called in dataloader iter class w/ worker_info.seed
         # to reproduce some old results (same seed + hparam combo), partial seeding is required (skip numpy re-seed)
-        if worker_seeding == 'all':
-            np.random.seed(worker_info.seed % (2 ** 32 - 1))
+        if worker_seeding == "all":
+            np.random.seed(worker_info.seed % (2**32 - 1))
 
 
 def create_loader(
-        dataset: Union[ImageDataset, IterableImageDataset],
-        input_size: Union[int, Tuple[int, int], Tuple[int, int, int]],
-        batch_size: int,
-        is_training: bool = False,
-        no_aug: bool = False,
-        re_prob: float = 0.,
-        re_mode: str = 'const',
-        re_count: int = 1,
-        re_split: bool = False,
-        train_crop_mode: Optional[str] = None,
-        scale: Optional[Tuple[float, float]] = None,
-        ratio: Optional[Tuple[float, float]] = None,
-        hflip: float = 0.5,
-        vflip: float = 0.,
-        color_jitter: float = 0.4,
-        color_jitter_prob: Optional[float] = None,
-        grayscale_prob: float = 0.,
-        gaussian_blur_prob: float = 0.,
-        auto_augment: Optional[str] = None,
-        num_aug_repeats: int = 0,
-        num_aug_splits: int = 0,
-        interpolation: str = 'bilinear',
-        mean: Tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
-        std: Tuple[float, ...] = IMAGENET_DEFAULT_STD,
-        num_workers: int = 1,
-        distributed: bool = False,
-        crop_pct: Optional[float] = None,
-        crop_mode: Optional[str] = None,
-        crop_border_pixels: Optional[int] = None,
-        collate_fn: Optional[Callable] = None,
-        pin_memory: bool = False,
-        fp16: bool = False,  # deprecated, use img_dtype
-        img_dtype: torch.dtype = torch.float32,
-        device: torch.device = torch.device('cuda'),
-        use_prefetcher: bool = True,
-        use_multi_epochs_loader: bool = False,
-        persistent_workers: bool = True,
-        worker_seeding: str = 'all',
-        tf_preprocessing: bool = False,
+    dataset: ImageDataset | IterableImageDataset,
+    input_size: int | tuple[int, int] | tuple[int, int, int],
+    batch_size: int,
+    is_training: bool = False,
+    no_aug: bool = False,
+    re_prob: float = 0.0,
+    re_mode: str = "const",
+    re_count: int = 1,
+    re_split: bool = False,
+    train_crop_mode: str | None = None,
+    scale: tuple[float, float] | None = None,
+    ratio: tuple[float, float] | None = None,
+    hflip: float = 0.5,
+    vflip: float = 0.0,
+    color_jitter: float = 0.4,
+    color_jitter_prob: float | None = None,
+    grayscale_prob: float = 0.0,
+    gaussian_blur_prob: float = 0.0,
+    auto_augment: str | None = None,
+    num_aug_repeats: int = 0,
+    num_aug_splits: int = 0,
+    interpolation: str = "bilinear",
+    mean: tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
+    std: tuple[float, ...] = IMAGENET_DEFAULT_STD,
+    num_workers: int = 1,
+    distributed: bool = False,
+    crop_pct: float | None = None,
+    crop_mode: str | None = None,
+    crop_border_pixels: int | None = None,
+    collate_fn: Callable | None = None,
+    pin_memory: bool = False,
+    fp16: bool = False,  # deprecated, use img_dtype
+    img_dtype: torch.dtype = torch.float32,
+    device: torch.device = torch.device("cuda"),
+    use_prefetcher: bool = True,
+    use_multi_epochs_loader: bool = False,
+    persistent_workers: bool = True,
+    worker_seeding: str = "all",
+    tf_preprocessing: bool = False,
 ):
     """
-
     Args:
         dataset: The image dataset to load.
         input_size: Target input size (channels, height, width) tuple or size scalar.
@@ -254,8 +252,8 @@ def create_loader(
         ratio: Random aspect ratio range (crop ratio for RRC, ratio adjustment factor for RKR).
         hflip: Horizontal flip probability.
         vflip: Vertical flip probability.
-        color_jitter: Random color jitter component factors (brightness, contrast, saturation, hue).
-            Scalar is applied as (scalar,) * 3 (no hue).
+        color_jitter: Random color jitter component factors (brightness, contrast, saturation, hue). Scalar is applied
+            as (scalar,) * 3 (no hue).
         color_jitter_prob: Apply color jitter with this probability if not None (for SimlCLR-like aug
         grayscale_prob: Probability of converting image to grayscale (for SimCLR-like aug).
         gaussian_blur_prob: Probability of applying gaussian blur (for SimCLR-like aug).
@@ -343,24 +341,24 @@ def create_loader(
     if use_multi_epochs_loader:
         loader_class = MultiEpochsDataLoader
 
-    loader_args = dict(
-        batch_size=batch_size,
-        shuffle=not isinstance(dataset, torch.utils.data.IterableDataset) and sampler is None and is_training,
-        num_workers=num_workers,
-        sampler=sampler,
-        collate_fn=collate_fn,
-        pin_memory=pin_memory,
-        drop_last=is_training,
-        worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding),
-        persistent_workers=persistent_workers
-    )
+    loader_args = {
+        "batch_size": batch_size,
+        "shuffle": not isinstance(dataset, torch.utils.data.IterableDataset) and sampler is None and is_training,
+        "num_workers": num_workers,
+        "sampler": sampler,
+        "collate_fn": collate_fn,
+        "pin_memory": pin_memory,
+        "drop_last": is_training,
+        "worker_init_fn": partial(_worker_init, worker_seeding=worker_seeding),
+        "persistent_workers": persistent_workers,
+    }
     try:
         loader = loader_class(dataset, **loader_args)
-    except TypeError as e:
-        loader_args.pop('persistent_workers')  # only in Pytorch 1.7+
+    except TypeError:
+        loader_args.pop("persistent_workers")  # only in Pytorch 1.7+
         loader = loader_class(dataset, **loader_args)
     if use_prefetcher:
-        prefetch_re_prob = re_prob if is_training and not no_aug else 0.
+        prefetch_re_prob = re_prob if is_training and not no_aug else 0.0
         loader = PrefetchLoader(
             loader,
             mean=mean,
@@ -372,14 +370,13 @@ def create_loader(
             re_prob=prefetch_re_prob,
             re_mode=re_mode,
             re_count=re_count,
-            re_num_splits=re_num_splits
+            re_num_splits=re_num_splits,
         )
 
     return loader
 
 
 class MultiEpochsDataLoader(torch.utils.data.DataLoader):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._DataLoader__initialized = False
@@ -398,8 +395,8 @@ class MultiEpochsDataLoader(torch.utils.data.DataLoader):
             yield next(self.iterator)
 
 
-class _RepeatSampler(object):
-    """ Sampler that repeats forever.
+class _RepeatSampler:
+    """Sampler that repeats forever.
 
     Args:
         sampler (Sampler)

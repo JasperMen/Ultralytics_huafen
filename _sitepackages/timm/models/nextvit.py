@@ -1,31 +1,41 @@
-""" Next-ViT
+"""Next-ViT.
 
 As described in https://arxiv.org/abs/2207.05501
 
 Next-ViT model defs and weights adapted from https://github.com/bytedance/Next-ViT, original copyright below
 """
+
 # Copyright (c) ByteDance Inc. All rights reserved.
+from __future__ import annotations
+
 from functools import partial
-from typing import List, Optional, Tuple, Union, Type
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import DropPath, calculate_drop_path_rates, trunc_normal_, ConvMlp, get_norm_layer, get_act_layer, use_fused_attn
-from timm.layers import ClassifierHead
+from timm.layers import (
+    ClassifierHead,
+    ConvMlp,
+    DropPath,
+    calculate_drop_path_rates,
+    get_act_layer,
+    get_norm_layer,
+    trunc_normal_,
+    use_fused_attn,
+)
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._manipulate import checkpoint, checkpoint_seq
 from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['NextViT']
+__all__ = ["NextViT"]
 
 
 def merge_pre_bn(module, pre_bn_1, pre_bn_2=None):
-    """ Merge pre BN to reduce inference runtime.
-    """
+    """Merge pre BN to reduce inference runtime."""
     weight = module.weight.data
     if module.bias is None:
         zeros = torch.zeros(module.out_chs, device=weight.device).type(weight.type())
@@ -50,9 +60,10 @@ def merge_pre_bn(module, pre_bn_1, pre_bn_2=None):
 
         extra_weight = scale_invstd_1 * pre_bn_1.weight * scale_invstd_2 * pre_bn_2.weight
         extra_bias = (
-                scale_invstd_2 * pre_bn_2.weight
-                * (pre_bn_1.bias - pre_bn_1.weight * pre_bn_1.running_mean * scale_invstd_1 - pre_bn_2.running_mean)
-                + pre_bn_2.bias
+            scale_invstd_2
+            * pre_bn_2.weight
+            * (pre_bn_1.bias - pre_bn_1.weight * pre_bn_1.running_mean * scale_invstd_1 - pre_bn_2.running_mean)
+            + pre_bn_2.bias
         )
 
     if isinstance(module, nn.Linear):
@@ -72,18 +83,18 @@ def merge_pre_bn(module, pre_bn_1, pre_bn_2=None):
 
 class ConvNormAct(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            kernel_size: int = 3,
-            stride: int = 1,
-            groups: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        groups: int = 1,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.conv = nn.Conv2d(
             in_chs,
@@ -117,15 +128,15 @@ def _make_divisible(v, divisor, min_value=None):
 
 class PatchEmbed(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            stride: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        stride: int = 1,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if stride == 2:
             self.pool = nn.AvgPool2d((2, 2), stride=2, ceil_mode=True, count_include_pad=False)
@@ -145,20 +156,18 @@ class PatchEmbed(nn.Module):
 
 
 class ConvAttention(nn.Module):
-    """
-    Multi-Head Convolutional Attention
-    """
+    """Multi-Head Convolutional Attention."""
 
     def __init__(
-            self,
-            out_chs: int,
-            head_dim: int,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            device=None,
-            dtype=None,
+        self,
+        out_chs: int,
+        head_dim: int,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.group_conv3x3 = nn.Conv2d(
             out_chs,
@@ -181,26 +190,25 @@ class ConvAttention(nn.Module):
         out = self.projection(out)
         return out
 
+
 class NextConvBlock(nn.Module):
-    """
-    Next Convolution Block
-    """
+    """Next Convolution Block."""
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            stride: int = 1,
-            drop_path: float = 0.,
-            drop: float = 0.,
-            head_dim: int = 32,
-            mlp_ratio: float = 3.,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        stride: int = 1,
+        drop_path: float = 0.0,
+        drop: float = 0.0,
+        head_dim: int = 32,
+        mlp_ratio: float = 3.0,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.in_chs = in_chs
         self.out_chs = out_chs
@@ -245,31 +253,30 @@ class NextConvBlock(nn.Module):
 
 
 class EfficientAttention(nn.Module):
-    """
-    Efficient Multi-Head Self Attention
-    """
+    """Efficient Multi-Head Self Attention."""
+
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            out_dim: Optional[int] = None,
-            head_dim: int = 32,
-            qkv_bias: bool = True,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            sr_ratio: int = 1,
-            norm_layer: Type[nn.Module] = nn.BatchNorm1d,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        out_dim: int | None = None,
+        head_dim: int = 32,
+        qkv_bias: bool = True,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        sr_ratio: int = 1,
+        norm_layer: type[nn.Module] = nn.BatchNorm1d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dim = dim
         self.out_dim = out_dim if out_dim is not None else dim
         self.num_heads = self.dim // head_dim
         self.head_dim = head_dim
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.fused_attn = use_fused_attn()
 
         self.q = nn.Linear(dim, self.dim, bias=qkv_bias, **dd)
@@ -280,7 +287,7 @@ class EfficientAttention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
         self.sr_ratio = sr_ratio
-        self.N_ratio = sr_ratio ** 2
+        self.N_ratio = sr_ratio**2
         if sr_ratio > 1:
             self.sr = nn.AvgPool1d(kernel_size=self.N_ratio, stride=self.N_ratio)
             self.norm = norm_layer(dim, **dd)
@@ -301,8 +308,10 @@ class EfficientAttention(nn.Module):
 
         if self.fused_attn:
             x = F.scaled_dot_product_attention(
-                q, k, v,
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                q,
+                k,
+                v,
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
@@ -318,28 +327,26 @@ class EfficientAttention(nn.Module):
 
 
 class NextTransformerBlock(nn.Module):
-    """
-    Next Transformer Block
-    """
+    """Next Transformer Block."""
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            drop_path: float,
-            stride: int = 1,
-            sr_ratio: int = 1,
-            mlp_ratio: float = 2,
-            head_dim: int = 32,
-            mix_block_ratio: float = 0.75,
-            attn_drop: float = 0.,
-            drop: float = 0.,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        drop_path: float,
+        stride: int = 1,
+        sr_ratio: int = 1,
+        mlp_ratio: float = 2,
+        head_dim: int = 32,
+        mix_block_ratio: float = 0.75,
+        attn_drop: float = 0.0,
+        drop: float = 0.0,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.in_chs = in_chs
         self.out_chs = out_chs
@@ -423,25 +430,24 @@ class NextTransformerBlock(nn.Module):
 
 
 class NextStage(nn.Module):
-
     def __init__(
-            self,
-            in_chs: int,
-            block_chs: List[int],
-            block_types: List[Type[nn.Module]],
-            stride: int = 2,
-            sr_ratio: int = 1,
-            mix_block_ratio: float = 1.0,
-            drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: Union[float, List[float], Tuple[float, ...]] = 0.,
-            head_dim: int = 32,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        block_chs: list[int],
+        block_types: list[type[nn.Module]],
+        stride: int = 2,
+        sr_ratio: int = 1,
+        mix_block_ratio: float = 1.0,
+        drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float | list[float] | tuple[float, ...] = 0.0,
+        head_dim: int = 32,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        act_layer: type[nn.Module] = nn.ReLU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.grad_checkpointing = False
 
@@ -498,26 +504,26 @@ class NextStage(nn.Module):
 
 class NextViT(nn.Module):
     def __init__(
-            self,
-            in_chans: int,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            stem_chs: Tuple[int, ...] = (64, 32, 64),
-            depths: Tuple[int, ...] = (3, 4, 10, 3),
-            strides: Tuple[int, ...] = (1, 2, 2, 2),
-            sr_ratios: Tuple[int, ...] = (8, 4, 2, 1),
-            drop_path_rate: float = 0.1,
-            attn_drop_rate: float = 0.,
-            drop_rate: float = 0.,
-            head_dim: int = 32,
-            mix_block_ratio: float = 0.75,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            act_layer: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        stem_chs: tuple[int, ...] = (64, 32, 64),
+        depths: tuple[int, ...] = (3, 4, 10, 3),
+        strides: tuple[int, ...] = (1, 2, 2, 2),
+        sr_ratios: tuple[int, ...] = (8, 4, 2, 1),
+        drop_path_rate: float = 0.1,
+        attn_drop_rate: float = 0.0,
+        drop_rate: float = 0.0,
+        head_dim: int = 32,
+        mix_block_ratio: float = 0.75,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        act_layer: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.grad_checkpointing = False
         self.num_classes = num_classes
         self.in_chans = in_chans
@@ -531,30 +537,34 @@ class NextViT(nn.Module):
             [96] * (depths[0]),
             [192] * (depths[1] - 1) + [256],
             [384, 384, 384, 384, 512] * (depths[2] // 5),
-            [768] * (depths[3] - 1) + [1024]
+            [768] * (depths[3] - 1) + [1024],
         ]
-        self.feature_info = [dict(
-            num_chs=sc[-1],
-            reduction=2**(i + 2),
-            module=f'stages.{i}'
-        ) for i, sc in enumerate(self.stage_out_chs)]
+        self.feature_info = [
+            {"num_chs": sc[-1], "reduction": 2 ** (i + 2), "module": f"stages.{i}"}
+            for i, sc in enumerate(self.stage_out_chs)
+        ]
 
         # Next Hybrid Strategy
         self.stage_block_types = [
             [NextConvBlock] * depths[0],
             [NextConvBlock] * (depths[1] - 1) + [NextTransformerBlock],
             [NextConvBlock, NextConvBlock, NextConvBlock, NextConvBlock, NextTransformerBlock] * (depths[2] // 5),
-            [NextConvBlock] * (depths[3] - 1) + [NextTransformerBlock]]
+            [NextConvBlock] * (depths[3] - 1) + [NextTransformerBlock],
+        ]
 
         self.stem = nn.Sequential(
             ConvNormAct(
-                in_chans, stem_chs[0], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
+                in_chans, stem_chs[0], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd
+            ),
             ConvNormAct(
-                stem_chs[0], stem_chs[1], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
+                stem_chs[0], stem_chs[1], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd
+            ),
             ConvNormAct(
-                stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd),
+                stem_chs[1], stem_chs[2], kernel_size=3, stride=1, norm_layer=norm_layer, act_layer=act_layer, **dd
+            ),
             ConvNormAct(
-                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd),
+                stem_chs[2], stem_chs[2], kernel_size=3, stride=2, norm_layer=norm_layer, act_layer=act_layer, **dd
+            ),
         )
         in_chs = out_chs = stem_chs[-1]
         stages = []
@@ -584,29 +594,27 @@ class NextViT(nn.Module):
         self.norm = norm_layer(out_chs, **dd)
         self.head = ClassifierHead(pool_type=global_pool, in_features=out_chs, num_classes=num_classes, **dd)
 
-        self.stage_out_idx = [sum(depths[:idx + 1]) - 1 for idx in range(len(depths))]
+        self.stage_out_idx = [sum(depths[: idx + 1]) - 1 for idx in range(len(depths))]
         self._initialize_weights()
 
     def _initialize_weights(self):
         for n, m in self.named_modules():
-            if isinstance(m, nn.Linear):
-                trunc_normal_(m.weight, std=.02)
-                if hasattr(m, 'bias') and m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Conv2d):
-                trunc_normal_(m.weight, std=.02)
-                if hasattr(m, 'bias') and m.bias is not None:
+            if isinstance(m, (nn.Linear, nn.Conv2d)):
+                trunc_normal_(m.weight, std=0.02)
+                if hasattr(m, "bias") and m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^stem',  # stem and embed
-            blocks=r'^stages\.(\d+)' if coarse else [
-                (r'^stages\.(\d+)\.blocks\.(\d+)', None),
-                (r'^norm', (99999,)),
-            ]
-        )
+        return {
+            "stem": r"^stem",  # stem and embed
+            "blocks": r"^stages\.(\d+)"
+            if coarse
+            else [
+                (r"^stages\.(\d+)\.blocks\.(\d+)", None),
+                (r"^norm", (99999,)),
+            ],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -618,20 +626,20 @@ class NextViT(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         self.head.reset(num_classes, pool_type=global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -640,10 +648,8 @@ class NextViT(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
 
@@ -653,7 +659,7 @@ class NextViT(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             if self.grad_checkpointing and not torch.jit.is_scripting():
@@ -676,19 +682,18 @@ class NextViT(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -710,8 +715,8 @@ class NextViT(nn.Module):
 
 
 def checkpoint_filter_fn(state_dict, model):
-    """ Remap original checkpoints -> timm """
-    if 'head.fc.weight' in state_dict:
+    """Remap original checkpoints -> timm."""
+    if "head.fc.weight" in state_dict:
         return state_dict  # non-original
 
     D = model.state_dict()
@@ -724,98 +729,114 @@ def checkpoint_filter_fn(state_dict, model):
 
 
 def _create_nextvit(variant, pretrained=False, **kwargs):
-    default_out_indices = tuple(i for i, _ in enumerate(kwargs.get('depths', (1, 1, 3, 1))))
-    out_indices = kwargs.pop('out_indices', default_out_indices)
+    default_out_indices = tuple(i for i, _ in enumerate(kwargs.get("depths", (1, 1, 3, 1))))
+    out_indices = kwargs.pop("out_indices", default_out_indices)
 
     model = build_model_with_cfg(
         NextViT,
         variant,
         pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs)
+        feature_cfg={"flatten_sequential": True, "out_indices": out_indices},
+        **kwargs,
+    )
 
     return model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.95, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.0.conv', 'classifier': 'head.fc',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.95,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.0.conv",
+        "classifier": "head.fc",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'nextvit_small.bd_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'nextvit_base.bd_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'nextvit_large.bd_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'nextvit_small.bd_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0,
-    ),
-    'nextvit_base.bd_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0,
-    ),
-    'nextvit_large.bd_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0,
-    ),
-
-    'nextvit_small.bd_ssld_6m_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'nextvit_base.bd_ssld_6m_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'nextvit_large.bd_ssld_6m_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'nextvit_small.bd_ssld_6m_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0,
-    ),
-    'nextvit_base.bd_ssld_6m_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0,
-    ),
-    'nextvit_large.bd_ssld_6m_in1k_384': _cfg(
-        hf_hub_id='timm/',
-        input_size=(3, 384, 384), pool_size=(12, 12), crop_pct=1.0,
-    ),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "nextvit_small.bd_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "nextvit_base.bd_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "nextvit_large.bd_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "nextvit_small.bd_in1k_384": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 384, 384),
+            pool_size=(12, 12),
+            crop_pct=1.0,
+        ),
+        "nextvit_base.bd_in1k_384": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 384, 384),
+            pool_size=(12, 12),
+            crop_pct=1.0,
+        ),
+        "nextvit_large.bd_in1k_384": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 384, 384),
+            pool_size=(12, 12),
+            crop_pct=1.0,
+        ),
+        "nextvit_small.bd_ssld_6m_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "nextvit_base.bd_ssld_6m_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "nextvit_large.bd_ssld_6m_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "nextvit_small.bd_ssld_6m_in1k_384": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 384, 384),
+            pool_size=(12, 12),
+            crop_pct=1.0,
+        ),
+        "nextvit_base.bd_ssld_6m_in1k_384": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 384, 384),
+            pool_size=(12, 12),
+            crop_pct=1.0,
+        ),
+        "nextvit_large.bd_ssld_6m_in1k_384": _cfg(
+            hf_hub_id="timm/",
+            input_size=(3, 384, 384),
+            pool_size=(12, 12),
+            crop_pct=1.0,
+        ),
+    }
+)
 
 
 @register_model
 def nextvit_small(pretrained=False, **kwargs):
-    model_args = dict(depths=(3, 4, 10, 3), drop_path_rate=0.1)
-    model = _create_nextvit(
-        'nextvit_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": (3, 4, 10, 3), "drop_path_rate": 0.1}
+    model = _create_nextvit("nextvit_small", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def nextvit_base(pretrained=False, **kwargs):
-    model_args = dict(depths=(3, 4, 20, 3), drop_path_rate=0.2)
-    model = _create_nextvit(
-        'nextvit_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": (3, 4, 20, 3), "drop_path_rate": 0.2}
+    model = _create_nextvit("nextvit_base", pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 
 @register_model
 def nextvit_large(pretrained=False, **kwargs):
-    model_args = dict(depths=(3, 4, 30, 3), drop_path_rate=0.2)
-    model = _create_nextvit(
-        'nextvit_large', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": (3, 4, 30, 3), "drop_path_rate": 0.2}
+    model = _create_nextvit("nextvit_large", pretrained=pretrained, **dict(model_args, **kwargs))
     return model

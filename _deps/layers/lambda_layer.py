@@ -1,4 +1,4 @@
-""" Lambda Layer
+"""Lambda Layer.
 
 Paper: `LambdaNetworks: Modeling Long-Range Interactions Without Attention`
     - https://arxiv.org/abs/2102.08602
@@ -20,23 +20,26 @@ https://github.com/lucidrains/lambda-networks
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import Optional, Tuple
+
+from __future__ import annotations
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from .grid import ndgrid
-from .helpers import to_2tuple, make_divisible
+from .helpers import make_divisible, to_2tuple
 from .weight_init import trunc_normal_
 
 
 def rel_pos_indices(size, device=None):
     size = to_2tuple(size)
-    pos = torch.stack(ndgrid(
-        torch.arange(size[0], device=device, dtype=torch.long),
-        torch.arange(size[1], device=device, dtype=torch.long),
-    )).flatten(1)
+    pos = torch.stack(
+        ndgrid(
+            torch.arange(size[0], device=device, dtype=torch.long),
+            torch.arange(size[1], device=device, dtype=torch.long),
+        )
+    ).flatten(1)
     rel_pos = pos[:, None, :] - pos[:, :, None]
     rel_pos[0] += size[0] - 1
     rel_pos[1] += size[1] - 1
@@ -44,7 +47,7 @@ def rel_pos_indices(size, device=None):
 
 
 class LambdaLayer(nn.Module):
-    """Lambda Layer
+    """Lambda Layer.
 
     Paper: `LambdaNetworks: Modeling Long-Range Interactions Without Attention`
         - https://arxiv.org/abs/2102.08602
@@ -52,12 +55,12 @@ class LambdaLayer(nn.Module):
     NOTE: intra-depth parameter 'u' is fixed at 1. It did not appear worth the complexity to add.
 
     The internal dimensions of the lambda module are controlled via the interaction of several arguments.
-      * the output dimension of the module is specified by dim_out, which falls back to input dim if not set
-      * the value (v) dimension is set to dim_out // num_heads, the v projection determines the output dim
-      * the query (q) and key (k) dimension are determined by
+    * the output dimension of the module is specified by dim_out, which falls back to input dim if not set
+    * the value (v) dimension is set to dim_out // num_heads, the v projection determines the output dim
+    * the query (q) and key (k) dimension are determined by
         * dim_head = (dim_out * attn_ratio // num_heads) if dim_head is None
         * q = num_heads * dim_head, k = dim_head
-      * as seen above, attn_ratio determines the ratio of q and k relative to the output if dim_head not set
+    * as seen above, attn_ratio determines the ratio of q and k relative to the output if dim_head not set
 
     Args:
         dim: input dimension to the module
@@ -70,24 +73,25 @@ class LambdaLayer(nn.Module):
         qk_ratio: ratio of q and k dimensions to output dimension when dim_head not set. (default: 1.0)
         qkv_bias: add bias to q, k, and v projections
     """
+
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            feat_size: Optional[Tuple[int, int]] = None,
-            stride: int = 1,
-            num_heads: int = 4,
-            dim_head: int = 16,
-            r: int = 9,
-            qk_ratio: float = 1.0,
-            qkv_bias: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        feat_size: tuple[int, int] | None = None,
+        stride: int = 1,
+        num_heads: int = 4,
+        dim_head: int = 16,
+        r: int = 9,
+        qk_ratio: float = 1.0,
+        qkv_bias: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         dim_out = dim_out or dim
-        assert dim_out % num_heads == 0, ' should be divided by num_heads'
+        assert dim_out % num_heads == 0, " should be divided by num_heads"
         self.dim_qk = dim_head or make_divisible(dim_out * qk_ratio, divisor=8) // num_heads
         self.num_heads = num_heads
         self.dim_v = dim_out // num_heads
@@ -118,7 +122,7 @@ class LambdaLayer(nn.Module):
             self.conv_lambda = None
             self.pos_emb = nn.Parameter(torch.empty(rel_size[0], rel_size[1], self.dim_qk, **dd))
             self.register_buffer(
-                'rel_pos_indices',
+                "rel_pos_indices",
                 torch.empty((2, M, M), device=device, dtype=torch.long),
                 persistent=False,
             )
@@ -132,24 +136,21 @@ class LambdaLayer(nn.Module):
         """Initialize parameters and buffers."""
         trunc_normal_(self.qkv.weight, std=self.qkv.weight.shape[1] ** -0.5)  # fan-in
         if self.conv_lambda is not None:
-            trunc_normal_(self.conv_lambda.weight, std=self.dim_qk ** -0.5)
+            trunc_normal_(self.conv_lambda.weight, std=self.dim_qk**-0.5)
         if self.pos_emb is not None:
-            trunc_normal_(self.pos_emb, std=.02)
+            trunc_normal_(self.pos_emb, std=0.02)
         self._init_buffers()
 
     def _init_buffers(self) -> None:
         """Compute and fill non-persistent buffer values."""
         if self.rel_pos_indices is not None:
-            self.rel_pos_indices.copy_(
-                rel_pos_indices(self.feat_size, device=self.rel_pos_indices.device)
-            )
+            self.rel_pos_indices.copy_(rel_pos_indices(self.feat_size, device=self.rel_pos_indices.device))
 
     def forward(self, x):
         B, C, H, W = x.shape
         M = H * W
         qkv = self.qkv(x)
-        q, k, v = torch.split(qkv, [
-            self.num_heads * self.dim_qk, self.dim_qk, self.dim_v], dim=1)
+        q, k, v = torch.split(qkv, [self.num_heads * self.dim_qk, self.dim_qk, self.dim_v], dim=1)
         q = self.norm_q(q).reshape(B, self.num_heads, self.dim_qk, M).transpose(-1, -2)  # B, num_heads, M, K
         v = self.norm_v(v).reshape(B, self.dim_v, M).transpose(-1, -2)  # B, M, V
         k = F.softmax(k.reshape(B, self.dim_qk, M), dim=-1)  # B, K, M

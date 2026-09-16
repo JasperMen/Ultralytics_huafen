@@ -1,4 +1,4 @@
-""" Visformer
+"""Visformer.
 
 Paper: Visformer: The Vision-friendly Transformer - https://arxiv.org/abs/2104.12533
 
@@ -7,34 +7,44 @@ From original at https://github.com/danczs/Visformer
 Modifications and additions for timm hacked together by / Copyright 2021, Ross Wightman
 """
 
-from typing import Optional, Union, Type, Any
+from __future__ import annotations
+
 import torch
-import torch.nn as nn
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import to_2tuple, trunc_normal_, DropPath, calculate_drop_path_rates, PatchEmbed, LayerNorm2d, create_classifier, use_fused_attn
+from timm.layers import (
+    DropPath,
+    LayerNorm2d,
+    PatchEmbed,
+    calculate_drop_path_rates,
+    create_classifier,
+    to_2tuple,
+    trunc_normal_,
+    use_fused_attn,
+)
 
 from ._builder import build_model_with_cfg
 from ._manipulate import checkpoint_seq
-from ._registry import register_model, generate_default_cfgs
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['Visformer']
+__all__ = ["Visformer"]
 
 
 class SpatialMlp(nn.Module):
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop: float = 0.,
-            group: int = 8,
-            spatial_conv: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        drop: float = 0.0,
+        group: int = 8,
+        spatial_conv: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -55,7 +65,8 @@ class SpatialMlp(nn.Module):
         self.drop1 = nn.Dropout(drop_probs[0])
         if self.spatial_conv:
             self.conv2 = nn.Conv2d(
-                hidden_features, hidden_features, 3, stride=1, padding=1, groups=self.group, bias=False, **dd)
+                hidden_features, hidden_features, 3, stride=1, padding=1, groups=self.group, bias=False, **dd
+            )
             self.act2 = act_layer()
         else:
             self.conv2 = None
@@ -79,22 +90,22 @@ class Attention(nn.Module):
     fused_attn: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            head_dim_ratio: float = 1.,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        head_dim_ratio: float = 1.0,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.dim = dim
         self.num_heads = num_heads
         head_dim = round(dim // num_heads * head_dim_ratio)
         self.head_dim = head_dim
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
         self.fused_attn = use_fused_attn(experimental=True)
 
         self.qkv = nn.Conv2d(dim, head_dim * num_heads * 3, 1, stride=1, padding=0, bias=False, **dd)
@@ -103,14 +114,16 @@ class Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        B, _C, H, W = x.shape
         x = self.qkv(x).reshape(B, 3, self.num_heads, self.head_dim, -1).permute(1, 0, 2, 4, 3)
         q, k, v = x.unbind(0)
 
         if self.fused_attn:
             x = torch.nn.functional.scaled_dot_product_attention(
-                q.contiguous(), k.contiguous(), v.contiguous(),
-                dropout_p=self.attn_drop.p if self.training else 0.,
+                q.contiguous(),
+                k.contiguous(),
+                v.contiguous(),
+                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             attn = (q @ k.transpose(-2, -1)) * self.scale
@@ -126,26 +139,26 @@ class Attention(nn.Module):
 
 class Block(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            head_dim_ratio: float = 1.,
-            mlp_ratio: float = 4.,
-            proj_drop: float = 0.,
-            attn_drop: float = 0.,
-            drop_path: float = 0.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            group: int = 8,
-            attn_disabled: bool = False,
-            spatial_conv: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int,
+        head_dim_ratio: float = 1.0,
+        mlp_ratio: float = 4.0,
+        proj_drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = LayerNorm2d,
+        group: int = 8,
+        attn_disabled: bool = False,
+        spatial_conv: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.spatial_conv = spatial_conv
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         if attn_disabled:
             self.norm1 = None
             self.attn = None
@@ -180,35 +193,35 @@ class Block(nn.Module):
 
 class Visformer(nn.Module):
     def __init__(
-            self,
-            img_size: int = 224,
-            patch_size: int = 16,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            init_channels: Optional[int] = 32,
-            embed_dim: int = 384,
-            depth: Union[int, tuple] = 12,
-            num_heads: int = 6,
-            mlp_ratio: float = 4.,
-            drop_rate: float = 0.,
-            pos_drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            attn_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            attn_stage: str = '111',
-            use_pos_embed: bool = True,
-            spatial_conv: str = '111',
-            vit_stem: bool = False,
-            group: int = 8,
-            global_pool: str = 'avg',
-            conv_init: bool = False,
-            embed_norm: Optional[Type[nn.Module]] = None,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        init_channels: int | None = 32,
+        embed_dim: int = 384,
+        depth: int | tuple = 12,
+        num_heads: int = 6,
+        mlp_ratio: float = 4.0,
+        drop_rate: float = 0.0,
+        pos_drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        attn_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        norm_layer: type[nn.Module] = LayerNorm2d,
+        attn_stage: str = "111",
+        use_pos_embed: bool = True,
+        spatial_conv: str = "111",
+        vit_stem: bool = False,
+        group: int = 8,
+        global_pool: str = "avg",
+        conv_init: bool = False,
+        embed_norm: type[nn.Module] | None = None,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         img_size = to_2tuple(img_size)
         self.num_classes = num_classes
         self.in_chans = in_chans
@@ -257,7 +270,7 @@ class Visformer(nn.Module):
                 self.stem = nn.Sequential(
                     nn.Conv2d(in_chans, self.init_channels, 7, stride=2, padding=3, bias=False, **dd),
                     nn.BatchNorm2d(self.init_channels, **dd),
-                    nn.ReLU(inplace=True)
+                    nn.ReLU(inplace=True),
                 )
                 img_size = [x // 2 for x in img_size]
                 self.patch_embed1 = PatchEmbed(
@@ -275,28 +288,30 @@ class Visformer(nn.Module):
             if self.vit_stem:
                 self.pos_embed1 = nn.Parameter(torch.zeros(1, embed_dim, *img_size, **dd))
             else:
-                self.pos_embed1 = nn.Parameter(torch.zeros(1, embed_dim//2, *img_size, **dd))
+                self.pos_embed1 = nn.Parameter(torch.zeros(1, embed_dim // 2, *img_size, **dd))
             self.pos_drop = nn.Dropout(p=pos_drop_rate)
         else:
             self.pos_embed1 = None
 
-        self.stage1 = nn.Sequential(*[
-            Block(
-                dim=embed_dim//2,
-                num_heads=num_heads,
-                head_dim_ratio=0.5,
-                mlp_ratio=mlp_ratio,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[i],
-                norm_layer=norm_layer,
-                group=group,
-                attn_disabled=(attn_stage[0] == '0'),
-                spatial_conv=(spatial_conv[0] == '1'),
-                **dd,
-            )
-            for i in range(self.stage_num1)
-        ])
+        self.stage1 = nn.Sequential(
+            *[
+                Block(
+                    dim=embed_dim // 2,
+                    num_heads=num_heads,
+                    head_dim_ratio=0.5,
+                    mlp_ratio=mlp_ratio,
+                    proj_drop=proj_drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=dpr[i],
+                    norm_layer=norm_layer,
+                    group=group,
+                    attn_disabled=(attn_stage[0] == "0"),
+                    spatial_conv=(spatial_conv[0] == "1"),
+                    **dd,
+                )
+                for i in range(self.stage_num1)
+            ]
+        )
 
         # stage2
         if not self.vit_stem:
@@ -316,23 +331,25 @@ class Visformer(nn.Module):
                 self.pos_embed2 = None
         else:
             self.patch_embed2 = None
-        self.stage2 = nn.Sequential(*[
-            Block(
-                dim=embed_dim,
-                num_heads=num_heads,
-                head_dim_ratio=1.0,
-                mlp_ratio=mlp_ratio,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[i],
-                norm_layer=norm_layer,
-                group=group,
-                attn_disabled=(attn_stage[1] == '0'),
-                spatial_conv=(spatial_conv[1] == '1'),
-                **dd,
-            )
-            for i in range(self.stage_num1, self.stage_num1+self.stage_num2)
-        ])
+        self.stage2 = nn.Sequential(
+            *[
+                Block(
+                    dim=embed_dim,
+                    num_heads=num_heads,
+                    head_dim_ratio=1.0,
+                    mlp_ratio=mlp_ratio,
+                    proj_drop=proj_drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=dpr[i],
+                    norm_layer=norm_layer,
+                    group=group,
+                    attn_disabled=(attn_stage[1] == "0"),
+                    spatial_conv=(spatial_conv[1] == "1"),
+                    **dd,
+                )
+                for i in range(self.stage_num1, self.stage_num1 + self.stage_num2)
+            ]
+        )
 
         # stage 3
         if not self.vit_stem:
@@ -347,28 +364,30 @@ class Visformer(nn.Module):
             )
             img_size = [x // (patch_size // 8) for x in img_size]
             if self.use_pos_embed:
-                self.pos_embed3 = nn.Parameter(torch.zeros(1, embed_dim*2, *img_size, **dd))
+                self.pos_embed3 = nn.Parameter(torch.zeros(1, embed_dim * 2, *img_size, **dd))
             else:
                 self.pos_embed3 = None
         else:
             self.patch_embed3 = None
-        self.stage3 = nn.Sequential(*[
-            Block(
-                dim=embed_dim * 2,
-                num_heads=num_heads,
-                head_dim_ratio=1.0,
-                mlp_ratio=mlp_ratio,
-                proj_drop=proj_drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[i],
-                norm_layer=norm_layer,
-                group=group,
-                attn_disabled=(attn_stage[2] == '0'),
-                spatial_conv=(spatial_conv[2] == '1'),
-                **dd,
-            )
-            for i in range(self.stage_num1+self.stage_num2, depth)
-        ])
+        self.stage3 = nn.Sequential(
+            *[
+                Block(
+                    dim=embed_dim * 2,
+                    num_heads=num_heads,
+                    head_dim_ratio=1.0,
+                    mlp_ratio=mlp_ratio,
+                    proj_drop=proj_drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=dpr[i],
+                    norm_layer=norm_layer,
+                    group=group,
+                    attn_disabled=(attn_stage[2] == "0"),
+                    spatial_conv=(spatial_conv[2] == "1"),
+                    **dd,
+                )
+                for i in range(self.stage_num1 + self.stage_num2, depth)
+            ]
+        )
 
         self.num_features = self.head_hidden_size = embed_dim if self.vit_stem else embed_dim * 2
         self.norm = norm_layer(self.num_features, **dd)
@@ -400,22 +419,22 @@ class Visformer(nn.Module):
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.Conv2d):
             if self.conv_init:
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             else:
                 trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
-                nn.init.constant_(m.bias, 0.)
+                nn.init.constant_(m.bias, 0.0)
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^patch_embed1|pos_embed1|stem',  # stem and embed
-            blocks=[
-                (r'^stage(\d+)\.(\d+)' if coarse else r'^stage(\d+)\.(\d+)', None),
-                (r'^(?:patch_embed|pos_embed)(\d+)', (0,)),
-                (r'^norm', (99999,))
-            ]
-        )
+        return {
+            "stem": r"^patch_embed1|pos_embed1|stem",  # stem and embed
+            "blocks": [
+                (r"^stage(\d+)\.(\d+)" if coarse else r"^stage(\d+)\.(\d+)", None),
+                (r"^(?:patch_embed|pos_embed)(\d+)", (0,)),
+                (r"^norm", (99999,)),
+            ],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -425,12 +444,13 @@ class Visformer(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head
 
-    def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+    def reset_classifier(self, num_classes: int, global_pool: str = "avg"):
         self.num_classes = num_classes
-        device = self.head.weight.device if hasattr(self.head, 'weight') else None
-        dtype = self.head.weight.dtype if hasattr(self.head, 'weight') else None
+        device = self.head.weight.device if hasattr(self.head, "weight") else None
+        dtype = self.head.weight.dtype if hasattr(self.head, "weight") else None
         self.global_pool, self.head = create_classifier(
-            self.num_features, self.num_classes, pool_type=global_pool, device=device, dtype=dtype)
+            self.num_features, self.num_classes, pool_type=global_pool, device=device, dtype=dtype
+        )
 
     def forward_features(self, x):
         if self.stem is not None:
@@ -480,47 +500,73 @@ class Visformer(nn.Module):
 
 
 def _create_visformer(variant, pretrained=False, default_cfg=None, **kwargs):
-    if kwargs.get('features_only', None):
-        raise RuntimeError('features_only not implemented for Vision Transformer models.')
+    if kwargs.get("features_only", None):
+        raise RuntimeError("features_only not implemented for Vision Transformer models.")
     model = build_model_with_cfg(Visformer, variant, pretrained, **kwargs)
     return model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': .9, 'interpolation': 'bicubic', 'fixed_input_size': True,
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.0', 'classifier': 'head',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.9,
+        "interpolation": "bicubic",
+        "fixed_input_size": True,
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.0",
+        "classifier": "head",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'visformer_tiny.in1k': _cfg(hf_hub_id='timm/'),
-    'visformer_small.in1k': _cfg(hf_hub_id='timm/'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "visformer_tiny.in1k": _cfg(hf_hub_id="timm/"),
+        "visformer_small.in1k": _cfg(hf_hub_id="timm/"),
+    }
+)
 
 
 @register_model
 def visformer_tiny(pretrained=False, **kwargs) -> Visformer:
-    model_cfg = dict(
-        init_channels=16, embed_dim=192, depth=(7, 4, 4), num_heads=3, mlp_ratio=4., group=8,
-        attn_stage='011', spatial_conv='100', norm_layer=nn.BatchNorm2d, conv_init=True,
-        embed_norm=nn.BatchNorm2d)
-    model = _create_visformer('visformer_tiny', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model_cfg = {
+        "init_channels": 16,
+        "embed_dim": 192,
+        "depth": (7, 4, 4),
+        "num_heads": 3,
+        "mlp_ratio": 4.0,
+        "group": 8,
+        "attn_stage": "011",
+        "spatial_conv": "100",
+        "norm_layer": nn.BatchNorm2d,
+        "conv_init": True,
+        "embed_norm": nn.BatchNorm2d,
+    }
+    model = _create_visformer("visformer_tiny", pretrained=pretrained, **dict(model_cfg, **kwargs))
     return model
 
 
 @register_model
 def visformer_small(pretrained=False, **kwargs) -> Visformer:
-    model_cfg = dict(
-        init_channels=32, embed_dim=384, depth=(7, 4, 4), num_heads=6, mlp_ratio=4., group=8,
-        attn_stage='011', spatial_conv='100', norm_layer=nn.BatchNorm2d, conv_init=True,
-        embed_norm=nn.BatchNorm2d)
-    model = _create_visformer('visformer_small', pretrained=pretrained, **dict(model_cfg, **kwargs))
+    model_cfg = {
+        "init_channels": 32,
+        "embed_dim": 384,
+        "depth": (7, 4, 4),
+        "num_heads": 6,
+        "mlp_ratio": 4.0,
+        "group": 8,
+        "attn_stage": "011",
+        "spatial_conv": "100",
+        "norm_layer": nn.BatchNorm2d,
+        "conv_init": True,
+        "embed_norm": nn.BatchNorm2d,
+    }
+    model = _create_visformer("visformer_small", pretrained=pretrained, **dict(model_cfg, **kwargs))
     return model
 
 
@@ -585,7 +631,3 @@ def visformer_small(pretrained=False, **kwargs) -> Visformer:
 #         pos_embed=False, spatial_conv='111', conv_init=True, **kwargs)
 #     model.default_cfg = _cfg()
 #     return model
-
-
-
-

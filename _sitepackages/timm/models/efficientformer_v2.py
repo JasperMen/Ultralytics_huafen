@@ -1,4 +1,4 @@
-""" EfficientFormer-V2
+"""EfficientFormer-V2.
 
 @article{
     li2022rethinking,
@@ -14,75 +14,77 @@ Original code licensed Apache 2.0, Copyright (c) 2022 Snap Inc.
 
 Modifications and timm support by / Copyright 2023, Ross Wightman
 """
+
+from __future__ import annotations
+
 import math
 from functools import partial
-from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import (
+    ConvNormAct,
+    DropPath,
+    LayerScale2d,
+    calculate_drop_path_rates,
     create_conv2d,
     create_norm_layer,
     get_act_layer,
     get_norm_layer,
-    ConvNormAct,
-    LayerScale2d,
-    DropPath,
-    calculate_drop_path_rates,
-    trunc_normal_,
+    ndgrid,
     to_2tuple,
     to_ntuple,
-    ndgrid,
+    trunc_normal_,
 )
+
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._manipulate import checkpoint_seq
 from ._registry import generate_default_cfgs, register_model
 
-
-__all__ = ['EfficientFormerV2']
+__all__ = ["EfficientFormerV2"]
 
 EfficientFormer_width = {
-    'L': (40, 80, 192, 384),  # 26m 83.3% 6attn
-    'S2': (32, 64, 144, 288),  # 12m 81.6% 4attn dp0.02
-    'S1': (32, 48, 120, 224),  # 6.1m 79.0
-    'S0': (32, 48, 96, 176),  # 75.0 75.7
+    "L": (40, 80, 192, 384),  # 26m 83.3% 6attn
+    "S2": (32, 64, 144, 288),  # 12m 81.6% 4attn dp0.02
+    "S1": (32, 48, 120, 224),  # 6.1m 79.0
+    "S0": (32, 48, 96, 176),  # 75.0 75.7
 }
 
 EfficientFormer_depth = {
-    'L': (5, 5, 15, 10),  # 26m 83.3%
-    'S2': (4, 4, 12, 8),  # 12m
-    'S1': (3, 3, 9, 6),  # 79.0
-    'S0': (2, 2, 6, 4),  # 75.7
+    "L": (5, 5, 15, 10),  # 26m 83.3%
+    "S2": (4, 4, 12, 8),  # 12m
+    "S1": (3, 3, 9, 6),  # 79.0
+    "S0": (2, 2, 6, 4),  # 75.7
 }
 
 EfficientFormer_expansion_ratios = {
-    'L': (4, 4, (4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4), (4, 4, 4, 3, 3, 3, 3, 4, 4, 4)),
-    'S2': (4, 4, (4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4), (4, 4, 3, 3, 3, 3, 4, 4)),
-    'S1': (4, 4, (4, 4, 3, 3, 3, 3, 4, 4, 4), (4, 4, 3, 3, 4, 4)),
-    'S0': (4, 4, (4, 3, 3, 3, 4, 4), (4, 3, 3, 4)),
+    "L": (4, 4, (4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4), (4, 4, 4, 3, 3, 3, 3, 4, 4, 4)),
+    "S2": (4, 4, (4, 4, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4), (4, 4, 3, 3, 3, 3, 4, 4)),
+    "S1": (4, 4, (4, 4, 3, 3, 3, 3, 4, 4, 4), (4, 4, 3, 3, 4, 4)),
+    "S0": (4, 4, (4, 3, 3, 3, 4, 4), (4, 3, 3, 4)),
 }
 
 
 class ConvNorm(nn.Module):
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: int = 1,
-            stride: int = 1,
-            padding: Union[int, str] = '',
-            dilation: int = 1,
-            groups: int = 1,
-            bias: bool = True,
-            norm_layer: str = 'batchnorm2d',
-            norm_kwargs: Optional[Dict] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 1,
+        stride: int = 1,
+        padding: int | str = "",
+        dilation: int = 1,
+        groups: int = 1,
+        bias: bool = True,
+        norm_layer: str = "batchnorm2d",
+        norm_kwargs: dict | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         norm_kwargs = norm_kwargs or {}
         super().__init__()
         self.conv = create_conv2d(
@@ -105,31 +107,31 @@ class ConvNorm(nn.Module):
 
 
 class Attention2d(torch.nn.Module):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: dict[str, torch.Tensor]
 
     def __init__(
-            self,
-            dim: int = 384,
-            key_dim: int = 32,
-            num_heads: int = 8,
-            attn_ratio: int = 4,
-            resolution: Union[int, Tuple[int, int]] = 7,
-            act_layer: Type[nn.Module] = nn.GELU,
-            stride: Optional[int] = None,
-            device=None,
-            dtype=None,
+        self,
+        dim: int = 384,
+        key_dim: int = 32,
+        num_heads: int = 8,
+        attn_ratio: int = 4,
+        resolution: int | tuple[int, int] = 7,
+        act_layer: type[nn.Module] = nn.GELU,
+        stride: int | None = None,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_heads = num_heads
-        self.scale = key_dim ** -0.5
+        self.scale = key_dim**-0.5
         self.key_dim = key_dim
 
         resolution = to_2tuple(resolution)
         if stride is not None:
             resolution = tuple([math.ceil(r / stride) for r in resolution])
             self.stride_conv = ConvNorm(dim, dim, kernel_size=3, stride=stride, groups=dim, **dd)
-            self.upsample = nn.Upsample(scale_factor=stride, mode='bilinear')
+            self.upsample = nn.Upsample(scale_factor=stride, mode="bilinear")
         else:
             self.stride_conv = None
             self.upsample = None
@@ -153,7 +155,7 @@ class Attention2d(torch.nn.Module):
 
         self.attention_biases = torch.nn.Parameter(torch.empty(num_heads, self.N, **dd))
         self.register_buffer(
-            'attention_bias_idxs',
+            "attention_bias_idxs",
             torch.empty((self.N, self.N), device=device, dtype=torch.long),
             persistent=False,
         )
@@ -175,19 +177,19 @@ class Attention2d(torch.nn.Module):
 
     def _compute_attention_bias_idxs(self, device=None):
         """Compute relative position indices for attention bias."""
-        pos = torch.stack(ndgrid(
-            torch.arange(self.resolution[0], device=device, dtype=torch.long),
-            torch.arange(self.resolution[1], device=device, dtype=torch.long),
-        )).flatten(1)
+        pos = torch.stack(
+            ndgrid(
+                torch.arange(self.resolution[0], device=device, dtype=torch.long),
+                torch.arange(self.resolution[1], device=device, dtype=torch.long),
+            )
+        ).flatten(1)
         rel_pos = (pos[..., :, None] - pos[..., None, :]).abs()
         rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
         return rel_pos
 
     def _init_buffers(self) -> None:
         """Compute and fill non-persistent buffer values."""
-        self.attention_bias_idxs.copy_(
-            self._compute_attention_bias_idxs(device=self.attention_bias_idxs.device)
-        )
+        self.attention_bias_idxs.copy_(self._compute_attention_bias_idxs(device=self.attention_bias_idxs.device))
         self.attention_bias_cache = {}
 
     def init_non_persistent_buffers(self) -> None:
@@ -204,7 +206,7 @@ class Attention2d(torch.nn.Module):
             return self.attention_bias_cache[device_key]
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        B, _C, _H, _W = x.shape
         if self.stride_conv is not None:
             x = self.stride_conv(x)
 
@@ -232,13 +234,13 @@ class Attention2d(torch.nn.Module):
 
 class LocalGlobalQuery(torch.nn.Module):
     def __init__(
-            self,
-            in_dim: int,
-            out_dim: int,
-            device=None,
-            dtype=None,
+        self,
+        in_dim: int,
+        out_dim: int,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.pool = nn.AvgPool2d(1, 2, 0)
         self.local = nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=2, padding=1, groups=in_dim, **dd)
@@ -253,25 +255,25 @@ class LocalGlobalQuery(torch.nn.Module):
 
 
 class Attention2dDownsample(torch.nn.Module):
-    attention_bias_cache: Dict[str, torch.Tensor]
+    attention_bias_cache: dict[str, torch.Tensor]
 
     def __init__(
-            self,
-            dim: int = 384,
-            key_dim: int = 16,
-            num_heads: int = 8,
-            attn_ratio: int = 4,
-            resolution: Union[int, Tuple[int, int]] = 7,
-            out_dim: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            device=None,
-            dtype=None,
+        self,
+        dim: int = 384,
+        key_dim: int = 16,
+        num_heads: int = 8,
+        attn_ratio: int = 4,
+        resolution: int | tuple[int, int] = 7,
+        out_dim: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.num_heads = num_heads
-        self.scale = key_dim ** -0.5
+        self.scale = key_dim**-0.5
         self.key_dim = key_dim
         self.resolution = to_2tuple(resolution)
         self.resolution2 = tuple([math.ceil(r / 2) for r in self.resolution])
@@ -294,7 +296,7 @@ class Attention2dDownsample(torch.nn.Module):
 
         self.attention_biases = nn.Parameter(torch.empty(num_heads, self.N, **dd))
         self.register_buffer(
-            'attention_bias_idxs',
+            "attention_bias_idxs",
             torch.empty((self.N2, self.N), device=device, dtype=torch.long),
             persistent=False,
         )
@@ -316,23 +318,25 @@ class Attention2dDownsample(torch.nn.Module):
 
     def _compute_attention_bias_idxs(self, device=None):
         """Compute relative position indices for attention bias."""
-        k_pos = torch.stack(ndgrid(
-            torch.arange(self.resolution[0], device=device, dtype=torch.long),
-            torch.arange(self.resolution[1], device=device, dtype=torch.long),
-        )).flatten(1)
-        q_pos = torch.stack(ndgrid(
-            torch.arange(0, self.resolution[0], step=2, device=device, dtype=torch.long),
-            torch.arange(0, self.resolution[1], step=2, device=device, dtype=torch.long),
-        )).flatten(1)
+        k_pos = torch.stack(
+            ndgrid(
+                torch.arange(self.resolution[0], device=device, dtype=torch.long),
+                torch.arange(self.resolution[1], device=device, dtype=torch.long),
+            )
+        ).flatten(1)
+        q_pos = torch.stack(
+            ndgrid(
+                torch.arange(0, self.resolution[0], step=2, device=device, dtype=torch.long),
+                torch.arange(0, self.resolution[1], step=2, device=device, dtype=torch.long),
+            )
+        ).flatten(1)
         rel_pos = (q_pos[..., :, None] - k_pos[..., None, :]).abs()
         rel_pos = (rel_pos[0] * self.resolution[1]) + rel_pos[1]
         return rel_pos
 
     def _init_buffers(self) -> None:
         """Compute and fill non-persistent buffer values."""
-        self.attention_bias_idxs.copy_(
-            self._compute_attention_bias_idxs(device=self.attention_bias_idxs.device)
-        )
+        self.attention_bias_idxs.copy_(self._compute_attention_bias_idxs(device=self.attention_bias_idxs.device))
         self.attention_bias_cache = {}
 
     def init_non_persistent_buffers(self) -> None:
@@ -349,7 +353,7 @@ class Attention2dDownsample(torch.nn.Module):
             return self.attention_bias_cache[device_key]
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        B, _C, _H, _W = x.shape
 
         q = self.q(x).reshape(B, self.num_heads, -1, self.N2).permute(0, 1, 3, 2)
         k = self.k(x).reshape(B, self.num_heads, -1, self.N).permute(0, 1, 2, 3)
@@ -370,20 +374,20 @@ class Attention2dDownsample(torch.nn.Module):
 
 class Downsample(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            kernel_size: Union[int, Tuple[int, int]] = 3,
-            stride: Union[int, Tuple[int, int]] = 2,
-            padding: Union[int, Tuple[int, int]] = 1,
-            resolution: Union[int, Tuple[int, int]] = 7,
-            use_attn: bool = False,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Optional[Type[nn.Module]] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        kernel_size: int | tuple[int, int] = 3,
+        stride: int | tuple[int, int] = 2,
+        padding: int | tuple[int, int] = 1,
+        resolution: int | tuple[int, int] = 7,
+        use_attn: bool = False,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] | None = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         kernel_size = to_2tuple(kernel_size)
@@ -419,24 +423,22 @@ class Downsample(nn.Module):
 
 
 class ConvMlpWithNorm(nn.Module):
-    """
-    Implementation of MLP with 1*1 convolutions.
-    Input: tensor with shape [B, C, H, W]
+    """Implementation of MLP with 1*1 convolutions. Input: tensor with shape [B, C, H, W].
     """
 
     def __init__(
-            self,
-            in_features: int,
-            hidden_features: Optional[int] = None,
-            out_features: Optional[int] = None,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            drop: float = 0.,
-            mid_conv: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        drop: float = 0.0,
+        mid_conv: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -477,21 +479,21 @@ class ConvMlpWithNorm(nn.Module):
 
 class EfficientFormerV2Block(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            mlp_ratio: float = 4.,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            proj_drop: float = 0.,
-            drop_path: float = 0.,
-            layer_scale_init_value: Optional[float] = 1e-5,
-            resolution: Union[int, Tuple[int, int]] = 7,
-            stride: Optional[int] = None,
-            use_attn: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        mlp_ratio: float = 4.0,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        proj_drop: float = 0.0,
+        drop_path: float = 0.0,
+        layer_scale_init_value: float | None = 1e-5,
+        resolution: int | tuple[int, int] = 7,
+        stride: int | None = None,
+        use_attn: bool = True,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         if use_attn:
@@ -502,9 +504,10 @@ class EfficientFormerV2Block(nn.Module):
                 stride=stride,
                 **dd,
             )
-            self.ls1 = LayerScale2d(
-                dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else nn.Identity()
-            self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+            self.ls1 = (
+                LayerScale2d(dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else nn.Identity()
+            )
+            self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         else:
             self.token_mixer = None
             self.ls1 = None
@@ -519,9 +522,10 @@ class EfficientFormerV2Block(nn.Module):
             mid_conv=True,
             **dd,
         )
-        self.ls2 = LayerScale2d(
-            dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.ls2 = (
+            LayerScale2d(dim, layer_scale_init_value, **dd) if layer_scale_init_value is not None else nn.Identity()
+        )
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         if self.token_mixer is not None:
@@ -532,22 +536,23 @@ class EfficientFormerV2Block(nn.Module):
 
 class Stem4(nn.Sequential):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.stride = 4
         self.conv1 = ConvNormAct(
             in_chs,
             out_chs // 2,
             kernel_size=3,
-            stride=2, padding=1,
+            stride=2,
+            padding=1,
             bias=True,
             norm_layer=norm_layer,
             act_layer=act_layer,
@@ -567,28 +572,27 @@ class Stem4(nn.Sequential):
 
 
 class EfficientFormerV2Stage(nn.Module):
-
     def __init__(
-            self,
-            dim: int,
-            dim_out: int,
-            depth: int,
-            resolution: Union[int, Tuple[int, int]] = 7,
-            downsample: bool = True,
-            block_stride: Optional[int] = None,
-            downsample_use_attn: bool = False,
-            block_use_attn: bool = False,
-            num_vit: int = 1,
-            mlp_ratio: Union[float, Tuple[float, ...]] = 4.,
-            proj_drop: float = .0,
-            drop_path: Union[float, List[float]] = 0.,
-            layer_scale_init_value: Optional[float] = 1e-5,
-            act_layer: Type[nn.Module] = nn.GELU,
-            norm_layer: Type[nn.Module] = nn.BatchNorm2d,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int,
+        depth: int,
+        resolution: int | tuple[int, int] = 7,
+        downsample: bool = True,
+        block_stride: int | None = None,
+        downsample_use_attn: bool = False,
+        block_use_attn: bool = False,
+        num_vit: int = 1,
+        mlp_ratio: float | tuple[float, ...] = 4.0,
+        proj_drop: float = 0.0,
+        drop_path: float | list[float] = 0.0,
+        layer_scale_init_value: float | None = 1e-5,
+        act_layer: type[nn.Module] = nn.GELU,
+        norm_layer: type[nn.Module] = nn.BatchNorm2d,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.grad_checkpointing = False
         mlp_ratio = to_ntuple(depth)(mlp_ratio)
@@ -640,30 +644,30 @@ class EfficientFormerV2Stage(nn.Module):
 
 class EfficientFormerV2(nn.Module):
     def __init__(
-            self,
-            depths: Tuple[int, ...],
-            in_chans: int = 3,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            global_pool: str = 'avg',
-            embed_dims: Optional[Tuple[int, ...]] = None,
-            downsamples: Optional[Tuple[bool, ...]] = None,
-            mlp_ratios: Union[float, Tuple[float, ...], Tuple[Tuple[float, ...], ...]] = 4,
-            norm_layer: str = 'batchnorm2d',
-            norm_eps: float = 1e-5,
-            act_layer: str = 'gelu',
-            num_classes: int = 1000,
-            drop_rate: float = 0.,
-            proj_drop_rate: float = 0.,
-            drop_path_rate: float = 0.,
-            layer_scale_init_value: Optional[float] = 1e-5,
-            num_vit: int = 0,
-            distillation: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        depths: tuple[int, ...],
+        in_chans: int = 3,
+        img_size: int | tuple[int, int] = 224,
+        global_pool: str = "avg",
+        embed_dims: tuple[int, ...] | None = None,
+        downsamples: tuple[bool, ...] | None = None,
+        mlp_ratios: float | tuple[float, ...] | tuple[tuple[float, ...], ...] = 4,
+        norm_layer: str = "batchnorm2d",
+        norm_eps: float = 1e-5,
+        act_layer: str = "gelu",
+        num_classes: int = 1000,
+        drop_rate: float = 0.0,
+        proj_drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
+        layer_scale_init_value: float | None = 1e-5,
+        num_vit: int = 0,
+        distillation: bool = True,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
-        assert global_pool in ('avg', '')
+        dd = {"device": device, "dtype": dtype}
+        assert global_pool in ("avg", "")
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.global_pool = global_pool
@@ -704,7 +708,7 @@ class EfficientFormerV2(nn.Module):
             if downsamples[i]:
                 stride *= 2
             prev_dim = embed_dims[i]
-            self.feature_info += [dict(num_chs=prev_dim, reduction=stride, module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": prev_dim, "reduction": stride, "module": f"stages.{i}"}]
             stages.append(stage)
         self.stages = nn.Sequential(*stages)
 
@@ -726,10 +730,10 @@ class EfficientFormerV2(nn.Module):
 
     def _init_weights(self, m, needs_reset: bool = True):
         if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
-        elif needs_reset and hasattr(m, 'reset_parameters'):
+        elif needs_reset and hasattr(m, "reset_parameters"):
             m.reset_parameters()
 
     def init_weights(self, needs_reset: bool = True):
@@ -737,14 +741,14 @@ class EfficientFormerV2(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {k for k, _ in self.named_parameters() if 'attention_biases' in k}
+        return {k for k, _ in self.named_parameters() if "attention_biases" in k}
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        matcher = dict(
-            stem=r'^stem',  # stem and embed
-            blocks=[(r'^stages\.(\d+)', None), (r'^norm', (99999,))]
-        )
+        matcher = {
+            "stem": r"^stem",  # stem and embed
+            "blocks": [(r"^stages\.(\d+)", None), (r"^norm", (99999,))],
+        }
         return matcher
 
     @torch.jit.ignore
@@ -756,7 +760,7 @@ class EfficientFormerV2(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head, self.head_dist
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         if global_pool is not None:
             self.global_pool = global_pool
@@ -768,15 +772,15 @@ class EfficientFormerV2(nn.Module):
         self.distilled_training = enable
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -785,10 +789,8 @@ class EfficientFormerV2(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
 
@@ -799,7 +801,7 @@ class EfficientFormerV2(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x = stage(x)
@@ -819,19 +821,18 @@ class EfficientFormerV2(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_norm:
             self.norm = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -841,7 +842,7 @@ class EfficientFormerV2(nn.Module):
         return x
 
     def forward_head(self, x, pre_logits: bool = False):
-        if self.global_pool == 'avg':
+        if self.global_pool == "avg":
             x = x.mean(dim=(2, 3))
         x = self.head_drop(x)
         if pre_logits:
@@ -860,87 +861,97 @@ class EfficientFormerV2(nn.Module):
         return x
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': None, 'fixed_input_size': True,
-        'crop_pct': .95, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'classifier': ('head', 'head_dist'), 'first_conv': 'stem.conv1.conv',
-        'license': 'apache-2.0',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": None,
+        "fixed_input_size": True,
+        "crop_pct": 0.95,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "classifier": ("head", "head_dist"),
+        "first_conv": "stem.conv1.conv",
+        "license": "apache-2.0",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'efficientformerv2_s0.snap_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'efficientformerv2_s1.snap_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'efficientformerv2_s2.snap_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-    'efficientformerv2_l.snap_dist_in1k': _cfg(
-        hf_hub_id='timm/',
-    ),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "efficientformerv2_s0.snap_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "efficientformerv2_s1.snap_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "efficientformerv2_s2.snap_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+        "efficientformerv2_l.snap_dist_in1k": _cfg(
+            hf_hub_id="timm/",
+        ),
+    }
+)
 
 
 def _create_efficientformerv2(variant, pretrained=False, **kwargs):
-    out_indices = kwargs.pop('out_indices', (0, 1, 2, 3))
+    out_indices = kwargs.pop("out_indices", (0, 1, 2, 3))
     model = build_model_with_cfg(
-        EfficientFormerV2, variant, pretrained,
-        feature_cfg=dict(flatten_sequential=True, out_indices=out_indices),
-        **kwargs)
+        EfficientFormerV2,
+        variant,
+        pretrained,
+        feature_cfg={"flatten_sequential": True, "out_indices": out_indices},
+        **kwargs,
+    )
     return model
 
 
 @register_model
 def efficientformerv2_s0(pretrained=False, **kwargs) -> EfficientFormerV2:
-    model_args = dict(
-        depths=EfficientFormer_depth['S0'],
-        embed_dims=EfficientFormer_width['S0'],
-        num_vit=2,
-        drop_path_rate=0.0,
-        mlp_ratios=EfficientFormer_expansion_ratios['S0'],
-    )
-    return _create_efficientformerv2('efficientformerv2_s0', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": EfficientFormer_depth["S0"],
+        "embed_dims": EfficientFormer_width["S0"],
+        "num_vit": 2,
+        "drop_path_rate": 0.0,
+        "mlp_ratios": EfficientFormer_expansion_ratios["S0"],
+    }
+    return _create_efficientformerv2("efficientformerv2_s0", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientformerv2_s1(pretrained=False, **kwargs) -> EfficientFormerV2:
-    model_args = dict(
-        depths=EfficientFormer_depth['S1'],
-        embed_dims=EfficientFormer_width['S1'],
-        num_vit=2,
-        drop_path_rate=0.0,
-        mlp_ratios=EfficientFormer_expansion_ratios['S1'],
-    )
-    return _create_efficientformerv2('efficientformerv2_s1', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": EfficientFormer_depth["S1"],
+        "embed_dims": EfficientFormer_width["S1"],
+        "num_vit": 2,
+        "drop_path_rate": 0.0,
+        "mlp_ratios": EfficientFormer_expansion_ratios["S1"],
+    }
+    return _create_efficientformerv2("efficientformerv2_s1", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientformerv2_s2(pretrained=False, **kwargs) -> EfficientFormerV2:
-    model_args = dict(
-        depths=EfficientFormer_depth['S2'],
-        embed_dims=EfficientFormer_width['S2'],
-        num_vit=4,
-        drop_path_rate=0.02,
-        mlp_ratios=EfficientFormer_expansion_ratios['S2'],
-    )
-    return _create_efficientformerv2('efficientformerv2_s2', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {
+        "depths": EfficientFormer_depth["S2"],
+        "embed_dims": EfficientFormer_width["S2"],
+        "num_vit": 4,
+        "drop_path_rate": 0.02,
+        "mlp_ratios": EfficientFormer_expansion_ratios["S2"],
+    }
+    return _create_efficientformerv2("efficientformerv2_s2", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def efficientformerv2_l(pretrained=False, **kwargs) -> EfficientFormerV2:
-    model_args = dict(
-        depths=EfficientFormer_depth['L'],
-        embed_dims=EfficientFormer_width['L'],
-        num_vit=6,
-        drop_path_rate=0.1,
-        mlp_ratios=EfficientFormer_expansion_ratios['L'],
-    )
-    return _create_efficientformerv2('efficientformerv2_l', pretrained=pretrained, **dict(model_args, **kwargs))
-
+    model_args = {
+        "depths": EfficientFormer_depth["L"],
+        "embed_dims": EfficientFormer_width["L"],
+        "num_vit": 6,
+        "drop_path_rate": 0.1,
+        "mlp_ratios": EfficientFormer_expansion_ratios["L"],
+    }
+    return _create_efficientformerv2("efficientformerv2_l", pretrained=pretrained, **dict(model_args, **kwargs))

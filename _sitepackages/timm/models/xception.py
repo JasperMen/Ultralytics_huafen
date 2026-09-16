@@ -1,5 +1,5 @@
 """
-Ported to pytorch thanks to [tstandley](https://github.com/tstandley/Xception-PyTorch)
+Ported to pytorch thanks to [tstandley](https://github.com/tstandley/Xception-PyTorch).
 
 @author: tstandley
 Adapted by cadene
@@ -21,31 +21,32 @@ normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5],
 
 The resize parameter of the validation transform should be 333, and make sure to center crop at 299x299
 """
+
 import torch.jit
-import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
+from torch import nn
 
 from timm.layers import create_classifier
-from ._builder import build_model_with_cfg
-from ._registry import register_model, generate_default_cfgs, register_model_deprecations
 
-__all__ = ['Xception']
+from ._builder import build_model_with_cfg
+from ._registry import generate_default_cfgs, register_model, register_model_deprecations
+
+__all__ = ["Xception"]
 
 
 class SeparableConv2d(nn.Module):
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: int = 1,
-            stride: int = 1,
-            padding: int = 0,
-            dilation: int = 1,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 1,
+        stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         self.conv1 = nn.Conv2d(
@@ -69,17 +70,17 @@ class SeparableConv2d(nn.Module):
 
 class Block(nn.Module):
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            reps: int,
-            strides: int = 1,
-            start_with_relu: bool = True,
-            grow_first: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        reps: int,
+        strides: int = 1,
+        start_with_relu: bool = True,
+        grow_first: bool = True,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
 
         if out_channels != in_channels or strides != 1:
@@ -123,26 +124,25 @@ class Block(nn.Module):
 
 
 class Xception(nn.Module):
-    """
-    Xception optimized for the ImageNet dataset, as specified in
-    https://arxiv.org/pdf/1610.02357.pdf
+    """Xception optimized for the ImageNet dataset, as specified in https://arxiv.org/pdf/1610.02357.pdf.
     """
 
     def __init__(
-            self,
-            num_classes: int = 1000,
-            in_chans: int = 3,
-            drop_rate: float = 0.,
-            global_pool: str = 'avg',
-            device=None,
-            dtype=None,
+        self,
+        num_classes: int = 1000,
+        in_chans: int = 3,
+        drop_rate: float = 0.0,
+        global_pool: str = "avg",
+        device=None,
+        dtype=None,
     ):
-        """ Constructor
+        """Constructor.
+
         Args:
-            num_classes: number of classes
+            num_classes: number of classes.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.drop_rate = drop_rate
         self.global_pool = global_pool
         self.num_classes = num_classes
@@ -181,11 +181,11 @@ class Xception(nn.Module):
         self.bn4 = nn.BatchNorm2d(self.num_features, **dd)
         self.act4 = nn.ReLU(inplace=True)
         self.feature_info = [
-            dict(num_chs=64, reduction=2, module='act2'),
-            dict(num_chs=128, reduction=4, module='block2.rep.0'),
-            dict(num_chs=256, reduction=8, module='block3.rep.0'),
-            dict(num_chs=728, reduction=16, module='block12.rep.0'),
-            dict(num_chs=2048, reduction=32, module='act4'),
+            {"num_chs": 64, "reduction": 2, "module": "act2"},
+            {"num_chs": 128, "reduction": 4, "module": "block2.rep.0"},
+            {"num_chs": 256, "reduction": 8, "module": "block3.rep.0"},
+            {"num_chs": 728, "reduction": 16, "module": "block12.rep.0"},
+            {"num_chs": 2048, "reduction": 32, "module": "act4"},
         ]
 
         self.global_pool, self.fc = create_classifier(self.num_features, self.num_classes, pool_type=global_pool, **dd)
@@ -193,20 +193,20 @@ class Xception(nn.Module):
         # #------- init weights --------
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^conv[12]|bn[12]',
-            blocks=[
-                (r'^block(\d+)', None),
-                (r'^conv[34]|bn[34]', (99,)),
+        return {
+            "stem": r"^conv[12]|bn[12]",
+            "blocks": [
+                (r"^block(\d+)", None),
+                (r"^conv[34]|bn[34]", (99,)),
             ],
-        )
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -216,7 +216,7 @@ class Xception(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: str = 'avg'):
+    def reset_classifier(self, num_classes: int, global_pool: str = "avg"):
         self.num_classes = num_classes
         self.global_pool, self.fc = create_classifier(self.num_features, self.num_classes, pool_type=global_pool)
 
@@ -264,35 +264,37 @@ class Xception(nn.Module):
 
 
 def _xception(variant, pretrained=False, **kwargs):
-    return build_model_with_cfg(
-        Xception, variant, pretrained,
-        feature_cfg=dict(feature_cls='hook'),
-        **kwargs)
+    return build_model_with_cfg(Xception, variant, pretrained, feature_cfg={"feature_cls": "hook"}, **kwargs)
 
 
-default_cfgs = generate_default_cfgs({
-    'legacy_xception.tf_in1k': {
-        'url': 'https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-cadene/xception-43020ad28.pth',
-        'input_size': (3, 299, 299),
-        'pool_size': (10, 10),
-        'crop_pct': 0.8975,
-        'interpolation': 'bicubic',
-        'mean': (0.5, 0.5, 0.5),
-        'std': (0.5, 0.5, 0.5),
-        'num_classes': 1000,
-        'first_conv': 'conv1',
-        'classifier': 'fc',
-        'license': 'apache-2.0',
-        # The resize parameter of the validation transform should be 333, and make sure to center crop at 299x299
+default_cfgs = generate_default_cfgs(
+    {
+        "legacy_xception.tf_in1k": {
+            "url": "https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-cadene/xception-43020ad28.pth",
+            "input_size": (3, 299, 299),
+            "pool_size": (10, 10),
+            "crop_pct": 0.8975,
+            "interpolation": "bicubic",
+            "mean": (0.5, 0.5, 0.5),
+            "std": (0.5, 0.5, 0.5),
+            "num_classes": 1000,
+            "first_conv": "conv1",
+            "classifier": "fc",
+            "license": "apache-2.0",
+            # The resize parameter of the validation transform should be 333, and make sure to center crop at 299x299
+        }
     }
-})
+)
 
 
 @register_model
 def legacy_xception(pretrained=False, **kwargs) -> Xception:
-    return _xception('legacy_xception', pretrained=pretrained, **kwargs)
+    return _xception("legacy_xception", pretrained=pretrained, **kwargs)
 
 
-register_model_deprecations(__name__, {
-    'xception': 'legacy_xception',
-})
+register_model_deprecations(
+    __name__,
+    {
+        "xception": "legacy_xception",
+    },
+)

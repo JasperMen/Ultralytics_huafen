@@ -1,4 +1,4 @@
-""" ReXNet
+"""ReXNet.
 
 A PyTorch impl of `ReXNet: Diminishing Representational Bottleneck on Convolutional Neural Network` -
 https://arxiv.org/abs/2007.00992
@@ -10,22 +10,25 @@ Changes for timm, feature extraction, and rounded channel variant hacked togethe
 Copyright 2020 Ross Wightman
 """
 
-from functools import partial
+from __future__ import annotations
+
+import operator
+from functools import partial, reduce
 from math import ceil
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any
 
 import torch
-import torch.nn as nn
-
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import ClassifierHead, create_act_layer, ConvNormAct, DropPath, make_divisible, SEModule
+from timm.layers import ClassifierHead, ConvNormAct, DropPath, SEModule, create_act_layer, make_divisible
+from torch import nn
+
 from ._builder import build_model_with_cfg
 from ._efficientnet_builder import efficientnet_init_weights
 from ._features import feature_take_indices
 from ._manipulate import checkpoint, checkpoint_seq
 from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['RexNet']  # model_registry will add each entrypoint fn to this
+__all__ = ["RexNet"]  # model_registry will add each entrypoint fn to this
 
 
 SEWithNorm = partial(SEModule, norm_layer=nn.BatchNorm2d)
@@ -38,19 +41,19 @@ class LinearBottleneck(nn.Module):
     """
 
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            stride: int,
-            dilation: Tuple[int, int] = (1, 1),
-            exp_ratio: float = 1.0,
-            se_ratio: float = 0.,
-            ch_div: int = 1,
-            act_layer: str = 'swish',
-            dw_act_layer: str = 'relu6',
-            drop_path: Optional[nn.Module] = None,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        stride: int,
+        dilation: tuple[int, int] = (1, 1),
+        exp_ratio: float = 1.0,
+        se_ratio: float = 0.0,
+        ch_div: int = 1,
+        act_layer: str = "swish",
+        dw_act_layer: str = "relu6",
+        drop_path: nn.Module | None = None,
+        device=None,
+        dtype=None,
     ):
         """Initialize LinearBottleneck.
 
@@ -66,13 +69,13 @@ class LinearBottleneck(nn.Module):
             dw_act_layer: Activation layer for depthwise.
             drop_path: Drop path module.
         """
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.use_shortcut = stride == 1 and dilation[0] == dilation[1] and in_chs <= out_chs
         self.in_channels = in_chs
         self.out_channels = out_chs
 
-        if exp_ratio != 1.:
+        if exp_ratio != 1.0:
             dw_chs = make_divisible(round(in_chs * exp_ratio), divisor=ch_div)
             self.conv_exp = ConvNormAct(in_chs, dw_chs, act_layer=act_layer, **dd)
         else:
@@ -129,18 +132,18 @@ class LinearBottleneck(nn.Module):
         if self.use_shortcut:
             if self.drop_path is not None:
                 x = self.drop_path(x)
-            x = torch.cat([x[:, 0:self.in_channels] + shortcut, x[:, self.in_channels:]], dim=1)
+            x = torch.cat([x[:, 0 : self.in_channels] + shortcut, x[:, self.in_channels :]], dim=1)
         return x
 
 
 def _block_cfg(
-        width_mult: float = 1.0,
-        depth_mult: float = 1.0,
-        initial_chs: int = 16,
-        final_chs: int = 180,
-        se_ratio: float = 0.,
-        ch_div: int = 1,
-) -> List[Tuple[int, float, int, float]]:
+    width_mult: float = 1.0,
+    depth_mult: float = 1.0,
+    initial_chs: int = 16,
+    final_chs: int = 180,
+    se_ratio: float = 0.0,
+    ch_div: int = 1,
+) -> list[tuple[int, float, int, float]]:
     """Generate ReXNet block configuration.
 
     Args:
@@ -157,7 +160,7 @@ def _block_cfg(
     layers = [1, 2, 2, 3, 3, 5]
     strides = [1, 2, 2, 2, 1, 2]
     layers = [ceil(element * depth_mult) for element in layers]
-    strides = sum([[element] + [1] * (layers[idx] - 1) for idx, element in enumerate(strides)], [])
+    strides = reduce(operator.iadd, [[element] + [1] * (layers[idx] - 1) for idx, element in enumerate(strides)], [])
     exp_ratios = [1] * layers[0] + [6] * sum(layers[1:])
     depth = sum(layers[:]) * 3
     base_chs = initial_chs / width_mult if width_mult < 1.0 else initial_chs
@@ -168,23 +171,23 @@ def _block_cfg(
         out_chs_list.append(make_divisible(round(base_chs * width_mult), divisor=ch_div))
         base_chs += final_chs / (depth // 3 * 1.0)
 
-    se_ratios = [0.] * (layers[0] + layers[1]) + [se_ratio] * sum(layers[2:])
+    se_ratios = [0.0] * (layers[0] + layers[1]) + [se_ratio] * sum(layers[2:])
 
     return list(zip(out_chs_list, exp_ratios, strides, se_ratios))
 
 
 def _build_blocks(
-        block_cfg: List[Tuple[int, float, int, float]],
-        prev_chs: int,
-        width_mult: float,
-        ch_div: int = 1,
-        output_stride: int = 32,
-        act_layer: str = 'swish',
-        dw_act_layer: str = 'relu6',
-        drop_path_rate: float = 0.,
-        device=None,
-        dtype=None,
-) -> Tuple[List[nn.Module], List[Dict[str, Any]]]:
+    block_cfg: list[tuple[int, float, int, float]],
+    prev_chs: int,
+    width_mult: float,
+    ch_div: int = 1,
+    output_stride: int = 32,
+    act_layer: str = "swish",
+    dw_act_layer: str = "relu6",
+    drop_path_rate: float = 0.0,
+    device=None,
+    dtype=None,
+) -> tuple[list[nn.Module], list[dict[str, Any]]]:
     """Build ReXNet blocks from configuration.
 
     Args:
@@ -200,7 +203,7 @@ def _build_blocks(
     Returns:
         Tuple of (features list, feature_info list).
     """
-    dd = {'device': device, 'dtype': dtype}
+    dd = {"device": device, "dtype": dtype}
     feat_chs = [prev_chs]
     feature_info = []
     curr_stride = 2
@@ -210,32 +213,34 @@ def _build_blocks(
     for block_idx, (chs, exp_ratio, stride, se_ratio) in enumerate(block_cfg):
         next_dilation = dilation
         if stride > 1:
-            fname = 'stem' if block_idx == 0 else f'features.{block_idx - 1}'
-            feature_info += [dict(num_chs=feat_chs[-1], reduction=curr_stride, module=fname)]
+            fname = "stem" if block_idx == 0 else f"features.{block_idx - 1}"
+            feature_info += [{"num_chs": feat_chs[-1], "reduction": curr_stride, "module": fname}]
             if curr_stride >= output_stride:
                 next_dilation = dilation * stride
                 stride = 1
         block_dpr = drop_path_rate * block_idx / (num_blocks - 1)  # stochastic depth linear decay rule
-        drop_path = DropPath(block_dpr) if block_dpr > 0. else None
-        features.append(LinearBottleneck(
-            in_chs=prev_chs,
-            out_chs=chs,
-            exp_ratio=exp_ratio,
-            stride=stride,
-            dilation=(dilation, next_dilation),
-            se_ratio=se_ratio,
-            ch_div=ch_div,
-            act_layer=act_layer,
-            dw_act_layer=dw_act_layer,
-            drop_path=drop_path,
-            **dd,
-        ))
+        drop_path = DropPath(block_dpr) if block_dpr > 0.0 else None
+        features.append(
+            LinearBottleneck(
+                in_chs=prev_chs,
+                out_chs=chs,
+                exp_ratio=exp_ratio,
+                stride=stride,
+                dilation=(dilation, next_dilation),
+                se_ratio=se_ratio,
+                ch_div=ch_div,
+                act_layer=act_layer,
+                dw_act_layer=dw_act_layer,
+                drop_path=drop_path,
+                **dd,
+            )
+        )
         curr_stride *= stride
         dilation = next_dilation
         prev_chs = chs
         feat_chs += [features[-1].feat_channels()]
     pen_chs = make_divisible(1280 * width_mult, divisor=ch_div)
-    feature_info += [dict(num_chs=feat_chs[-1], reduction=curr_stride, module=f'features.{len(features) - 1}')]
+    feature_info += [{"num_chs": feat_chs[-1], "reduction": curr_stride, "module": f"features.{len(features) - 1}"}]
     features.append(ConvNormAct(prev_chs, pen_chs, act_layer=act_layer, **dd))
     return features, feature_info
 
@@ -248,23 +253,23 @@ class RexNet(nn.Module):
     """
 
     def __init__(
-            self,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            output_stride: int = 32,
-            initial_chs: int = 16,
-            final_chs: int = 180,
-            width_mult: float = 1.0,
-            depth_mult: float = 1.0,
-            se_ratio: float = 1/12.,
-            ch_div: int = 1,
-            act_layer: str = 'swish',
-            dw_act_layer: str = 'relu6',
-            drop_rate: float = 0.2,
-            drop_path_rate: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        output_stride: int = 32,
+        initial_chs: int = 16,
+        final_chs: int = 180,
+        width_mult: float = 1.0,
+        depth_mult: float = 1.0,
+        se_ratio: float = 1 / 12.0,
+        ch_div: int = 1,
+        act_layer: str = "swish",
+        dw_act_layer: str = "relu6",
+        drop_rate: float = 0.2,
+        drop_path_rate: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         """Initialize ReXNet.
 
@@ -285,7 +290,7 @@ class RexNet(nn.Module):
             drop_path_rate: Drop path rate.
         """
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.drop_rate = drop_rate
@@ -316,7 +321,7 @@ class RexNet(nn.Module):
         efficientnet_init_weights(self)
 
     @torch.jit.ignore
-    def group_matcher(self, coarse: bool = False) -> Dict[str, Any]:
+    def group_matcher(self, coarse: bool = False) -> dict[str, Any]:
         """Group matcher for parameter groups.
 
         Args:
@@ -325,10 +330,10 @@ class RexNet(nn.Module):
         Returns:
             Dictionary of grouped parameters.
         """
-        matcher = dict(
-            stem=r'^stem',
-            blocks=r'^features\.(\d+)',
-        )
+        matcher = {
+            "stem": r"^stem",
+            "blocks": r"^features\.(\d+)",
+        }
         return matcher
 
     @torch.jit.ignore
@@ -349,7 +354,7 @@ class RexNet(nn.Module):
         """
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None, device=None, dtype=None) -> None:
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None, device=None, dtype=None) -> None:
         """Reset the classifier.
 
         Args:
@@ -358,22 +363,22 @@ class RexNet(nn.Module):
         """
         self.num_classes = num_classes
         if device is not None or dtype is not None:
-            dd = {'device': device, 'dtype': dtype}
+            dd = {"device": device, "dtype": dtype}
             pool_type = global_pool if global_pool is not None else self.head.global_pool.pool_type
             self.head = ClassifierHead(self.num_features, num_classes, pool_type, self.drop_rate, **dd)
         else:
             self.head.reset(num_classes, global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -382,12 +387,10 @@ class RexNet(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
-        stage_ends = [int(info['module'].split('.')[-1]) for info in self.feature_info]
+        stage_ends = [int(info["module"].split(".")[-1]) for info in self.feature_info]
         take_indices, max_index = feature_take_indices(len(stage_ends), indices)
         take_indices = [stage_ends[i] for i in take_indices]
         max_index = stage_ends[max_index]
@@ -397,7 +400,7 @@ class RexNet(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.features
         else:
-            stages = self.features[:max_index + 1]
+            stages = self.features[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             if self.grad_checkpointing and not torch.jit.is_scripting():
@@ -413,11 +416,11 @@ class RexNet(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
-    ) -> List[int]:
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
+    ) -> list[int]:
         """Prune layers not required for specified intermediates.
 
         Args:
@@ -428,12 +431,12 @@ class RexNet(nn.Module):
         Returns:
             List of indices that were kept.
         """
-        stage_ends = [int(info['module'].split('.')[-1]) for info in self.feature_info]
+        stage_ends = [int(info["module"].split(".")[-1]) for info in self.feature_info]
         take_indices, max_index = feature_take_indices(len(stage_ends), indices)
         max_index = stage_ends[max_index]
-        self.features = self.features[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.features = self.features[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -489,7 +492,7 @@ def _create_rexnet(variant: str, pretrained: bool, **kwargs) -> RexNet:
     Returns:
         ReXNet model instance.
     """
-    feature_cfg = dict(flatten_sequential=True)
+    feature_cfg = {"flatten_sequential": True}
     return build_model_with_cfg(
         RexNet,
         variant,
@@ -499,7 +502,7 @@ def _create_rexnet(variant: str, pretrained: bool, **kwargs) -> RexNet:
     )
 
 
-def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
+def _cfg(url: str = "", **kwargs) -> dict[str, Any]:
     """Create default configuration dictionary.
 
     Args:
@@ -510,95 +513,112 @@ def _cfg(url: str = '', **kwargs) -> Dict[str, Any]:
         Configuration dictionary.
     """
     return {
-        'url': url, 'num_classes': 1000, 'input_size': (3, 224, 224), 'pool_size': (7, 7),
-        'crop_pct': 0.875, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.conv', 'classifier': 'head.fc',
-        'license': 'mit', **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 224, 224),
+        "pool_size": (7, 7),
+        "crop_pct": 0.875,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.conv",
+        "classifier": "head.fc",
+        "license": "mit",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'rexnet_100.nav_in1k': _cfg(hf_hub_id='timm/'),
-    'rexnet_130.nav_in1k': _cfg(hf_hub_id='timm/'),
-    'rexnet_150.nav_in1k': _cfg(hf_hub_id='timm/'),
-    'rexnet_200.nav_in1k': _cfg(hf_hub_id='timm/'),
-    'rexnet_300.nav_in1k': _cfg(hf_hub_id='timm/'),
-    'rexnetr_100.untrained': _cfg(),
-    'rexnetr_130.untrained': _cfg(),
-    'rexnetr_150.untrained': _cfg(),
-    'rexnetr_200.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_crop_pct=1.0, test_input_size=(3, 288, 288), license='apache-2.0'),
-    'rexnetr_300.sw_in12k_ft_in1k': _cfg(
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_crop_pct=1.0, test_input_size=(3, 288, 288), license='apache-2.0'),
-    'rexnetr_200.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821,
-        crop_pct=0.95, test_crop_pct=1.0, test_input_size=(3, 288, 288), license='apache-2.0'),
-    'rexnetr_300.sw_in12k': _cfg(
-        hf_hub_id='timm/',
-        num_classes=11821,
-        crop_pct=0.95, test_crop_pct=1.0, test_input_size=(3, 288, 288), license='apache-2.0'),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "rexnet_100.nav_in1k": _cfg(hf_hub_id="timm/"),
+        "rexnet_130.nav_in1k": _cfg(hf_hub_id="timm/"),
+        "rexnet_150.nav_in1k": _cfg(hf_hub_id="timm/"),
+        "rexnet_200.nav_in1k": _cfg(hf_hub_id="timm/"),
+        "rexnet_300.nav_in1k": _cfg(hf_hub_id="timm/"),
+        "rexnetr_100.untrained": _cfg(),
+        "rexnetr_130.untrained": _cfg(),
+        "rexnetr_150.untrained": _cfg(),
+        "rexnetr_200.sw_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/", crop_pct=0.95, test_crop_pct=1.0, test_input_size=(3, 288, 288), license="apache-2.0"
+        ),
+        "rexnetr_300.sw_in12k_ft_in1k": _cfg(
+            hf_hub_id="timm/", crop_pct=0.95, test_crop_pct=1.0, test_input_size=(3, 288, 288), license="apache-2.0"
+        ),
+        "rexnetr_200.sw_in12k": _cfg(
+            hf_hub_id="timm/",
+            num_classes=11821,
+            crop_pct=0.95,
+            test_crop_pct=1.0,
+            test_input_size=(3, 288, 288),
+            license="apache-2.0",
+        ),
+        "rexnetr_300.sw_in12k": _cfg(
+            hf_hub_id="timm/",
+            num_classes=11821,
+            crop_pct=0.95,
+            test_crop_pct=1.0,
+            test_input_size=(3, 288, 288),
+            license="apache-2.0",
+        ),
+    }
+)
 
 
 @register_model
 def rexnet_100(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 1.0x"""
-    return _create_rexnet('rexnet_100', pretrained, **kwargs)
+    """ReXNet V1 1.0x."""
+    return _create_rexnet("rexnet_100", pretrained, **kwargs)
 
 
 @register_model
 def rexnet_130(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 1.3x"""
-    return _create_rexnet('rexnet_130', pretrained, width_mult=1.3, **kwargs)
+    """ReXNet V1 1.3x."""
+    return _create_rexnet("rexnet_130", pretrained, width_mult=1.3, **kwargs)
 
 
 @register_model
 def rexnet_150(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 1.5x"""
-    return _create_rexnet('rexnet_150', pretrained, width_mult=1.5, **kwargs)
+    """ReXNet V1 1.5x."""
+    return _create_rexnet("rexnet_150", pretrained, width_mult=1.5, **kwargs)
 
 
 @register_model
 def rexnet_200(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 2.0x"""
-    return _create_rexnet('rexnet_200', pretrained, width_mult=2.0, **kwargs)
+    """ReXNet V1 2.0x."""
+    return _create_rexnet("rexnet_200", pretrained, width_mult=2.0, **kwargs)
 
 
 @register_model
 def rexnet_300(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 3.0x"""
-    return _create_rexnet('rexnet_300', pretrained, width_mult=3.0, **kwargs)
+    """ReXNet V1 3.0x."""
+    return _create_rexnet("rexnet_300", pretrained, width_mult=3.0, **kwargs)
 
 
 @register_model
 def rexnetr_100(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 1.0x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_100', pretrained, ch_div=8, **kwargs)
+    """ReXNet V1 1.0x w/ rounded (mod 8) channels."""
+    return _create_rexnet("rexnetr_100", pretrained, ch_div=8, **kwargs)
 
 
 @register_model
 def rexnetr_130(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 1.3x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_130', pretrained, width_mult=1.3, ch_div=8, **kwargs)
+    """ReXNet V1 1.3x w/ rounded (mod 8) channels."""
+    return _create_rexnet("rexnetr_130", pretrained, width_mult=1.3, ch_div=8, **kwargs)
 
 
 @register_model
 def rexnetr_150(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 1.5x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_150', pretrained, width_mult=1.5, ch_div=8, **kwargs)
+    """ReXNet V1 1.5x w/ rounded (mod 8) channels."""
+    return _create_rexnet("rexnetr_150", pretrained, width_mult=1.5, ch_div=8, **kwargs)
 
 
 @register_model
 def rexnetr_200(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 2.0x w/ rounded (mod 8) channels"""
-    return _create_rexnet('rexnetr_200', pretrained, width_mult=2.0, ch_div=8, **kwargs)
+    """ReXNet V1 2.0x w/ rounded (mod 8) channels."""
+    return _create_rexnet("rexnetr_200", pretrained, width_mult=2.0, ch_div=8, **kwargs)
 
 
 @register_model
 def rexnetr_300(pretrained: bool = False, **kwargs) -> RexNet:
-    """ReXNet V1 3.0x w/ rounded (mod 16) channels"""
-    return _create_rexnet('rexnetr_300', pretrained, width_mult=3.0, ch_div=16, **kwargs)
+    """ReXNet V1 3.0x w/ rounded (mod 16) channels."""
+    return _create_rexnet("rexnetr_300", pretrained, width_mult=3.0, ch_div=16, **kwargs)
