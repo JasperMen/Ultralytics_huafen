@@ -1,49 +1,50 @@
-""" Image to Patch Hybird Embedding Layer
+"""Image to Patch Hybrid Embedding Layer.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
+
+from __future__ import annotations
+
 import logging
 import math
-from typing import List, Optional, Tuple, Union
 
 import torch
-from torch import nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from .format import Format, nchw_to
 from .helpers import to_2tuple
 from .patch_embed import resample_patch_embed
 
-
 _logger = logging.getLogger(__name__)
 
 
 class HybridEmbed(nn.Module):
-    """ CNN Feature Map Embedding
-    Extract feature map from CNN, flatten, project to embedding dim.
+    """CNN Feature Map Embedding Extract feature map from CNN, flatten, project to embedding dim.
     """
+
     output_fmt: Format
     dynamic_img_pad: torch.jit.Final[bool]
 
     def __init__(
-            self,
-            backbone: nn.Module,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            patch_size: Union[int, Tuple[int, int]] = 1,
-            feature_size: Optional[Union[int, Tuple[int, int]]] = None,
-            feature_ratio: Optional[Union[int, Tuple[int, int]]] = None,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            bias: bool = True,
-            proj: bool = True,
-            flatten: bool = True,
-            output_fmt: Optional[str] = None,
-            strict_img_size: bool = True,
-            dynamic_img_pad: bool = False,
-            device=None,
-            dtype=None,
+        self,
+        backbone: nn.Module,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int | tuple[int, int] = 1,
+        feature_size: int | tuple[int, int] | None = None,
+        feature_ratio: int | tuple[int, int] | None = None,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        bias: bool = True,
+        proj: bool = True,
+        flatten: bool = True,
+        output_fmt: str | None = None,
+        strict_img_size: bool = True,
+        dynamic_img_pad: bool = False,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         assert isinstance(backbone, nn.Module)
         self.backbone = backbone
@@ -86,19 +87,20 @@ class HybridEmbed(nn.Module):
                 **dd,
             )
         else:
-            assert self.feature_dim == embed_dim, \
-                f'The feature dim ({self.feature_dim} must match embed dim ({embed_dim}) when projection disabled.'
+            assert self.feature_dim == embed_dim, (
+                f"The feature dim ({self.feature_dim} must match embed dim ({embed_dim}) when projection disabled."
+            )
             self.proj = nn.Identity()
 
     def _init_backbone(
-            self,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            patch_size: Union[int, Tuple[int, int]] = 1,
-            feature_size: Optional[Union[int, Tuple[int, int]]] = None,
-            feature_ratio: Optional[Union[int, Tuple[int, int]]] = None,
-            feature_dim: Optional[int] = None,
-            device=None,
-            dtype=None,
+        self,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int | tuple[int, int] = 1,
+        feature_size: int | tuple[int, int] | None = None,
+        feature_ratio: int | tuple[int, int] | None = None,
+        feature_dim: int | None = None,
+        device=None,
+        dtype=None,
     ):
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
@@ -120,7 +122,7 @@ class HybridEmbed(nn.Module):
             feature_size = to_2tuple(feature_size)
             feature_ratio = to_2tuple(feature_ratio or 16)
             if feature_dim is None:
-                if hasattr(self.backbone, 'feature_info'):
+                if hasattr(self.backbone, "feature_info"):
                     feature_dim = self.backbone.feature_info.channels()[-1]
                 else:
                     feature_dim = self.backbone.num_features
@@ -129,12 +131,12 @@ class HybridEmbed(nn.Module):
         return img_size, patch_size, feature_size, feature_ratio, feature_dim, grid_size, num_patches
 
     def set_input_size(
-            self,
-            img_size: Optional[Union[int, Tuple[int, int]]] = None,
-            patch_size: Optional[Union[int, Tuple[int, int]]] = None,
-            feature_size: Optional[Union[int, Tuple[int, int]]] = None,
-            feature_ratio: Optional[Union[int, Tuple[int, int]]] = None,
-            feature_dim: Optional[int] = None,
+        self,
+        img_size: int | tuple[int, int] | None = None,
+        patch_size: int | tuple[int, int] | None = None,
+        feature_size: int | tuple[int, int] | None = None,
+        feature_ratio: int | tuple[int, int] | None = None,
+        feature_dim: int | None = None,
     ):
         assert img_size is not None or patch_size is not None
         img_size = img_size or self.img_size
@@ -142,7 +144,7 @@ class HybridEmbed(nn.Module):
         if patch_size is not None:
             new_patch_size = to_2tuple(patch_size)
         if new_patch_size is not None and new_patch_size != self.patch_size:
-            assert isinstance(self.proj, nn.Conv2d), 'HybridEmbed must have a projection layer to change patch size.'
+            assert isinstance(self.proj, nn.Conv2d), "HybridEmbed must have a projection layer to change patch size."
             with torch.no_grad():
                 new_proj = nn.Conv2d(
                     self.proj.in_channels,
@@ -178,19 +180,15 @@ class HybridEmbed(nn.Module):
                 # FIXME device/dtype?
             )
 
-    def feat_ratio(self, as_scalar=True) -> Union[Tuple[int, int], int]:
-        total_reduction = (
-            self.feature_ratio[0] * self.patch_size[0],
-            self.feature_ratio[1] * self.patch_size[1]
-        )
+    def feat_ratio(self, as_scalar=True) -> tuple[int, int] | int:
+        total_reduction = (self.feature_ratio[0] * self.patch_size[0], self.feature_ratio[1] * self.patch_size[1])
         if as_scalar:
             return max(total_reduction)
         else:
             return total_reduction
 
-    def dynamic_feat_size(self, img_size: Tuple[int, int]) -> Tuple[int, int]:
-        """ Get feature grid size taking account dynamic padding and backbone network feat reduction
-        """
+    def dynamic_feat_size(self, img_size: tuple[int, int]) -> tuple[int, int]:
+        """Get feature grid size taking account dynamic padding and backbone network feat reduction."""
         feat_size = (img_size[0] // self.feature_ratio[0], img_size[1] // self.feature_ratio[1])
         if self.dynamic_img_pad:
             return math.ceil(feat_size[0] / self.patch_size[0]), math.ceil(feat_size[1] / self.patch_size[1])
@@ -199,9 +197,9 @@ class HybridEmbed(nn.Module):
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable: bool = True):
-        if hasattr(self.backbone, 'set_grad_checkpointing'):
+        if hasattr(self.backbone, "set_grad_checkpointing"):
             self.backbone.set_grad_checkpointing(enable=enable)
-        elif hasattr(self.backbone, 'grad_checkpointing'):
+        elif hasattr(self.backbone, "grad_checkpointing"):
             self.backbone.grad_checkpointing = enable
 
     def forward(self, x):
@@ -222,22 +220,22 @@ class HybridEmbed(nn.Module):
 
 
 class HybridEmbedWithSize(HybridEmbed):
-    """ CNN Feature Map Embedding
-    Extract feature map from CNN, flatten, project to embedding dim.
+    """CNN Feature Map Embedding Extract feature map from CNN, flatten, project to embedding dim.
     """
+
     def __init__(
-            self,
-            backbone: nn.Module,
-            img_size: Union[int, Tuple[int, int]] = 224,
-            patch_size: Union[int, Tuple[int, int]] = 1,
-            feature_size: Optional[Union[int, Tuple[int, int]]] = None,
-            feature_ratio: Optional[Union[int, Tuple[int, int]]] = None,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            bias=True,
-            proj=True,
-            device=None,
-            dtype=None,
+        self,
+        backbone: nn.Module,
+        img_size: int | tuple[int, int] = 224,
+        patch_size: int | tuple[int, int] = 1,
+        feature_size: int | tuple[int, int] | None = None,
+        feature_ratio: int | tuple[int, int] | None = None,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        bias=True,
+        proj=True,
+        device=None,
+        dtype=None,
     ):
         super().__init__(
             backbone=backbone,
@@ -255,12 +253,12 @@ class HybridEmbedWithSize(HybridEmbed):
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable: bool = True):
-        if hasattr(self.backbone, 'set_grad_checkpointing'):
+        if hasattr(self.backbone, "set_grad_checkpointing"):
             self.backbone.set_grad_checkpointing(enable=enable)
-        elif hasattr(self.backbone, 'grad_checkpointing'):
+        elif hasattr(self.backbone, "grad_checkpointing"):
             self.backbone.grad_checkpointing = enable
 
-    def forward(self, x) -> Tuple[torch.Tensor, List[int]]:
+    def forward(self, x) -> tuple[torch.Tensor, list[int]]:
         x = self.backbone(x)
         if isinstance(x, (list, tuple)):
             x = x[-1]  # last feature if backbone outputs list/tuple of features

@@ -1,13 +1,14 @@
-""" PyTorch Mixed Convolution
+"""PyTorch Mixed Convolution.
 
 Paper: MixConv: Mixed Depthwise Convolutional Kernels (https://arxiv.org/abs/1907.09595)
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
-from typing import List, Union
+
+from __future__ import annotations
 
 import torch
-from torch import nn as nn
+from torch import nn
 
 from .conv2d_same import create_conv2d_pad
 
@@ -19,21 +20,22 @@ def _split_channels(num_chan, num_groups):
 
 
 class MixedConv2d(nn.ModuleDict):
-    """ Mixed Grouped Convolution
+    """Mixed Grouped Convolution.
 
     Based on MDConv and GroupedConv in MixNet impl:
-      https://github.com/tensorflow/tpu/blob/master/models/official/mnasnet/mixnet/custom_layers.py
+    https://github.com/tensorflow/tpu/blob/master/models/official/mnasnet/mixnet/custom_layers.py
     """
+
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, List[int]] = 3,
-            stride: int = 1,
-            padding: str = '',
-            dilation: int = 1,
-            depthwise: bool = False,
-            **kwargs
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | list[int] = 3,
+        stride: int = 1,
+        padding: str = "",
+        dilation: int = 1,
+        depthwise: bool = False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -57,7 +59,7 @@ class MixedConv2d(nn.ModuleDict):
                     dilation=dilation,
                     groups=conv_groups,
                     **kwargs,
-                )
+                ),
             )
         self.splits = in_splits
 

@@ -1,3 +1,6 @@
+# bring common torch.optim Optimizers into timm.optim namespace for consistency
+from torch.optim import SGD, Adadelta, Adagrad, Adam, Adamax, AdamW, RMSprop
+
 from .adabelief import AdaBelief
 from .adafactor import Adafactor
 from .adafactor_bv import AdafactorBigVision
@@ -22,14 +25,20 @@ from .rmsprop_tf import RMSpropTF
 from .sgdp import SGDP
 from .sgdw import SGDW
 
-# bring common torch.optim Optimizers into timm.optim namespace for consistency
-from torch.optim import Adadelta, Adagrad, Adamax, Adam, AdamW, RMSprop, SGD
 try:
     # in case any very old torch versions being used
     from torch.optim import NAdam, RAdam
 except ImportError:
     pass
 
-from ._optim_factory import list_optimizers, get_optimizer_class, get_optimizer_info, OptimInfo, OptimizerRegistry, \
-    create_optimizer_v2, create_optimizer, optimizer_kwargs
-from ._param_groups import param_groups_layer_decay, param_groups_weight_decay, auto_group_layers
+from ._optim_factory import (
+    OptimInfo,
+    OptimizerRegistry,
+    create_optimizer,
+    create_optimizer_v2,
+    get_optimizer_class,
+    get_optimizer_info,
+    list_optimizers,
+    optimizer_kwargs,
+)
+from ._param_groups import auto_group_layers, param_groups_layer_decay, param_groups_weight_decay
