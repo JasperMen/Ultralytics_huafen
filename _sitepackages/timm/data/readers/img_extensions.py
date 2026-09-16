@@ -1,9 +1,9 @@
 from copy import deepcopy
 
-__all__ = ['get_img_extensions', 'is_img_extension', 'set_img_extensions', 'add_img_extensions', 'del_img_extensions']
+__all__ = ["add_img_extensions", "del_img_extensions", "get_img_extensions", "is_img_extension", "set_img_extensions"]
 
 
-IMG_EXTENSIONS = ('.png', '.jpg', '.jpeg')  # singleton, kept public for bwd compat use
+IMG_EXTENSIONS = (".png", ".jpg", ".jpeg")  # singleton, kept public for bwd compat use
 _IMG_EXTENSIONS_SET = set(IMG_EXTENSIONS)  # set version, private, kept in sync
 
 
@@ -16,7 +16,7 @@ def _set_extensions(extensions):
 
 
 def _valid_extension(x: str):
-    return x and isinstance(x, str) and len(x) >= 2 and x.startswith('.')
+    return x and isinstance(x, str) and len(x) >= 2 and x.startswith(".")
 
 
 def is_img_extension(ext):

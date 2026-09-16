@@ -1,15 +1,24 @@
-""" Model / Layer Config singleton state
-"""
+"""Model / Layer Config singleton state."""
+
+from __future__ import annotations
+
 import os
 import warnings
-from typing import Any, Optional
 
 import torch
 
 __all__ = [
-    'is_exportable', 'is_scriptable', 'is_no_jit', 'use_fused_attn',
-    'set_exportable', 'set_scriptable', 'set_no_jit', 'set_layer_config', 'set_fused_attn',
-    'set_reentrant_ckpt', 'use_reentrant_ckpt'
+    "is_exportable",
+    "is_no_jit",
+    "is_scriptable",
+    "set_exportable",
+    "set_fused_attn",
+    "set_layer_config",
+    "set_no_jit",
+    "set_reentrant_ckpt",
+    "set_scriptable",
+    "use_fused_attn",
+    "use_reentrant_ckpt",
 ]
 
 # Set to True if prefer to have layers with no jit optimization (includes activations)
@@ -28,15 +37,15 @@ _SCRIPTABLE = False
 
 
 # use torch.scaled_dot_product_attention where possible
-_HAS_FUSED_ATTN = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-if 'TIMM_FUSED_ATTN' in os.environ:
-    _USE_FUSED_ATTN = int(os.environ['TIMM_FUSED_ATTN'])
+_HAS_FUSED_ATTN = hasattr(torch.nn.functional, "scaled_dot_product_attention")
+if "TIMM_FUSED_ATTN" in os.environ:
+    _USE_FUSED_ATTN = int(os.environ["TIMM_FUSED_ATTN"])
 else:
     _USE_FUSED_ATTN = 1  # 0 == off, 1 == on (for tested use), 2 == on (for experimental use)
 
 
-if 'TIMM_REENTRANT_CKPT' in os.environ:
-    _USE_REENTRANT_CKPT = bool(os.environ['TIMM_REENTRANT_CKPT'])
+if "TIMM_REENTRANT_CKPT" in os.environ:
+    _USE_REENTRANT_CKPT = bool(os.environ["TIMM_REENTRANT_CKPT"])
 else:
     _USE_REENTRANT_CKPT = False  # defaults to disabled (off)
 
@@ -54,7 +63,7 @@ class set_no_jit:
     def __enter__(self) -> None:
         pass
 
-    def __exit__(self, *args: Any) -> bool:
+    def __exit__(self, *args: object) -> bool:
         global _NO_JIT
         _NO_JIT = self.prev
         return False
@@ -73,7 +82,7 @@ class set_exportable:
     def __enter__(self) -> None:
         pass
 
-    def __exit__(self, *args: Any) -> bool:
+    def __exit__(self, *args: object) -> bool:
         global _EXPORTABLE
         _EXPORTABLE = self.prev
         return False
@@ -92,22 +101,24 @@ class set_scriptable:
     def __enter__(self) -> None:
         pass
 
-    def __exit__(self, *args: Any) -> bool:
+    def __exit__(self, *args: object) -> bool:
         global _SCRIPTABLE
         _SCRIPTABLE = self.prev
         return False
 
 
 class set_layer_config:
-    """ Layer config context manager that allows setting all layer config flags at once.
-    If a flag arg is None, it will not change the current value.
+    """Layer config context manager that allows setting all layer config flags at once. If a flag arg is None, it will
+    not change the current value.
     """
+
     def __init__(
-            self,
-            scriptable: Optional[bool] = None,
-            exportable: Optional[bool] = None,
-            no_jit: Optional[bool] = None,
-            no_activation_jit: Optional[bool] = None):
+        self,
+        scriptable: bool | None = None,
+        exportable: bool | None = None,
+        no_jit: bool | None = None,
+        no_activation_jit: bool | None = None,
+    ):
         global _SCRIPTABLE
         global _EXPORTABLE
         global _NO_JIT
@@ -125,7 +136,7 @@ class set_layer_config:
     def __enter__(self) -> None:
         pass
 
-    def __exit__(self, *args: Any) -> bool:
+    def __exit__(self, *args: object) -> bool:
         global _SCRIPTABLE
         global _EXPORTABLE
         global _NO_JIT
@@ -146,7 +157,7 @@ def use_fused_attn(experimental: bool = False) -> bool:
 def set_fused_attn(enable: bool = True, experimental: bool = False):
     global _USE_FUSED_ATTN
     if not _HAS_FUSED_ATTN:
-        warnings.warn('This version of pytorch does not have F.scaled_dot_product_attention, fused_attn flag ignored.')
+        warnings.warn("This version of pytorch does not have F.scaled_dot_product_attention, fused_attn flag ignored.")
         return
     if experimental and enable:
         _USE_FUSED_ATTN = 2

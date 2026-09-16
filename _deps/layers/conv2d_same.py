@@ -1,28 +1,29 @@
-""" Conv2d w/ Same Padding
+"""Conv2d w/ Same Padding.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
+
+from __future__ import annotations
+
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tuple, Optional, Union
+from torch import nn
 
 from ._fx import register_notrace_module
 from .config import is_exportable, is_scriptable
-from .padding import pad_same, pad_same_arg, get_padding_value
-
+from .padding import get_padding_value, pad_same, pad_same_arg
 
 _USE_EXPORT_CONV = False
 
 
 def conv2d_same(
-        x,
-        weight: torch.Tensor,
-        bias: Optional[torch.Tensor] = None,
-        stride: Tuple[int, int] = (1, 1),
-        padding: Tuple[int, int] = (0, 0),
-        dilation: Tuple[int, int] = (1, 1),
-        groups: int = 1,
+    x,
+    weight: torch.Tensor,
+    bias: torch.Tensor | None = None,
+    stride: tuple[int, int] = (1, 1),
+    padding: tuple[int, int] = (0, 0),
+    dilation: tuple[int, int] = (1, 1),
+    groups: int = 1,
 ):
     x = pad_same(x, weight.shape[-2:], stride, dilation)
     return F.conv2d(x, weight, bias, stride, (0, 0), dilation, groups)
@@ -30,21 +31,20 @@ def conv2d_same(
 
 @register_notrace_module
 class Conv2dSame(nn.Conv2d):
-    """ Tensorflow like 'SAME' convolution wrapper for 2D convolutions
-    """
+    """Tensorflow like 'SAME' convolution wrapper for 2D convolutions."""
 
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple[int, int]],
-            stride: Union[int, Tuple[int, int]] = 1,
-            padding: Union[int, Tuple[int, int], str] = 0,
-            dilation: Union[int, Tuple[int, int]] = 1,
-            groups: int = 1,
-            bias: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] | str = 0,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        bias: bool = True,
+        device=None,
+        dtype=None,
     ):
         super().__init__(
             in_channels,
@@ -72,24 +72,24 @@ class Conv2dSame(nn.Conv2d):
 
 
 class Conv2dSameExport(nn.Conv2d):
-    """ ONNX export friendly Tensorflow like 'SAME' convolution wrapper for 2D convolutions
+    """ONNX export friendly Tensorflow like 'SAME' convolution wrapper for 2D convolutions.
 
     NOTE: This does not currently work with torch.jit.script
     """
 
     # pylint: disable=unused-argument
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple[int, int]],
-            stride: Union[int, Tuple[int, int]] = 1,
-            padding: Union[int, Tuple[int, int], str] = 0,
-            dilation: Union[int, Tuple[int, int]] = 1,
-            groups: int = 1,
-            bias: bool = True,
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] | str = 0,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        bias: bool = True,
+        device=None,
+        dtype=None,
     ):
         super().__init__(
             in_channels,
@@ -126,8 +126,8 @@ class Conv2dSameExport(nn.Conv2d):
 
 
 def create_conv2d_pad(in_chs, out_chs, kernel_size, **kwargs):
-    padding = kwargs.pop('padding', '')
-    kwargs.setdefault('bias', False)
+    padding = kwargs.pop("padding", "")
+    kwargs.setdefault("bias", False)
     padding, is_dynamic = get_padding_value(padding, kernel_size, **kwargs)
     if is_dynamic:
         if _USE_EXPORT_CONV and is_exportable():
@@ -138,5 +138,3 @@ def create_conv2d_pad(in_chs, out_chs, kernel_size, **kwargs):
             return Conv2dSame(in_chs, out_chs, kernel_size, **kwargs)
     else:
         return nn.Conv2d(in_chs, out_chs, kernel_size, padding=padding, **kwargs)
-
-
