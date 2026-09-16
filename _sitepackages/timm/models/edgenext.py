@@ -1,4 +1,4 @@
-""" EdgeNeXt
+"""EdgeNeXt.
 
 Paper: `EdgeNeXt: Efficiently Amalgamated CNN-Transformer Architecture for Mobile Vision Applications`
  - https://arxiv.org/abs/2206.10589
@@ -7,9 +7,11 @@ Original code and weights from https://github.com/mmaaz60/EdgeNeXt
 
 Modifications and additions for timm by / Copyright 2022, Ross Wightman
 """
+
+from __future__ import annotations
+
 import math
 from functools import partial
-from typing import List, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn.functional as F
@@ -17,36 +19,36 @@ from torch import nn
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import (
+    ClassifierHead,
     DropPath,
-    calculate_drop_path_rates,
     LayerNorm2d,
     Mlp,
-    create_conv2d,
     NormMlpClassifierHead,
-    ClassifierHead,
+    calculate_drop_path_rates,
+    create_conv2d,
     trunc_normal_tf_,
 )
 
 from ._builder import build_model_with_cfg
 from ._features import feature_take_indices
 from ._features_fx import register_notrace_module
-from ._manipulate import named_apply, checkpoint_seq
-from ._registry import register_model, generate_default_cfgs
+from ._manipulate import checkpoint_seq, named_apply
+from ._registry import generate_default_cfgs, register_model
 
-__all__ = ['EdgeNeXt']  # model_registry will add each entrypoint fn to this
+__all__ = ["EdgeNeXt"]  # model_registry will add each entrypoint fn to this
 
 
 @register_notrace_module  # reason: FX can't symbolically trace torch.arange in forward method
 class PositionalEncodingFourier(nn.Module):
     def __init__(
-            self,
-            hidden_dim: int = 32,
-            dim: int = 768,
-            temperature: float = 10000.,
-            device=None,
-            dtype=None,
+        self,
+        hidden_dim: int = 32,
+        dim: int = 768,
+        temperature: float = 10000.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.token_projection = nn.Conv2d(hidden_dim * 2, dim, kernel_size=1, **dd)
         self.scale = 2 * math.pi
@@ -54,7 +56,7 @@ class PositionalEncodingFourier(nn.Module):
         self.hidden_dim = hidden_dim
         self.dim = dim
 
-    def forward(self, shape: Tuple[int, int, int]):
+    def forward(self, shape: tuple[int, int, int]):
         device = self.token_projection.weight.device
         dtype = self.token_projection.weight.dtype
         inv_mask = ~torch.zeros(shape).to(device=device, dtype=torch.bool)
@@ -65,16 +67,12 @@ class PositionalEncodingFourier(nn.Module):
         x_embed = x_embed / (x_embed[:, :, -1:] + eps) * self.scale
 
         dim_t = torch.arange(self.hidden_dim, dtype=torch.int64, device=device).to(torch.float32)
-        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode='floor') / self.hidden_dim)
+        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode="floor") / self.hidden_dim)
 
         pos_x = x_embed[:, :, :, None] / dim_t
         pos_y = y_embed[:, :, :, None] / dim_t
-        pos_x = torch.stack(
-            (pos_x[:, :, :, 0::2].sin(),
-             pos_x[:, :, :, 1::2].cos()), dim=4).flatten(3)
-        pos_y = torch.stack(
-            (pos_y[:, :, :, 0::2].sin(),
-             pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
+        pos_x = torch.stack((pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4).flatten(3)
+        pos_y = torch.stack((pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
         pos = self.token_projection(pos.to(dtype))
 
@@ -83,21 +81,21 @@ class PositionalEncodingFourier(nn.Module):
 
 class ConvBlock(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            kernel_size: int = 7,
-            stride: int = 1,
-            conv_bias: bool = True,
-            expand_ratio: float = 4,
-            ls_init_value: float = 1e-6,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop_path: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        dim_out: int | None = None,
+        kernel_size: int = 7,
+        stride: int = 1,
+        conv_bias: bool = True,
+        expand_ratio: float = 4,
+        ls_init_value: float = 1e-6,
+        norm_layer: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        act_layer: type[nn.Module] = nn.GELU,
+        drop_path: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         dim_out = dim_out or dim
         self.shortcut_after_dw = stride > 1 or dim != dim_out
@@ -119,7 +117,7 @@ class ConvBlock(nn.Module):
             **dd,
         )
         self.gamma = nn.Parameter(ls_init_value * torch.ones(dim_out, **dd)) if ls_init_value > 0 else None
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         shortcut = x
@@ -140,16 +138,16 @@ class ConvBlock(nn.Module):
 
 class CrossCovarianceAttn(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            num_heads: int = 8,
-            qkv_bias: bool = False,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.num_heads = num_heads
         self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1, **dd))
@@ -168,7 +166,7 @@ class CrossCovarianceAttn(nn.Module):
         attn = (F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1)) * self.temperature
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
-        x = (attn @ v)
+        x = attn @ v
 
         x = x.permute(0, 3, 1, 2).reshape(B, N, C)
         x = self.proj(x)
@@ -177,31 +175,31 @@ class CrossCovarianceAttn(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {'temperature'}
+        return {"temperature"}
 
 
 class SplitTransposeBlock(nn.Module):
     def __init__(
-            self,
-            dim: int,
-            num_scales: int = 1,
-            num_heads: int = 8,
-            expand_ratio: float = 4,
-            use_pos_emb: bool = True,
-            conv_bias: bool = True,
-            qkv_bias: bool = True,
-            ls_init_value: float = 1e-6,
-            norm_layer: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop_path: float = 0.,
-            attn_drop: float = 0.,
-            proj_drop: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        dim: int,
+        num_scales: int = 1,
+        num_heads: int = 8,
+        expand_ratio: float = 4,
+        use_pos_emb: bool = True,
+        conv_bias: bool = True,
+        qkv_bias: bool = True,
+        ls_init_value: float = 1e-6,
+        norm_layer: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        act_layer: type[nn.Module] = nn.GELU,
+        drop_path: float = 0.0,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
-        width = max(int(math.ceil(dim / num_scales)), int(math.floor(dim // num_scales)))
+        width = max(math.ceil(dim / num_scales), math.floor(dim // num_scales))
         self.width = width
         self.num_scales = max(1, num_scales - 1)
 
@@ -232,7 +230,7 @@ class SplitTransposeBlock(nn.Module):
             **dd,
         )
         self.gamma = nn.Parameter(ls_init_value * torch.ones(dim, **dd)) if ls_init_value > 0 else None
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         shortcut = x
@@ -272,28 +270,28 @@ class SplitTransposeBlock(nn.Module):
 
 class EdgeNeXtStage(nn.Module):
     def __init__(
-            self,
-            in_chs: int,
-            out_chs: int,
-            stride: int = 2,
-            depth: int = 2,
-            num_global_blocks: int = 1,
-            num_heads: int = 4,
-            scales: int = 2,
-            kernel_size: int = 7,
-            expand_ratio: float = 4,
-            use_pos_emb: bool = False,
-            downsample_block: bool = False,
-            conv_bias: float = True,
-            ls_init_value: float = 1.0,
-            drop_path_rates: Optional[List[float]] = None,
-            norm_layer: Type[nn.Module] = LayerNorm2d,
-            norm_layer_cl: Type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-            act_layer: Type[nn.Module] = nn.GELU,
-            device=None,
-            dtype=None,
+        self,
+        in_chs: int,
+        out_chs: int,
+        stride: int = 2,
+        depth: int = 2,
+        num_global_blocks: int = 1,
+        num_heads: int = 4,
+        scales: int = 2,
+        kernel_size: int = 7,
+        expand_ratio: float = 4,
+        use_pos_emb: bool = False,
+        downsample_block: bool = False,
+        conv_bias: float = True,
+        ls_init_value: float = 1.0,
+        drop_path_rates: list[float] | None = None,
+        norm_layer: type[nn.Module] = LayerNorm2d,
+        norm_layer_cl: type[nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+        act_layer: type[nn.Module] = nn.GELU,
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.grad_checkpointing = False
 
@@ -301,8 +299,7 @@ class EdgeNeXtStage(nn.Module):
             self.downsample = nn.Identity()
         else:
             self.downsample = nn.Sequential(
-                norm_layer(in_chs, **dd),
-                nn.Conv2d(in_chs, out_chs, kernel_size=2, stride=2, bias=conv_bias, **dd)
+                norm_layer(in_chs, **dd), nn.Conv2d(in_chs, out_chs, kernel_size=2, stride=2, bias=conv_bias, **dd)
             )
             in_chs = out_chs
 
@@ -354,32 +351,32 @@ class EdgeNeXtStage(nn.Module):
 
 class EdgeNeXt(nn.Module):
     def __init__(
-            self,
-            in_chans: int = 3,
-            num_classes: int = 1000,
-            global_pool: str = 'avg',
-            dims: Tuple[int, ...] = (24, 48, 88, 168),
-            depths: Tuple[int, ...] = (3, 3, 9, 3),
-            global_block_counts: Tuple[int, ...] = (0, 1, 1, 1),
-            kernel_sizes: Tuple[int, ...] = (3, 5, 7, 9),
-            heads: Tuple[int, ...] = (8, 8, 8, 8),
-            d2_scales: Tuple[int, ...] = (2, 2, 3, 4),
-            use_pos_emb: Tuple[bool, ...] = (False, True, False, False),
-            ls_init_value: float = 1e-6,
-            head_init_scale: float = 1.,
-            expand_ratio: float = 4,
-            downsample_block: bool = False,
-            conv_bias: bool = True,
-            stem_type: str = 'patch',
-            head_norm_first: bool = False,
-            act_layer: Type[nn.Module] = nn.GELU,
-            drop_path_rate: float = 0.,
-            drop_rate: float = 0.,
-            device=None,
-            dtype=None,
+        self,
+        in_chans: int = 3,
+        num_classes: int = 1000,
+        global_pool: str = "avg",
+        dims: tuple[int, ...] = (24, 48, 88, 168),
+        depths: tuple[int, ...] = (3, 3, 9, 3),
+        global_block_counts: tuple[int, ...] = (0, 1, 1, 1),
+        kernel_sizes: tuple[int, ...] = (3, 5, 7, 9),
+        heads: tuple[int, ...] = (8, 8, 8, 8),
+        d2_scales: tuple[int, ...] = (2, 2, 3, 4),
+        use_pos_emb: tuple[bool, ...] = (False, True, False, False),
+        ls_init_value: float = 1e-6,
+        head_init_scale: float = 1.0,
+        expand_ratio: float = 4,
+        downsample_block: bool = False,
+        conv_bias: bool = True,
+        stem_type: str = "patch",
+        head_norm_first: bool = False,
+        act_layer: type[nn.Module] = nn.GELU,
+        drop_path_rate: float = 0.0,
+        drop_rate: float = 0.0,
+        device=None,
+        dtype=None,
     ):
         super().__init__()
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         self.num_classes = num_classes
         self.in_chans = in_chans
         self.global_pool = global_pool
@@ -388,10 +385,17 @@ class EdgeNeXt(nn.Module):
         norm_layer_cl = partial(nn.LayerNorm, eps=1e-6)
         self.feature_info = []
 
-        assert stem_type in ('patch', 'overlap')
-        if stem_type == 'patch':
+        assert stem_type in ("patch", "overlap")
+        if stem_type == "patch":
             self.stem = nn.Sequential(
-                nn.Conv2d(in_chans, dims[0], kernel_size=4, stride=4, bias=conv_bias, **dd,),
+                nn.Conv2d(
+                    in_chans,
+                    dims[0],
+                    kernel_size=4,
+                    stride=4,
+                    bias=conv_bias,
+                    **dd,
+                ),
                 norm_layer(dims[0], **dd),
             )
         else:
@@ -408,29 +412,31 @@ class EdgeNeXt(nn.Module):
             stride = 2 if curr_stride == 2 or i > 0 else 1
             # FIXME support dilation / output_stride
             curr_stride *= stride
-            stages.append(EdgeNeXtStage(
-                in_chs=in_chs,
-                out_chs=dims[i],
-                stride=stride,
-                depth=depths[i],
-                num_global_blocks=global_block_counts[i],
-                num_heads=heads[i],
-                drop_path_rates=dp_rates[i],
-                scales=d2_scales[i],
-                expand_ratio=expand_ratio,
-                kernel_size=kernel_sizes[i],
-                use_pos_emb=use_pos_emb[i],
-                ls_init_value=ls_init_value,
-                downsample_block=downsample_block,
-                conv_bias=conv_bias,
-                norm_layer=norm_layer,
-                norm_layer_cl=norm_layer_cl,
-                act_layer=act_layer,
-                **dd,
-            ))
+            stages.append(
+                EdgeNeXtStage(
+                    in_chs=in_chs,
+                    out_chs=dims[i],
+                    stride=stride,
+                    depth=depths[i],
+                    num_global_blocks=global_block_counts[i],
+                    num_heads=heads[i],
+                    drop_path_rates=dp_rates[i],
+                    scales=d2_scales[i],
+                    expand_ratio=expand_ratio,
+                    kernel_size=kernel_sizes[i],
+                    use_pos_emb=use_pos_emb[i],
+                    ls_init_value=ls_init_value,
+                    downsample_block=downsample_block,
+                    conv_bias=conv_bias,
+                    norm_layer=norm_layer,
+                    norm_layer_cl=norm_layer_cl,
+                    act_layer=act_layer,
+                    **dd,
+                )
+            )
             # NOTE feature_info use currently assumes stage 0 == stride 1, rest are stride 2
             in_chs = dims[i]
-            self.feature_info += [dict(num_chs=in_chs, reduction=curr_stride, module=f'stages.{i}')]
+            self.feature_info += [{"num_chs": in_chs, "reduction": curr_stride, "module": f"stages.{i}"}]
 
         self.stages = nn.Sequential(*stages)
 
@@ -459,14 +465,16 @@ class EdgeNeXt(nn.Module):
 
     @torch.jit.ignore
     def group_matcher(self, coarse=False):
-        return dict(
-            stem=r'^stem',
-            blocks=r'^stages\.(\d+)' if coarse else [
-                (r'^stages\.(\d+)\.downsample', (0,)),  # blocks
-                (r'^stages\.(\d+)\.blocks\.(\d+)', None),
-                (r'^norm_pre', (99999,))
-            ]
-        )
+        return {
+            "stem": r"^stem",
+            "blocks": r"^stages\.(\d+)"
+            if coarse
+            else [
+                (r"^stages\.(\d+)\.downsample", (0,)),  # blocks
+                (r"^stages\.(\d+)\.blocks\.(\d+)", None),
+                (r"^norm_pre", (99999,)),
+            ],
+        }
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
@@ -477,20 +485,20 @@ class EdgeNeXt(nn.Module):
     def get_classifier(self) -> nn.Module:
         return self.head.fc
 
-    def reset_classifier(self, num_classes: int, global_pool: Optional[str] = None):
+    def reset_classifier(self, num_classes: int, global_pool: str | None = None):
         self.num_classes = num_classes
         self.head.reset(num_classes, global_pool)
 
     def forward_intermediates(
-            self,
-            x: torch.Tensor,
-            indices: Optional[Union[int, List[int]]] = None,
-            norm: bool = False,
-            stop_early: bool = False,
-            output_fmt: str = 'NCHW',
-            intermediates_only: bool = False,
-    ) -> Union[List[torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]:
-        """ Forward features that returns intermediates.
+        self,
+        x: torch.Tensor,
+        indices: int | list[int] | None = None,
+        norm: bool = False,
+        stop_early: bool = False,
+        output_fmt: str = "NCHW",
+        intermediates_only: bool = False,
+    ) -> list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
+        """Forward features that returns intermediates.
 
         Args:
             x: Input image tensor
@@ -499,10 +507,8 @@ class EdgeNeXt(nn.Module):
             stop_early: Stop iterating over blocks when last desired intermediate hit
             output_fmt: Shape of intermediate feature outputs
             intermediates_only: Only return intermediate features
-        Returns:
-
         """
-        assert output_fmt in ('NCHW',), 'Output shape must be NCHW.'
+        assert output_fmt in ("NCHW",), "Output shape must be NCHW."
         intermediates = []
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
 
@@ -512,7 +518,7 @@ class EdgeNeXt(nn.Module):
         if torch.jit.is_scripting() or not stop_early:  # can't slice blocks in torchscript
             stages = self.stages
         else:
-            stages = self.stages[:max_index + 1]
+            stages = self.stages[: max_index + 1]
 
         for feat_idx, stage in enumerate(stages):
             x = stage(x)
@@ -532,19 +538,18 @@ class EdgeNeXt(nn.Module):
         return x, intermediates
 
     def prune_intermediate_layers(
-            self,
-            indices: Union[int, List[int]] = 1,
-            prune_norm: bool = False,
-            prune_head: bool = True,
+        self,
+        indices: int | list[int] = 1,
+        prune_norm: bool = False,
+        prune_head: bool = True,
     ):
-        """ Prune layers not required for specified intermediates.
-        """
+        """Prune layers not required for specified intermediates."""
         take_indices, max_index = feature_take_indices(len(self.stages), indices)
-        self.stages = self.stages[:max_index + 1]  # truncate blocks w/ stem as idx 0
+        self.stages = self.stages[: max_index + 1]  # truncate blocks w/ stem as idx 0
         if prune_norm:
             self.norm_pre = nn.Identity()
         if prune_head:
-            self.reset_classifier(0, '')
+            self.reset_classifier(0, "")
         return take_indices
 
     def forward_features(self, x):
@@ -564,42 +569,43 @@ class EdgeNeXt(nn.Module):
 
 def _init_weights(module, name=None, head_init_scale=1.0):
     if isinstance(module, nn.Conv2d):
-        trunc_normal_tf_(module.weight, std=.02)
+        trunc_normal_tf_(module.weight, std=0.02)
         if module.bias is not None:
             nn.init.zeros_(module.bias)
     elif isinstance(module, nn.Linear):
-        trunc_normal_tf_(module.weight, std=.02)
+        trunc_normal_tf_(module.weight, std=0.02)
         nn.init.zeros_(module.bias)
-        if name and 'head.' in name:
+        if name and "head." in name:
             module.weight.data.mul_(head_init_scale)
             module.bias.data.mul_(head_init_scale)
 
 
 def checkpoint_filter_fn(state_dict, model):
-    """ Remap FB checkpoints -> timm """
-    if 'head.norm.weight' in state_dict or 'norm_pre.weight' in state_dict:
+    """Remap FB checkpoints -> timm."""
+    if "head.norm.weight" in state_dict or "norm_pre.weight" in state_dict:
         return state_dict  # non-FB checkpoint
 
     # models were released as train checkpoints... :/
-    if 'model_ema' in state_dict:
-        state_dict = state_dict['model_ema']
-    elif 'model' in state_dict:
-        state_dict = state_dict['model']
-    elif 'state_dict' in state_dict:
-        state_dict = state_dict['state_dict']
+    if "model_ema" in state_dict:
+        state_dict = state_dict["model_ema"]
+    elif "model" in state_dict:
+        state_dict = state_dict["model"]
+    elif "state_dict" in state_dict:
+        state_dict = state_dict["state_dict"]
 
     out_dict = {}
     import re
+
     for k, v in state_dict.items():
-        k = k.replace('downsample_layers.0.', 'stem.')
-        k = re.sub(r'stages.([0-9]+).([0-9]+)', r'stages.\1.blocks.\2', k)
-        k = re.sub(r'downsample_layers.([0-9]+).([0-9]+)', r'stages.\1.downsample.\2', k)
-        k = k.replace('dwconv', 'conv_dw')
-        k = k.replace('pwconv', 'mlp.fc')
-        k = k.replace('head.', 'head.fc.')
-        if k.startswith('norm.'):
-            k = k.replace('norm', 'head.norm')
-        if v.ndim == 2 and 'head' not in k:
+        k = k.replace("downsample_layers.0.", "stem.")
+        k = re.sub(r"stages.([0-9]+).([0-9]+)", r"stages.\1.blocks.\2", k)
+        k = re.sub(r"downsample_layers.([0-9]+).([0-9]+)", r"stages.\1.downsample.\2", k)
+        k = k.replace("dwconv", "conv_dw")
+        k = k.replace("pwconv", "mlp.fc")
+        k = k.replace("head.", "head.fc.")
+        if k.startswith("norm."):
+            k = k.replace("norm", "head.norm")
+        if v.ndim == 2 and "head" not in k:
             model_shape = model.state_dict()[k].shape
             v = v.reshape(model_shape)
         out_dict[k] = v
@@ -608,49 +614,62 @@ def checkpoint_filter_fn(state_dict, model):
 
 def _create_edgenext(variant, pretrained=False, **kwargs):
     model = build_model_with_cfg(
-        EdgeNeXt, variant, pretrained,
+        EdgeNeXt,
+        variant,
+        pretrained,
         pretrained_filter_fn=checkpoint_filter_fn,
-        feature_cfg=dict(out_indices=(0, 1, 2, 3), flatten_sequential=True),
-        **kwargs)
+        feature_cfg={"out_indices": (0, 1, 2, 3), "flatten_sequential": True},
+        **kwargs,
+    )
     return model
 
 
-def _cfg(url='', **kwargs):
+def _cfg(url="", **kwargs):
     return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 256, 256), 'pool_size': (8, 8),
-        'crop_pct': 0.9, 'interpolation': 'bicubic',
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'stem.0', 'classifier': 'head.fc',
-        'license': 'mit',
-        **kwargs
+        "url": url,
+        "num_classes": 1000,
+        "input_size": (3, 256, 256),
+        "pool_size": (8, 8),
+        "crop_pct": 0.9,
+        "interpolation": "bicubic",
+        "mean": IMAGENET_DEFAULT_MEAN,
+        "std": IMAGENET_DEFAULT_STD,
+        "first_conv": "stem.0",
+        "classifier": "head.fc",
+        "license": "mit",
+        **kwargs,
     }
 
 
-default_cfgs = generate_default_cfgs({
-    'edgenext_xx_small.in1k': _cfg(
-        hf_hub_id='timm/',
-        test_input_size=(3, 288, 288), test_crop_pct=1.0),
-    'edgenext_x_small.in1k': _cfg(
-        hf_hub_id='timm/',
-        test_input_size=(3, 288, 288), test_crop_pct=1.0),
-    'edgenext_small.usi_in1k': _cfg(  # USI weights
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_input_size=(3, 320, 320), test_crop_pct=1.0,
-    ),
-    'edgenext_base.usi_in1k': _cfg(  # USI weights
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_input_size=(3, 320, 320), test_crop_pct=1.0,
-    ),
-    'edgenext_base.in21k_ft_in1k': _cfg(  # USI weights
-        hf_hub_id='timm/',
-        crop_pct=0.95, test_input_size=(3, 320, 320), test_crop_pct=1.0,
-    ),
-    'edgenext_small_rw.sw_in1k': _cfg(
-        hf_hub_id='timm/',
-        test_input_size=(3, 320, 320), test_crop_pct=1.0,
-    ),
-})
+default_cfgs = generate_default_cfgs(
+    {
+        "edgenext_xx_small.in1k": _cfg(hf_hub_id="timm/", test_input_size=(3, 288, 288), test_crop_pct=1.0),
+        "edgenext_x_small.in1k": _cfg(hf_hub_id="timm/", test_input_size=(3, 288, 288), test_crop_pct=1.0),
+        "edgenext_small.usi_in1k": _cfg(  # USI weights
+            hf_hub_id="timm/",
+            crop_pct=0.95,
+            test_input_size=(3, 320, 320),
+            test_crop_pct=1.0,
+        ),
+        "edgenext_base.usi_in1k": _cfg(  # USI weights
+            hf_hub_id="timm/",
+            crop_pct=0.95,
+            test_input_size=(3, 320, 320),
+            test_crop_pct=1.0,
+        ),
+        "edgenext_base.in21k_ft_in1k": _cfg(  # USI weights
+            hf_hub_id="timm/",
+            crop_pct=0.95,
+            test_input_size=(3, 320, 320),
+            test_crop_pct=1.0,
+        ),
+        "edgenext_small_rw.sw_in1k": _cfg(
+            hf_hub_id="timm/",
+            test_input_size=(3, 320, 320),
+            test_crop_pct=1.0,
+        ),
+    }
+)
 
 
 @register_model
@@ -660,8 +679,8 @@ def edgenext_xx_small(pretrained=False, **kwargs) -> EdgeNeXt:
     # No AA, Color Jitter=0.4, No Mixup & Cutmix, DropPath=0.0, BS=4096, lr=0.006, multi-scale-sampler
     # Jetson FPS=51.66 versus 47.67 for MobileViT_XXS
     # For A100: FPS @ BS=1: 212.13 & @ BS=256: 7042.06 versus FPS @ BS=1: 96.68 & @ BS=256: 4624.71 for MobileViT_XXS
-    model_args = dict(depths=(2, 2, 6, 2), dims=(24, 48, 88, 168), heads=(4, 4, 4, 4))
-    return _create_edgenext('edgenext_xx_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": (2, 2, 6, 2), "dims": (24, 48, 88, 168), "heads": (4, 4, 4, 4)}
+    return _create_edgenext("edgenext_xx_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
@@ -671,8 +690,8 @@ def edgenext_x_small(pretrained=False, **kwargs) -> EdgeNeXt:
     # No AA, No Mixup & Cutmix, DropPath=0.0, BS=4096, lr=0.006, multi-scale-sampler
     # Jetson FPS=31.61 versus 28.49 for MobileViT_XS
     # For A100: FPS @ BS=1: 179.55 & @ BS=256: 4404.95 versus FPS @ BS=1: 94.55 & @ BS=256: 2361.53 for MobileViT_XS
-    model_args = dict(depths=(3, 3, 9, 3), dims=(32, 64, 100, 192), heads=(4, 4, 4, 4))
-    return _create_edgenext('edgenext_x_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": (3, 3, 9, 3), "dims": (32, 64, 100, 192), "heads": (4, 4, 4, 4)}
+    return _create_edgenext("edgenext_x_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
@@ -682,8 +701,8 @@ def edgenext_small(pretrained=False, **kwargs) -> EdgeNeXt:
     # AA=True, No Mixup & Cutmix, DropPath=0.1, BS=4096, lr=0.006, multi-scale-sampler
     # Jetson FPS=20.47 versus 18.86 for MobileViT_S
     # For A100: FPS @ BS=1: 172.33 & @ BS=256: 3010.25 versus FPS @ BS=1: 93.84 & @ BS=256: 1785.92 for MobileViT_S
-    model_args = dict(depths=(3, 3, 9, 3), dims=(48, 96, 160, 304))
-    return _create_edgenext('edgenext_small', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": (3, 3, 9, 3), "dims": (48, 96, 160, 304)}
+    return _create_edgenext("edgenext_small", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
@@ -693,14 +712,17 @@ def edgenext_base(pretrained=False, **kwargs) -> EdgeNeXt:
     # AA=True, Mixup & Cutmix, DropPath=0.1, BS=4096, lr=0.006, multi-scale-sampler
     # Jetson FPS=xx.xx versus xx.xx for MobileViT_S
     # For A100: FPS @ BS=1: xxx.xx & @ BS=256: xxxx.xx
-    model_args = dict(depths=[3, 3, 9, 3], dims=[80, 160, 288, 584])
-    return _create_edgenext('edgenext_base', pretrained=pretrained, **dict(model_args, **kwargs))
+    model_args = {"depths": [3, 3, 9, 3], "dims": [80, 160, 288, 584]}
+    return _create_edgenext("edgenext_base", pretrained=pretrained, **dict(model_args, **kwargs))
 
 
 @register_model
 def edgenext_small_rw(pretrained=False, **kwargs) -> EdgeNeXt:
-    model_args = dict(
-        depths=(3, 3, 9, 3), dims=(48, 96, 192, 384),
-        downsample_block=True, conv_bias=False, stem_type='overlap')
-    return _create_edgenext('edgenext_small_rw', pretrained=pretrained, **dict(model_args, **kwargs))
-
+    model_args = {
+        "depths": (3, 3, 9, 3),
+        "dims": (48, 96, 192, 384),
+        "downsample_block": True,
+        "conv_bias": False,
+        "stem_type": "overlap",
+    }
+    return _create_edgenext("edgenext_small_rw", pretrained=pretrained, **dict(model_args, **kwargs))

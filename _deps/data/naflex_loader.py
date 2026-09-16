@@ -9,17 +9,17 @@ This module provides a specialized data loader for Vision Transformer models tha
 Hacked together by / Copyright 2025, Ross Wightman, Hugging Face
 """
 
-import math
+from __future__ import annotations
+
 from contextlib import suppress
 from functools import partial
-from typing import Callable, Dict, Iterator, List, Optional, Tuple, Union
-
+from typing import Callable, Iterator
 
 import torch
 
 from .constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from .loader import _worker_init, adapt_to_chs
-from .naflex_dataset import NaFlexMapDatasetWrapper, NaFlexCollator
+from .naflex_dataset import NaFlexCollator, NaFlexMapDatasetWrapper
 from .naflex_random_erasing import PatchRandomErasing
 from .transforms_factory import create_transform
 
@@ -28,18 +28,18 @@ class NaFlexPrefetchLoader:
     """Data prefetcher for NaFlex format which normalizes patches."""
 
     def __init__(
-            self,
-            loader: torch.utils.data.DataLoader,
-            mean: Tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
-            std: Tuple[float, ...] = IMAGENET_DEFAULT_STD,
-            channels: int = 3,
-            device: torch.device = torch.device('cuda'),
-            img_dtype: Optional[torch.dtype] = None,
-            re_prob: float = 0.,
-            re_mode: str = 'const',
-            re_count: int = 1,
-            re_num_splits: int = 0,
-        ) -> None:
+        self,
+        loader: torch.utils.data.DataLoader,
+        mean: tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
+        std: tuple[float, ...] = IMAGENET_DEFAULT_STD,
+        channels: int = 3,
+        device: torch.device = torch.device("cuda"),
+        img_dtype: torch.dtype | None = None,
+        re_prob: float = 0.0,
+        re_mode: str = "const",
+        re_count: int = 1,
+        re_num_splits: int = 0,
+    ) -> None:
         """Initialize NaFlexPrefetchLoader.
 
         Args:
@@ -63,12 +63,10 @@ class NaFlexPrefetchLoader:
         std = adapt_to_chs(std, channels)
         normalization_shape = (1, 1, channels)
         self.channels = channels
-        self.mean = torch.tensor(
-            [x * 255 for x in mean], device=device, dtype=self.img_dtype).view(normalization_shape)
-        self.std = torch.tensor(
-            [x * 255 for x in std], device=device, dtype=self.img_dtype).view(normalization_shape)
+        self.mean = torch.tensor([x * 255 for x in mean], device=device, dtype=self.img_dtype).view(normalization_shape)
+        self.std = torch.tensor([x * 255 for x in std], device=device, dtype=self.img_dtype).view(normalization_shape)
 
-        if re_prob > 0.:
+        if re_prob > 0.0:
             self.random_erasing = PatchRandomErasing(
                 erase_prob=re_prob,
                 mode=re_mode,
@@ -80,10 +78,10 @@ class NaFlexPrefetchLoader:
             self.random_erasing = None
 
         # Check for CUDA/NPU availability
-        self.is_cuda = device.type == 'cuda' and torch.cuda.is_available()
-        self.is_npu = device.type == 'npu' and torch.npu.is_available()
+        self.is_cuda = device.type == "cuda" and torch.cuda.is_available()
+        self.is_npu = device.type == "npu" and torch.npu.is_available()
 
-    def __iter__(self) -> Iterator[Tuple[Dict[str, torch.Tensor], torch.Tensor]]:
+    def __iter__(self) -> Iterator[tuple[dict[str, torch.Tensor], torch.Tensor]]:
         """Iterate through the loader with prefetching and normalization.
 
         Yields:
@@ -105,7 +103,7 @@ class NaFlexPrefetchLoader:
                 # Move all tensors in input_dict to device
                 for k, v in next_input_dict.items():
                     if isinstance(v, torch.Tensor):
-                        dtype = self.img_dtype if k == 'patches' else None
+                        dtype = self.img_dtype if k == "patches" else None
                         next_input_dict[k] = next_input_dict[k].to(
                             device=self.device,
                             non_blocking=True,
@@ -115,17 +113,17 @@ class NaFlexPrefetchLoader:
                 next_target = next_target.to(device=self.device, non_blocking=True)
 
                 # Normalize patch values - handle both [B, N, P*P*C] and [B, N, Ph, Pw, C] formats
-                patches_tensor = next_input_dict['patches']
+                patches_tensor = next_input_dict["patches"]
                 original_shape = patches_tensor.shape
 
                 if patches_tensor.ndim == 3:
                     # Format: [B, N, P*P*C] - flattened patches
-                    batch_size, num_patches, patch_pixels = original_shape
+                    batch_size, num_patches, _patch_pixels = original_shape
                     # To [B*N, P*P, C] for normalization and erasing
                     patches = patches_tensor.view(batch_size, num_patches, -1, self.channels)
                 elif patches_tensor.ndim == 5:
                     # Format: [B, N, Ph, Pw, C] - unflattened patches (variable patch size mode)
-                    batch_size, num_patches, patch_h, patch_w, channels = original_shape
+                    batch_size, num_patches, _patch_h, _patch_w, channels = original_shape
                     assert channels == self.channels, f"Expected {self.channels} channels, got {channels}"
                     # To [B*N, Ph*Pw, C] for normalization and erasing
                     patches = patches_tensor.view(batch_size, num_patches, -1, self.channels)
@@ -138,12 +136,12 @@ class NaFlexPrefetchLoader:
                 if self.random_erasing is not None:
                     patches = self.random_erasing(
                         patches,
-                        patch_coord=next_input_dict['patch_coord'],
-                        patch_valid=next_input_dict.get('patch_valid', None),
+                        patch_coord=next_input_dict["patch_coord"],
+                        patch_valid=next_input_dict.get("patch_valid", None),
                     )
 
                 # Reshape back to original format
-                next_input_dict['patches'] = patches.view(original_shape)
+                next_input_dict["patches"] = patches.view(original_shape)
 
             if not first:
                 yield input_dict, target
@@ -189,53 +187,51 @@ class NaFlexPrefetchLoader:
 
 
 def create_naflex_loader(
-        dataset,
-        patch_size: Optional[Union[Tuple[int, int], int]] = None,
-        patch_size_choices: Optional[List[int]] = None,
-        patch_size_choice_probs: Optional[List[float]] = None,
-        train_seq_lens: Tuple[int, ...] = (128, 256, 576, 784, 1024),
-        max_seq_len: int = 576,
-        batch_size: int = 32,
-        is_training: bool = False,
-        mixup_fn: Optional[Callable] = None,
-
-        no_aug: bool = False,
-        re_prob: float = 0.,
-        re_mode: str = 'const',
-        re_count: int = 1,
-        re_split: bool = False,
-        train_crop_mode: Optional[str] = None,
-        scale: Optional[Tuple[float, float]] = None,
-        ratio: Optional[Tuple[float, float]] = None,
-        hflip: float = 0.5,
-        vflip: float = 0.,
-        color_jitter: float = 0.4,
-        color_jitter_prob: Optional[float] = None,
-        grayscale_prob: float = 0.,
-        gaussian_blur_prob: float = 0.,
-        auto_augment: Optional[str] = None,
-        num_aug_repeats: int = 0,
-        num_aug_splits: int = 0,
-        interpolation: str = 'bilinear',
-        mean: Tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
-        std: Tuple[float, ...] = IMAGENET_DEFAULT_STD,
-        crop_pct: Optional[float] = None,
-        crop_mode: Optional[str] = None,
-        crop_border_pixels: Optional[int] = None,
-
-        num_workers: int = 4,
-        distributed: bool = False,
-        rank: int = 0,
-        world_size: int = 1,
-        seed: int = 42,
-        epoch: int = 0,
-        use_prefetcher: bool = True,
-        pin_memory: bool = True,
-        img_dtype: torch.dtype = torch.float32,
-        device: Union[str, torch.device] = torch.device('cuda'),
-        persistent_workers: bool = True,
-        worker_seeding: str = 'all',
-    ) -> Union[torch.utils.data.DataLoader, NaFlexPrefetchLoader]:
+    dataset,
+    patch_size: tuple[int, int] | int | None = None,
+    patch_size_choices: list[int] | None = None,
+    patch_size_choice_probs: list[float] | None = None,
+    train_seq_lens: tuple[int, ...] = (128, 256, 576, 784, 1024),
+    max_seq_len: int = 576,
+    batch_size: int = 32,
+    is_training: bool = False,
+    mixup_fn: Callable | None = None,
+    no_aug: bool = False,
+    re_prob: float = 0.0,
+    re_mode: str = "const",
+    re_count: int = 1,
+    re_split: bool = False,
+    train_crop_mode: str | None = None,
+    scale: tuple[float, float] | None = None,
+    ratio: tuple[float, float] | None = None,
+    hflip: float = 0.5,
+    vflip: float = 0.0,
+    color_jitter: float = 0.4,
+    color_jitter_prob: float | None = None,
+    grayscale_prob: float = 0.0,
+    gaussian_blur_prob: float = 0.0,
+    auto_augment: str | None = None,
+    num_aug_repeats: int = 0,
+    num_aug_splits: int = 0,
+    interpolation: str = "bilinear",
+    mean: tuple[float, ...] = IMAGENET_DEFAULT_MEAN,
+    std: tuple[float, ...] = IMAGENET_DEFAULT_STD,
+    crop_pct: float | None = None,
+    crop_mode: str | None = None,
+    crop_border_pixels: int | None = None,
+    num_workers: int = 4,
+    distributed: bool = False,
+    rank: int = 0,
+    world_size: int = 1,
+    seed: int = 42,
+    epoch: int = 0,
+    use_prefetcher: bool = True,
+    pin_memory: bool = True,
+    img_dtype: torch.dtype = torch.float32,
+    device: str | torch.device = torch.device("cuda"),
+    persistent_workers: bool = True,
+    worker_seeding: str = "all",
+) -> torch.utils.data.DataLoader | NaFlexPrefetchLoader:
     """Create a data loader with dynamic sequence length sampling for training.
 
     Args:
@@ -287,10 +283,9 @@ def create_naflex_loader(
     Returns:
         DataLoader or NaFlexPrefetchLoader instance.
     """
-
     if is_training:
         # For training, use the dynamic sequence length mechanism
-        assert num_aug_repeats == 0, 'Augmentation repeats not currently supported in NaFlex loader'
+        assert num_aug_repeats == 0, "Augmentation repeats not currently supported in NaFlex loader"
 
         transform_factory = partial(
             create_transform,
@@ -351,7 +346,7 @@ def create_naflex_loader(
             sampler=None,
             pin_memory=pin_memory,
             worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding),
-            persistent_workers=persistent_workers
+            persistent_workers=persistent_workers,
         )
 
         if use_prefetcher:
@@ -389,6 +384,7 @@ def create_naflex_loader(
         if distributed and not isinstance(dataset, torch.utils.data.IterableDataset):
             # For validation, use OrderedDistributedSampler
             from timm.data.distributed_sampler import OrderedDistributedSampler
+
             sampler = OrderedDistributedSampler(dataset)
 
         loader = torch.utils.data.DataLoader(

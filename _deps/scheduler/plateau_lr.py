@@ -1,11 +1,15 @@
-""" Plateau Scheduler
+"""Plateau Scheduler.
 
 Adapts PyTorch plateau scheduler and allows application of noise, warmup.
 
 Hacked together by / Copyright 2020 Ross Wightman
 """
+
+from __future__ import annotations
+
+from typing import Any
+
 import torch
-from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .scheduler import Scheduler
 
@@ -14,26 +18,26 @@ class PlateauLRScheduler(Scheduler):
     """Decay the LR by a factor every time the validation loss plateaus."""
 
     def __init__(
-            self,
-            optimizer: torch.optim.Optimizer,
-            decay_rate: float = 0.1,
-            patience_t: int = 10,
-            threshold: float = 1e-4,
-            cooldown_t: int = 0,
-            warmup_t: int = 0,
-            warmup_lr_init: float = 0.,
-            lr_min: float = 0.,
-            mode: str = 'max',
-            noise_range_t: Union[List[int], Tuple[int, int], int, None] = None,
-            noise_type: str = 'normal',
-            noise_pct: float = 0.67,
-            noise_std: float = 1.0,
-            noise_seed: Optional[int] = None,
-            initialize: bool = True,
+        self,
+        optimizer: torch.optim.Optimizer,
+        decay_rate: float = 0.1,
+        patience_t: int = 10,
+        threshold: float = 1e-4,
+        cooldown_t: int = 0,
+        warmup_t: int = 0,
+        warmup_lr_init: float = 0.0,
+        lr_min: float = 0.0,
+        mode: str = "max",
+        noise_range_t: list[int] | tuple[int, int] | int | None = None,
+        noise_type: str = "normal",
+        noise_pct: float = 0.67,
+        noise_std: float = 1.0,
+        noise_seed: int | None = None,
+        initialize: bool = True,
     ) -> None:
         super().__init__(
             optimizer,
-            'lr',
+            "lr",
             noise_range_t=noise_range_t,
             noise_type=noise_type,
             noise_pct=noise_pct,
@@ -61,19 +65,19 @@ class PlateauLRScheduler(Scheduler):
             self.warmup_steps = [1 for _ in self.base_values]
         self.restore_lr = None
 
-    def state_dict(self) -> Dict[str, Any]:
+    def state_dict(self) -> dict[str, Any]:
         return {
-            'best': self.lr_scheduler.best,
-            'last_epoch': self.lr_scheduler.last_epoch,
+            "best": self.lr_scheduler.best,
+            "last_epoch": self.lr_scheduler.last_epoch,
         }
 
-    def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
-        self.lr_scheduler.best = state_dict['best']
-        if 'last_epoch' in state_dict:
-            self.lr_scheduler.last_epoch = state_dict['last_epoch']
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        self.lr_scheduler.best = state_dict["best"]
+        if "last_epoch" in state_dict:
+            self.lr_scheduler.last_epoch = state_dict["last_epoch"]
 
     # override the base class step fn completely
-    def step(self, epoch: int, metric: Optional[float] = None) -> None:
+    def step(self, epoch: int, metric: float | None = None) -> None:
         if epoch <= self.warmup_t:
             lrs = [self.warmup_lr_init + epoch * s for s in self.warmup_steps]
             super().update_groups(lrs)
@@ -81,7 +85,7 @@ class PlateauLRScheduler(Scheduler):
             if self.restore_lr is not None:
                 # restore actual LR from before our last noise perturbation before stepping base
                 for i, param_group in enumerate(self.optimizer.param_groups):
-                    param_group['lr'] = self.restore_lr[i]
+                    param_group["lr"] = self.restore_lr[i]
                 self.restore_lr = None
 
             # step the base scheduler if metric given
@@ -91,7 +95,7 @@ class PlateauLRScheduler(Scheduler):
             if self._is_apply_noise(epoch):
                 self._apply_noise(epoch)
 
-    def step_update(self, num_updates: int, metric: Optional[float] = None):
+    def step_update(self, num_updates: int, metric: float | None = None):
         return None
 
     def _apply_noise(self, epoch: int) -> None:
@@ -101,11 +105,11 @@ class PlateauLRScheduler(Scheduler):
         # stepping of base scheduler
         restore_lr = []
         for i, param_group in enumerate(self.optimizer.param_groups):
-            old_lr = float(param_group['lr'])
+            old_lr = float(param_group["lr"])
             restore_lr.append(old_lr)
             new_lr = old_lr + old_lr * noise
-            param_group['lr'] = new_lr
+            param_group["lr"] = new_lr
         self.restore_lr = restore_lr
 
-    def _get_lr(self, t: int) -> List[float]:
-        assert False, 'should not be called as step is overridden'
+    def _get_lr(self, t: int) -> list[float]:
+        assert False, "should not be called as step is overridden"
