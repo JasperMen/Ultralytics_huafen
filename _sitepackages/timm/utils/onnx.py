@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, List
+from __future__ import annotations
 
 import torch
 
@@ -15,22 +15,22 @@ def onnx_forward(onnx_file, example_input):
 
 
 def onnx_export(
-        model: torch.nn.Module,
-        output_file: str,
-        example_input: Optional[torch.Tensor] = None,
-        training: bool = False,
-        verbose: bool = False,
-        check: bool = True,
-        check_forward: bool = False,
-        batch_size: int = 64,
-        input_size: Tuple[int, int, int] = None,
-        opset: Optional[int] = None,
-        dynamic_size: bool = False,
-        aten_fallback: bool = False,
-        keep_initializers: Optional[bool] = None,
-        use_dynamo: bool = False,
-        input_names: List[str] = None,
-        output_names: List[str] = None,
+    model: torch.nn.Module,
+    output_file: str,
+    example_input: torch.Tensor | None = None,
+    training: bool = False,
+    verbose: bool = False,
+    check: bool = True,
+    check_forward: bool = False,
+    batch_size: int = 64,
+    input_size: tuple[int, int, int] | None = None,
+    opset: int | None = None,
+    dynamic_size: bool = False,
+    aten_fallback: bool = False,
+    keep_initializers: bool | None = None,
+    use_dynamo: bool = False,
+    input_names: list[str] | None = None,
+    output_names: list[str] | None = None,
 ):
     import onnx
 
@@ -43,9 +43,9 @@ def onnx_export(
 
     if example_input is None:
         if not input_size:
-            assert hasattr(model, 'default_cfg'), 'Cannot file model default config, input size must be provided'
-            input_size = model.default_cfg.get('input_size')
-        example_input = torch.randn((batch_size,) + input_size, requires_grad=training)
+            assert hasattr(model, "default_cfg"), "Cannot file model default config, input size must be provided"
+            input_size = model.default_cfg.get("input_size")
+        example_input = torch.randn((batch_size, *input_size), requires_grad=training)
 
     # Run model once before export trace, sets padding for models with Conv2dSameExport. This means
     # that the padding for models with Conv2dSameExport (most models with tf_ prefix) is fixed for
@@ -60,10 +60,10 @@ def onnx_export(
     input_names = input_names or ["input0"]
     output_names = output_names or ["output0"]
 
-    dynamic_axes = {'input0': {0: 'batch'}, 'output0': {0: 'batch'}}
+    dynamic_axes = {"input0": {0: "batch"}, "output0": {0: "batch"}}
     if dynamic_size:
-        dynamic_axes['input0'][2] = 'height'
-        dynamic_axes['input0'][3] = 'width'
+        dynamic_axes["input0"][2] = "height"
+        dynamic_axes["input0"][3] = "width"
 
     if aten_fallback:
         export_type = torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK
@@ -91,7 +91,7 @@ def onnx_export(
             keep_initializers_as_inputs=keep_initializers,
             dynamic_axes=dynamic_axes,
             opset_version=opset,
-            operator_export_type=export_type
+            operator_export_type=export_type,
         )
 
     if check:
@@ -99,6 +99,6 @@ def onnx_export(
         onnx.checker.check_model(onnx_model, full_check=True)  # assuming throw on error
         if check_forward and not training:
             import numpy as np
+
             onnx_out = onnx_forward(output_file, example_input)
             np.testing.assert_almost_equal(original_out.numpy(), onnx_out, decimal=3)
-

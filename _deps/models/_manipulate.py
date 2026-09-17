@@ -1,21 +1,31 @@
+from __future__ import annotations
+
 import collections.abc
 import math
 import re
 from collections import defaultdict
 from itertools import chain
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Iterator
 
 import torch
 import torch.utils.checkpoint
-from torch import nn as nn
-from torch import Tensor
-
 from timm.layers import use_reentrant_ckpt
+from torch import Tensor, nn
 
-
-__all__ = ['model_parameters', 'named_apply', 'named_modules', 'named_modules_with_params', 'adapt_input_conv',
-           'group_with_matcher', 'group_modules', 'group_parameters', 'flatten_modules', 'checkpoint_seq', 'checkpoint',
-           'reinit_non_persistent_buffers']
+__all__ = [
+    "adapt_input_conv",
+    "checkpoint",
+    "checkpoint_seq",
+    "flatten_modules",
+    "group_modules",
+    "group_parameters",
+    "group_with_matcher",
+    "model_parameters",
+    "named_apply",
+    "named_modules",
+    "named_modules_with_params",
+    "reinit_non_persistent_buffers",
+]
 
 
 def model_parameters(model: nn.Module, exclude_head: bool = False):
@@ -27,15 +37,16 @@ def model_parameters(model: nn.Module, exclude_head: bool = False):
 
 
 def named_apply(
-        fn: Callable,
-        module: nn.Module, name='',
-        depth_first: bool = True,
-        include_root: bool = False,
+    fn: Callable,
+    module: nn.Module,
+    name="",
+    depth_first: bool = True,
+    include_root: bool = False,
 ) -> nn.Module:
     if not depth_first and include_root:
         fn(module=module, name=name)
     for child_name, child_module in module.named_children():
-        child_name = '.'.join((name, child_name)) if name else child_name
+        child_name = f"{name}.{child_name}" if name else child_name
         named_apply(fn=fn, module=child_module, name=child_name, depth_first=depth_first, include_root=True)
     if depth_first and include_root:
         fn(module=module, name=name)
@@ -43,33 +54,33 @@ def named_apply(
 
 
 def named_modules(
-        module: nn.Module,
-        name: str = '',
-        depth_first: bool = True,
-        include_root: bool = False,
+    module: nn.Module,
+    name: str = "",
+    depth_first: bool = True,
+    include_root: bool = False,
 ):
     if not depth_first and include_root:
         yield name, module
     for child_name, child_module in module.named_children():
-        child_name = '.'.join((name, child_name)) if name else child_name
-        yield from named_modules(
-            module=child_module, name=child_name, depth_first=depth_first, include_root=True)
+        child_name = f"{name}.{child_name}" if name else child_name
+        yield from named_modules(module=child_module, name=child_name, depth_first=depth_first, include_root=True)
     if depth_first and include_root:
         yield name, module
 
 
 def named_modules_with_params(
-        module: nn.Module,
-        name: str = '',
-        depth_first: bool = True,
-        include_root: bool = False,
+    module: nn.Module,
+    name: str = "",
+    depth_first: bool = True,
+    include_root: bool = False,
 ):
     if module._parameters and not depth_first and include_root:
         yield name, module
     for child_name, child_module in module.named_children():
-        child_name = '.'.join((name, child_name)) if name else child_name
+        child_name = f"{name}.{child_name}" if name else child_name
         yield from named_modules_with_params(
-            module=child_module, name=child_name, depth_first=depth_first, include_root=True)
+            module=child_module, name=child_name, depth_first=depth_first, include_root=True
+        )
     if module._parameters and depth_first and include_root:
         yield name, module
 
@@ -78,10 +89,10 @@ MATCH_PREV_GROUP = (99999,)
 
 
 def group_with_matcher(
-        named_objects: Iterator[Tuple[str, Any]],
-        group_matcher: Union[Dict, Callable],
-        return_values: bool = False,
-        reverse: bool = False
+    named_objects: Iterator[tuple[str, Any]],
+    group_matcher: dict | Callable,
+    return_values: bool = False,
+    reverse: bool = False,
 ):
     if isinstance(group_matcher, dict):
         # dictionary matcher contains a dict of raw-string regex expr that must be compiled
@@ -106,11 +117,11 @@ def group_with_matcher(
                     parts = (prefix, r.groups(), suffix)
                     # map all tuple elem to int for numeric sort, filter out None entries
                     return tuple(map(float, chain.from_iterable(filter(None, parts))))
-            return float('inf'),  # un-matched layers (neck, head) mapped to largest ordinal
+            return (float("inf"),)  # un-matched layers (neck, head) mapped to largest ordinal
         else:
             ord = group_matcher(name)
             if not isinstance(ord, collections.abc.Iterable):
-                return ord,
+                return (ord,)
             return tuple(ord)
 
     # map layers into groups via ordinals (ints or tuples of ints) from matcher
@@ -139,34 +150,34 @@ def group_with_matcher(
 
 
 def group_parameters(
-        module: nn.Module,
-        group_matcher,
-        return_values: bool = False,
-        reverse: bool = False,
+    module: nn.Module,
+    group_matcher,
+    return_values: bool = False,
+    reverse: bool = False,
 ):
-    return group_with_matcher(
-        module.named_parameters(), group_matcher, return_values=return_values, reverse=reverse)
+    return group_with_matcher(module.named_parameters(), group_matcher, return_values=return_values, reverse=reverse)
 
 
 def group_modules(
-        module: nn.Module,
-        group_matcher,
-        return_values: bool = False,
-        reverse: bool = False,
+    module: nn.Module,
+    group_matcher,
+    return_values: bool = False,
+    reverse: bool = False,
 ):
     return group_with_matcher(
-        named_modules_with_params(module), group_matcher, return_values=return_values, reverse=reverse)
+        named_modules_with_params(module), group_matcher, return_values=return_values, reverse=reverse
+    )
 
 
 def flatten_modules(
-        named_modules: Iterator[Tuple[str, nn.Module]],
-        depth: int = 1,
-        prefix: Union[str, Tuple[str, ...]] = '',
-        module_types: Union[str, Tuple[Type[nn.Module]]] = 'sequential',
+    named_modules: Iterator[tuple[str, nn.Module]],
+    depth: int = 1,
+    prefix: str | tuple[str, ...] = "",
+    module_types: str | tuple[type[nn.Module]] = "sequential",
 ):
     prefix_is_tuple = isinstance(prefix, tuple)
     if isinstance(module_types, str):
-        if module_types == 'container':
+        if module_types == "container":
             module_types = (nn.Sequential, nn.ModuleList, nn.ModuleDict)
         else:
             module_types = (nn.Sequential,)
@@ -180,24 +191,23 @@ def flatten_modules(
             )
         else:
             if prefix_is_tuple:
-                name = prefix + (name,)
+                name = (*prefix, name)
                 yield name, module
             else:
                 if prefix:
-                    name = '.'.join([prefix, name])
+                    name = f"{prefix}.{name}"
                 yield name, module
 
 
 def checkpoint(
     function,
     *args,
-    use_reentrant: Optional[bool] = None,
+    use_reentrant: bool | None = None,
     **kwargs,
 ):
-    """ checkpoint wrapper fn
+    """Checkpoint wrapper fn.
 
-    A thin wrapper around torch.utils.checkpoint.checkpoint to default
-    use_reentrant to False
+    A thin wrapper around torch.utils.checkpoint.checkpoint to default use_reentrant to False
     """
     if use_reentrant is None:
         use_reentrant = use_reentrant_ckpt()
@@ -211,20 +221,19 @@ def checkpoint(
 
 
 def checkpoint_seq(
-        functions,
-        x,
-        every: int = 1,
-        flatten: bool = False,
-        skip_last: bool = False,
-        use_reentrant: Optional[bool] = None,
+    functions,
+    x,
+    every: int = 1,
+    flatten: bool = False,
+    skip_last: bool = False,
+    use_reentrant: bool | None = None,
 ):
     r"""A helper function for checkpointing sequential models.
 
-    Sequential models execute a list of modules/functions in order
-    (sequentially). Therefore, we can divide such a sequence into segments
-    and checkpoint each segment. All segments except run in :func:`torch.no_grad`
-    manner, i.e., not storing the intermediate activations. The inputs of each
-    checkpointed segment will be saved for re-running the segment in the backward pass.
+    Sequential models execute a list of modules/functions in order (sequentially). Therefore, we can divide such a
+    sequence into segments and checkpoint each segment. All segments except run in :func:`torch.no_grad` manner, i.e.,
+    not storing the intermediate activations. The inputs of each checkpointed segment will be saved for re-running the
+    segment in the backward pass.
 
     See :func:`~torch.utils.checkpoint.checkpoint` on how checkpointing works.
 
@@ -249,7 +258,7 @@ def checkpoint_seq(
     Returns:
         Output of running :attr:`functions` sequentially on :attr:`*inputs`
 
-    Example:
+    Examples:
         >>> model = nn.Sequential(...)
         >>> input_var = checkpoint_seq(model, input_var, every=2)
     """
@@ -261,6 +270,7 @@ def checkpoint_seq(
             for j in range(start, end + 1):
                 _x = functions[j](_x)
             return _x
+
         return forward
 
     if isinstance(functions, torch.nn.Sequential):
@@ -300,24 +310,23 @@ def adapt_input_conv(in_chans: int, conv_weight: Tensor) -> Tensor:
             conv_weight = conv_weight.sum(dim=1, keepdim=True)
     elif in_chans != 3:
         if I != 3:
-            raise NotImplementedError('Weight format not supported by conversion.')
+            raise NotImplementedError("Weight format not supported by conversion.")
         else:
             # NOTE this strategy should be better than random init, but there could be other combinations of
             # the original RGB input layer weights that'd work better for specific cases.
-            repeat = int(math.ceil(in_chans / 3))
+            repeat = math.ceil(in_chans / 3)
             conv_weight = conv_weight.repeat(1, repeat, 1, 1)[:, :in_chans, :, :]
-            conv_weight *= (3 / float(in_chans))
+            conv_weight *= 3 / float(in_chans)
     conv_weight = conv_weight.to(conv_type)
     return conv_weight
 
 
-def reinit_non_persistent_buffers(model: nn.Module) -> List[str]:
+def reinit_non_persistent_buffers(model: nn.Module) -> list[str]:
     """Walk model and call init_non_persistent_buffers() on modules that have it.
 
-    This reinitializes computed buffers (like RoPE frequencies, attention bias indices)
-    that are marked as non-persistent and thus not saved in checkpoints. These buffers
-    are typically computed from module configuration and need to be reinitialized after
-    loading a checkpoint.
+    This reinitializes computed buffers (like RoPE frequencies, attention bias indices) that are marked as
+    non-persistent and thus not saved in checkpoints. These buffers are typically computed from module configuration and
+    need to be reinitialized after loading a checkpoint.
 
     Args:
         model: Model to reinitialize buffers for
@@ -325,15 +334,15 @@ def reinit_non_persistent_buffers(model: nn.Module) -> List[str]:
     Returns:
         List of module names that were reinitialized
 
-    Example:
-        >>> model = create_model('vit_base', pretrained=True)
+    Examples:
+        >>> model = create_model("vit_base", pretrained=True)
         >>> # After loading checkpoint or moving to new device
         >>> reinitialized = reinit_non_persistent_buffers(model)
         >>> print(f"Reinitialized {len(reinitialized)} modules")
     """
     reinitialized = []
     for name, module in model.named_modules():
-        if hasattr(module, 'init_non_persistent_buffers'):
+        if hasattr(module, "init_non_persistent_buffers"):
             module.init_non_persistent_buffers()
-            reinitialized.append(name if name else '(root)')
+            reinitialized.append(name if name else "(root)")
     return reinitialized

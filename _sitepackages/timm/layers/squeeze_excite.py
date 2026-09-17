@@ -1,4 +1,4 @@
-""" Squeeze-and-Excitation Channel Attention
+"""Squeeze-and-Excitation Channel Attention.
 
 An SE implementation originally based on PyTorch SE-Net impl.
 Has since evolved with additional functionality / configuration.
@@ -10,42 +10,41 @@ Paper: `CenterMask : Real-Time Anchor-Free Instance Segmentation` - https://arxi
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-from typing import Optional, Tuple, Type, Union
 
-from torch import nn as nn
+from __future__ import annotations
+
+from torch import nn
 
 from .create_act import create_act_layer
 from .helpers import make_divisible
 
 
 class SEModule(nn.Module):
-    """ SE Module as defined in original SE-Nets with a few additions
-    Additions include:
-        * divisor can be specified to keep channels % div == 0 (default: 8)
-        * reduction channels can be specified directly by arg (if rd_channels is set)
-        * reduction channels can be specified by float rd_ratio (default: 1/16)
-        * global max pooling can be added to the squeeze aggregation
-        * customizable activation, normalization, and gate layer
+    """SE Module as defined in original SE-Nets with a few additions Additions include: * divisor can be specified to
+    keep channels % div == 0 (default: 8) * reduction channels can be specified directly by arg (if rd_channels is
+    set) * reduction channels can be specified by float rd_ratio (default: 1/16) * global max pooling can be added
+    to the squeeze aggregation * customizable activation, normalization, and gate layer.
     """
+
     def __init__(
-            self,
-            channels: int,
-            rd_ratio: float = 1. / 16,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            add_maxpool: bool = False,
-            bias: bool = True,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            device=None,
-            dtype=None,
+        self,
+        channels: int,
+        rd_ratio: float = 1.0 / 16,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        add_maxpool: bool = False,
+        bias: bool = True,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] | None = None,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         self.add_maxpool = add_maxpool
         if not rd_channels:
-            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
+            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.0)
         self.fc1 = nn.Conv2d(channels, rd_channels, kernel_size=1, bias=bias, **dd)
         self.bn = norm_layer(rd_channels, **dd) if norm_layer else nn.Identity()
         self.act = create_act_layer(act_layer, inplace=True)
@@ -67,19 +66,19 @@ SqueezeExcite = SEModule  # alias
 
 
 class EffectiveSEModule(nn.Module):
-    """ 'Effective Squeeze-Excitation
-    From `CenterMask : Real-Time Anchor-Free Instance Segmentation` - https://arxiv.org/abs/1911.06667
+    """'Effective Squeeze-Excitation From `CenterMask : Real-Time Anchor-Free Instance Segmentation` -
+    https://arxiv.org/abs/1911.06667.
     """
+
     def __init__(
-            self,
-            channels: int,
-            add_maxpool: bool = False,
-            gate_layer: Union[str, Type[nn.Module]] = 'hard_sigmoid',
-            device=None,
-            dtype=None,
-            **_,
+        self,
+        channels: int,
+        add_maxpool: bool = False,
+        gate_layer: str | type[nn.Module] = "hard_sigmoid",
+        device=None,
+        dtype=None,
+        **_,
     ):
-        dd = {'device': device, 'dtype': dtype}
         super().__init__()
         self.add_maxpool = add_maxpool
         self.fc = nn.Conv2d(channels, channels, kernel_size=1, padding=0, device=device, dtype=dtype)
@@ -98,30 +97,28 @@ EffectiveSqueezeExcite = EffectiveSEModule  # alias
 
 
 class SqueezeExciteCl(nn.Module):
-    """ SE Module as defined in original SE-Nets with a few additions
-    Additions include:
-        * divisor can be specified to keep channels % div == 0 (default: 8)
-        * reduction channels can be specified directly by arg (if rd_channels is set)
-        * reduction channels can be specified by float rd_ratio (default: 1/16)
-        * global max pooling can be added to the squeeze aggregation
-        * customizable activation, normalization, and gate layer
+    """SE Module as defined in original SE-Nets with a few additions Additions include: * divisor can be specified to
+    keep channels % div == 0 (default: 8) * reduction channels can be specified directly by arg (if rd_channels is
+    set) * reduction channels can be specified by float rd_ratio (default: 1/16) * global max pooling can be added
+    to the squeeze aggregation * customizable activation, normalization, and gate layer.
     """
+
     def __init__(
-            self,
-            channels: int,
-            rd_ratio: float = 1. / 16,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            bias: bool = True,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            gate_layer: Union[str, Type[nn.Module]] = 'sigmoid',
-            device=None,
-            dtype=None,
+        self,
+        channels: int,
+        rd_ratio: float = 1.0 / 16,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        bias: bool = True,
+        act_layer: type[nn.Module] = nn.ReLU,
+        gate_layer: str | type[nn.Module] = "sigmoid",
+        device=None,
+        dtype=None,
     ):
-        dd = {'device': device, 'dtype': dtype}
+        dd = {"device": device, "dtype": dtype}
         super().__init__()
         if not rd_channels:
-            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.)
+            rd_channels = make_divisible(channels * rd_ratio, rd_divisor, round_limit=0.0)
         self.fc1 = nn.Linear(channels, rd_channels, bias=bias, **dd)
         self.act = create_act_layer(act_layer, inplace=True)
         self.fc2 = nn.Linear(rd_channels, channels, bias=bias, **dd)
