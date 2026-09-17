@@ -1,4 +1,4 @@
-""" Split Attention Conv2d (for ResNeSt Models)
+"""Split Attention Conv2d (for ResNeSt Models).
 
 Paper: `ResNeSt: Split-Attention Networks` - /https://arxiv.org/abs/2004.08955
 
@@ -6,7 +6,8 @@ Adapted from original PyTorch impl at https://github.com/zhanghang1989/ResNeSt
 
 Modified for torchscript compat, performance, and consistency with timm by Ross Wightman
 """
-from typing import Optional, Type, Union
+
+from __future__ import annotations
 
 import torch
 import torch.nn.functional as F
@@ -33,28 +34,28 @@ class RadixSoftmax(nn.Module):
 
 
 class SplitAttn(nn.Module):
-    """Split-Attention (aka Splat)
-    """
+    """Split-Attention (aka Splat)."""
+
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: Optional[int] = None,
-            kernel_size: int = 3,
-            stride: int = 1,
-            padding: Optional[int] = None,
-            dilation: int = 1,
-            groups: int = 1,
-            bias: bool = False,
-            radix: int = 2,
-            rd_ratio: float = 0.25,
-            rd_channels: Optional[int] = None,
-            rd_divisor: int = 8,
-            act_layer: Type[nn.Module] = nn.ReLU,
-            norm_layer: Optional[Type[nn.Module]] = None,
-            drop_layer: Optional[Type[nn.Module]] = None,
-            **kwargs,
+        self,
+        in_channels: int,
+        out_channels: int | None = None,
+        kernel_size: int = 3,
+        stride: int = 1,
+        padding: int | None = None,
+        dilation: int = 1,
+        groups: int = 1,
+        bias: bool = False,
+        radix: int = 2,
+        rd_ratio: float = 0.25,
+        rd_channels: int | None = None,
+        rd_divisor: int = 8,
+        act_layer: type[nn.Module] = nn.ReLU,
+        norm_layer: type[nn.Module] | None = None,
+        drop_layer: type[nn.Module] | None = None,
+        **kwargs,
     ):
-        dd = {'device': kwargs.pop('device', None), 'dtype': kwargs.pop('dtype', None)}
+        dd = {"device": kwargs.pop("device", None), "dtype": kwargs.pop("dtype", None)}
         super().__init__()
         out_channels = out_channels or in_channels
         self.radix = radix

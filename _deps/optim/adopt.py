@@ -1,4 +1,4 @@
-""" ADOPT PyTorch Optimizer
+"""ADOPT PyTorch Optimizer.
 
 ADOPT: Modified Adam Can Converge with Any β2 with the Optimal Rate: https://arxiv.org/abs/2411.02853
 
@@ -15,7 +15,10 @@ References for added functionality:
     Cautious Optimizers: https://arxiv.org/abs/2411.16085
     Why Gradients Rapidly Increase Near the End of Training: https://arxiv.org/abs/2506.02285
 """
-from typing import cast, List, Optional, Tuple, Union
+
+from __future__ import annotations
+
+from typing import List, cast
 
 import torch
 from torch import Tensor
@@ -24,6 +27,7 @@ from torch.optim.optimizer import Optimizer
 from ._types import ParamsT
 
 __all__ = ["Adopt", "adopt"]
+
 
 def _view_as_real(params, *state_and_grads):
     for i, p in enumerate(params):
@@ -36,13 +40,11 @@ def _view_as_real(params, *state_and_grads):
 def _get_scalar_dtype(is_fused=None):
     if is_fused:
         return torch.float32
-    return (
-        torch.float64 if torch.get_default_dtype() == torch.float64 else torch.float32
-    )
+    return torch.float64 if torch.get_default_dtype() == torch.float64 else torch.float32
 
 
 def _is_compiling():
-    if hasattr(torch, 'compiler') and hasattr(torch.compiler, 'is_compiling'):
+    if hasattr(torch, "compiler") and hasattr(torch.compiler, "is_compiling"):
         return torch.compiler.is_compiling()
     else:
         return False
@@ -57,32 +59,28 @@ def _get_value(x):
 
 
 class Adopt(Optimizer):
-    """
-    ADOPT: Modified Adam Can Converge with Any β2 with the Optimal Rate: https://arxiv.org/abs/2411.02853
+    """ADOPT: Modified Adam Can Converge with Any β2 with the Optimal Rate: https://arxiv.org/abs/2411.02853."""
 
-    """
     def __init__(
-            self,
-            params: ParamsT,
-            lr: Union[float, Tensor] = 1e-3,
-            betas: Tuple[float, float] = (0.9, 0.9999),
-            eps: float = 1e-6,
-            clip_exp: Optional[float] = 0.333,
-            weight_decay: float = 0.0,
-            decoupled: bool = False,
-            corrected_weight_decay: bool = False,
-            *,
-            caution: bool = False,
-            foreach: Optional[bool] = False,
-            maximize: bool = False,
-            capturable: bool = False,
-            differentiable: bool = False,
+        self,
+        params: ParamsT,
+        lr: float | Tensor = 1e-3,
+        betas: tuple[float, float] = (0.9, 0.9999),
+        eps: float = 1e-6,
+        clip_exp: float | None = 0.333,
+        weight_decay: float = 0.0,
+        decoupled: bool = False,
+        corrected_weight_decay: bool = False,
+        *,
+        caution: bool = False,
+        foreach: bool | None = False,
+        maximize: bool = False,
+        capturable: bool = False,
+        differentiable: bool = False,
     ):
         if isinstance(lr, Tensor):
             if foreach and not capturable:
-                raise ValueError(
-                    "lr as a Tensor is not supported for capturable=False and foreach=True"
-                )
+                raise ValueError("lr as a Tensor is not supported for capturable=False and foreach=True")
             if lr.numel() != 1:
                 raise ValueError("Tensor lr must be 1-element")
         if not 0.0 <= lr:
@@ -96,20 +94,20 @@ class Adopt(Optimizer):
         if not 0.0 <= weight_decay:
             raise ValueError(f"Invalid weight_decay value: {weight_decay}")
 
-        defaults = dict(
-            lr=lr,
-            betas=betas,
-            eps=eps,
-            weight_decay=weight_decay,
-            clip_exp=clip_exp,
-            decoupled=decoupled,
-            corrected_weight_decay=corrected_weight_decay,
-            caution=caution,
-            maximize=maximize,
-            foreach=foreach,
-            capturable=capturable,
-            differentiable=differentiable,
-        )
+        defaults = {
+            "lr": lr,
+            "betas": betas,
+            "eps": eps,
+            "weight_decay": weight_decay,
+            "clip_exp": clip_exp,
+            "decoupled": decoupled,
+            "corrected_weight_decay": corrected_weight_decay,
+            "caution": caution,
+            "maximize": maximize,
+            "foreach": foreach,
+            "capturable": capturable,
+            "differentiable": differentiable,
+        }
         super().__init__(params, defaults)
 
     def __setstate__(self, state):
@@ -137,13 +135,13 @@ class Adopt(Optimizer):
                     )
 
     def _init_group(
-            self,
-            group,
-            params_with_grad,
-            grads,
-            exp_avgs,
-            exp_avg_sqs,
-            state_steps,
+        self,
+        group,
+        params_with_grad,
+        grads,
+        exp_avgs,
+        exp_avg_sqs,
+        state_steps,
     ):
         has_complex = False
         for p in group["params"]:
@@ -184,14 +182,13 @@ class Adopt(Optimizer):
             state_steps.append(state["step"])
         return has_complex
 
-    #@_use_grad_for_differentiable  # FIXME internal context mgr, can't use
+    # @_use_grad_for_differentiable  # FIXME internal context mgr, can't use
     @torch.no_grad()
     def step(self, closure=None):
         """Perform a single optimization step.
 
         Args:
-            closure (Callable, optional): A closure that reevaluates the model
-                and returns the loss.
+            closure (Callable, optional): A closure that reevaluates the model and returns the loss.
         """
         self._cuda_graph_capture_health_check()
 
@@ -201,11 +198,11 @@ class Adopt(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            params_with_grad: List[Tensor] = []
-            grads: List[Tensor] = []
-            exp_avgs: List[Tensor] = []
-            exp_avg_sqs: List[Tensor] = []
-            state_steps: List[Tensor] = []
+            params_with_grad: list[Tensor] = []
+            grads: list[Tensor] = []
+            exp_avgs: list[Tensor] = []
+            exp_avg_sqs: list[Tensor] = []
+            state_steps: list[Tensor] = []
             beta1, beta2 = group["betas"]
 
             has_complex = self._init_group(
@@ -229,7 +226,7 @@ class Adopt(Optimizer):
                 lr=group["lr"],
                 weight_decay=group["weight_decay"],
                 clip_exp=group["clip_exp"],
-                max_lr=self.defaults['lr'] if group['corrected_weight_decay'] else None,
+                max_lr=self.defaults["lr"] if group["corrected_weight_decay"] else None,
                 decoupled=group["decoupled"],
                 eps=group["eps"],
                 caution=group["caution"],
@@ -245,27 +242,27 @@ class Adopt(Optimizer):
 
 
 def _single_tensor_adopt(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
-        grad_scale: Optional[Tensor],
-        found_inf: Optional[Tensor],
-        *,
-        has_complex: bool,
-        beta1: float,
-        beta2: float,
-        lr: Union[float, Tensor],
-        weight_decay: float,
-        clip_exp: Optional[float],
-        max_lr: Optional[float],
-        decoupled: bool,
-        eps: float,
-        caution: bool,
-        maximize: bool,
-        capturable: bool,
-        differentiable: bool,
+    params: list[Tensor],
+    grads: list[Tensor],
+    exp_avgs: list[Tensor],
+    exp_avg_sqs: list[Tensor],
+    state_steps: list[Tensor],
+    grad_scale: Tensor | None,
+    found_inf: Tensor | None,
+    *,
+    has_complex: bool,
+    beta1: float,
+    beta2: float,
+    lr: float | Tensor,
+    weight_decay: float,
+    clip_exp: float | None,
+    max_lr: float | None,
+    decoupled: bool,
+    eps: float,
+    caution: bool,
+    maximize: bool,
+    capturable: bool,
+    differentiable: bool,
 ):
     assert grad_scale is None and found_inf is None
 
@@ -284,9 +281,11 @@ def _single_tensor_adopt(
         # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
         if capturable and not _is_compiling():
             from torch.optim.optimizer import _get_capturable_supported_devices
+
             capturable_supported_devices = _get_capturable_supported_devices()
-            assert param.device.type == step_t.device.type and param.device.type in capturable_supported_devices,\
+            assert param.device.type == step_t.device.type and param.device.type in capturable_supported_devices, (
                 f"If capturable=True, params and state_steps must be on supported devices: {capturable_supported_devices}."
+            )
 
         # update step
         step_t += 1
@@ -308,7 +307,7 @@ def _single_tensor_adopt(
             continue
 
         if weight_decay != 0 and decoupled:
-            wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
+            wd_scale = lr**2 / max_lr if max_lr is not None else lr
             param.add_(param, alpha=-wd_scale * weight_decay)
 
         denom = torch.clamp(exp_avg_sq.sqrt(), eps)
@@ -332,42 +331,39 @@ def _single_tensor_adopt(
 
 
 def _multi_tensor_adopt(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
-        grad_scale: Optional[Tensor],
-        found_inf: Optional[Tensor],
-        *,
-        has_complex: bool,
-        beta1: float,
-        beta2: float,
-        lr: Union[float, Tensor],
-        weight_decay: float,
-        clip_exp: Optional[float],
-        max_lr: Optional[float],
-        decoupled: bool,
-        eps: float,
-        caution: bool,
-        maximize: bool,
-        capturable: bool,
-        differentiable: bool,
+    params: list[Tensor],
+    grads: list[Tensor],
+    exp_avgs: list[Tensor],
+    exp_avg_sqs: list[Tensor],
+    state_steps: list[Tensor],
+    grad_scale: Tensor | None,
+    found_inf: Tensor | None,
+    *,
+    has_complex: bool,
+    beta1: float,
+    beta2: float,
+    lr: float | Tensor,
+    weight_decay: float,
+    clip_exp: float | None,
+    max_lr: float | None,
+    decoupled: bool,
+    eps: float,
+    caution: bool,
+    maximize: bool,
+    capturable: bool,
+    differentiable: bool,
 ):
     if len(params) == 0:
         return
 
     if isinstance(lr, Tensor) and not capturable:
-        raise RuntimeError(
-            "lr as a Tensor is not supported for capturable=False and foreach=True"
-        )
+        raise RuntimeError("lr as a Tensor is not supported for capturable=False and foreach=True")
 
     # If compiling, the compiler will handle cudagraph checks, see note [torch.compile x capturable]
     if capturable and not _is_compiling():
         from torch.optim.optimizer import _get_capturable_supported_devices
-        capturable_supported_devices = _get_capturable_supported_devices(
-            supports_xla=False
-        )
+
+        capturable_supported_devices = _get_capturable_supported_devices(supports_xla=False)
         assert all(
             p.device.type == step.device.type and p.device.type in capturable_supported_devices
             for p, step in zip(params, state_steps)
@@ -381,11 +377,11 @@ def _multi_tensor_adopt(
         [params, grads, exp_avgs, exp_avg_sqs, state_steps]  # type: ignore[list-item]
     )
     for (
-            device_params_,
-            device_grads_,
-            device_exp_avgs_,
-            device_exp_avg_sqs_,
-            device_state_steps_,
+        device_params_,
+        device_grads_,
+        device_exp_avgs_,
+        device_exp_avg_sqs_,
+        device_state_steps_,
     ), _ in grouped_tensors.values():
         device_params = cast(List[Tensor], device_params_)
         device_grads = cast(List[Tensor], device_grads_)
@@ -410,7 +406,7 @@ def _multi_tensor_adopt(
             torch._foreach_add_(device_state_steps, 1)
 
         if weight_decay != 0 and not decoupled:
-            # Re-use the intermediate memory (device_grads) already allocated for maximize
+            # Reuse the intermediate memory (device_grads) already allocated for maximize
             if maximize:
                 torch._foreach_add_(device_grads, device_params, alpha=weight_decay)
             else:
@@ -421,7 +417,7 @@ def _multi_tensor_adopt(
             continue
 
         if weight_decay != 0 and decoupled:
-            wd_scale = lr ** 2 / max_lr if max_lr is not None else lr
+            wd_scale = lr**2 / max_lr if max_lr is not None else lr
             torch._foreach_add_(device_params, device_params, alpha=-wd_scale * weight_decay)
 
         exp_avg_sq_sqrt = torch._foreach_sqrt(device_exp_avg_sqs)
@@ -451,45 +447,41 @@ def _multi_tensor_adopt(
         torch._foreach_addcmul_(device_exp_avg_sqs, device_grads, device_grads, value=1 - beta2)
 
 
-#@_disable_dynamo_if_unsupported(single_tensor_fn=_single_tensor_adopt)  # FIXME internal context mgr, can't use
+# @_disable_dynamo_if_unsupported(single_tensor_fn=_single_tensor_adopt)  # FIXME internal context mgr, can't use
 def adopt(
-        params: List[Tensor],
-        grads: List[Tensor],
-        exp_avgs: List[Tensor],
-        exp_avg_sqs: List[Tensor],
-        state_steps: List[Tensor],
-        # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
-        # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
-        foreach: Optional[bool] = None,
-        capturable: bool = False,
-        differentiable: bool = False,
-        grad_scale: Optional[Tensor] = None,
-        found_inf: Optional[Tensor] = None,
-        has_complex: bool = False,
-        *,
-        beta1: float,
-        beta2: float,
-        lr: Union[float, Tensor],
-        weight_decay: float,
-        clip_exp: Optional[float],
-        max_lr: Optional[float],
-        decoupled: bool,
-        eps: float,
-        caution: bool,
-        maximize: bool,
+    params: list[Tensor],
+    grads: list[Tensor],
+    exp_avgs: list[Tensor],
+    exp_avg_sqs: list[Tensor],
+    state_steps: list[Tensor],
+    # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+    # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+    foreach: bool | None = None,
+    capturable: bool = False,
+    differentiable: bool = False,
+    grad_scale: Tensor | None = None,
+    found_inf: Tensor | None = None,
+    has_complex: bool = False,
+    *,
+    beta1: float,
+    beta2: float,
+    lr: float | Tensor,
+    weight_decay: float,
+    clip_exp: float | None,
+    max_lr: float | None,
+    decoupled: bool,
+    eps: float,
+    caution: bool,
+    maximize: bool,
 ):
-    r"""Functional API that performs ADOPT algorithm computation.
-
-    """
+    r"""Functional API that performs ADOPT algorithm computation."""
     if foreach is None:
         foreach = False
 
     # this check is slow during compilation, so we skip it
     # if it's strictly needed we can add this check back in dynamo
     if not _is_compiling() and not all(isinstance(t, torch.Tensor) for t in state_steps):
-        raise RuntimeError(
-            "API has changed, `state_steps` argument must contain a list of singleton tensors"
-        )
+        raise RuntimeError("API has changed, `state_steps` argument must contain a list of singleton tensors")
 
     if foreach and torch.jit.is_scripting():
         raise RuntimeError("torch.jit.script not supported with foreach optimizers")
